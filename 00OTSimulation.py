@@ -191,16 +191,18 @@ class OTSimulation(object):
         self.log.info(stdoutstr)
         self.log.info(stderrstr)
         
-        mchFile = "%s/%s_%s_sm%d.cat"%(self.tmpDir, objpre,tmppre,mchRadius)
-        nmhFile = "%s/%s_%s_sn%d.cat"%(self.tmpDir, objpre,tmppre,mchRadius)
+        mchPair = "%s/%s_%s_cm%d.pair"%(self.tmpDir, objpre,tmppre,mchRadius)
+        mchFile = "%s/%s_%s_cm%d.cat"%(self.tmpDir, objpre,tmppre,mchRadius)
+        nmhFile = "%s/%s_%s_cn%d.cat"%(self.tmpDir, objpre,tmppre,mchRadius)
         if os.path.exists(mchFile) and os.path.exists(nmhFile) and status==0:
             self.log.debug("run catalog match success.")
+            self.log.debug("generate pair file %s"%(mchPair))
             self.log.debug("generate matched file %s"%(mchFile))
             self.log.debug("generate not matched file %s"%(nmhFile))
         else:
             self.log.error("cross match failed.")
         
-        return mchFile, nmhFile
+        return mchFile, nmhFile, mchPair
     
     #source extract
     def runSextractor(self, fname):
@@ -262,14 +264,32 @@ class OTSimulation(object):
         self.objTmpResiCat = self.runSextractor(self.objTmpResi)
         
         #过滤“真OT”，如小行星等
-        mchFile, nmhFile = self.runCrossMatch(self.objTmpResiCat, self.obj_tmp_cn5, self.r5)
+        mchFile, nmhFile, mchPair = self.runCrossMatch(self.objTmpResiCat, self.obj_tmp_cn5, self.r5)
         otr_otcn5_cn5 = nmhFile
         otr_otcn5_cn5f = self.filtOTs(otr_otcn5_cn5,printFlag=True)
         
-        mchFile1, nmhFile1 = self.runCrossMatch(otr_otcn5_cn5f, self.osn5, self.r5)
-        mchFile2, nmhFile2 = self.runCrossMatch(otr_otcn5_cn5f, self.tsn5, self.r5)
+        mchFile1, nmhFile1, mchPair1 = self.runCrossMatch(otr_otcn5_cn5f, self.osn5, self.r5)
+        mchFile2, nmhFile2, mchPair2 = self.runCrossMatch(otr_otcn5_cn5f, self.tsn5, self.r5)
         
-    def simFOT(self, oImg, tImg):
+        tIdx1 = np.loadtxt(mchPair1)
+        tIdx2 = np.loadtxt(mchPair2)
+        self.log.debug("objectCat matched data %d, templateCat matched data %d"%(len(tdata1), len(tdata2)))
+        
+        tdata1 = np.loadtxt(otr_otcn5_cn5f)
+        tdata2 = np.loadtxt(self.osn5)
+        tdata3 = np.loadtxt(self.tsn5)
+        
+        tdata11 = tdata1[tIdx1[:0]]
+        tdata12 = tdata2[tIdx1[:1]]
+        self.log.debug("objectCat matched data %d, %d"%(len(tdata11), len(tdata12)))
+        tdata21 = tdata1[tIdx2[:0]]
+        tdata22 = tdata3[tIdx2[:1]]
+        self.log.debug("templateCat matched data %d, %d"%(len(tdata21), len(tdata22)))
+        
+        
+        
+        
+    def simTOT(self, oImg, tImg):
         
         origSamp16OTs, maxInstrMag = self.selectTempOTs(self.osn16, printFlag=True)
         
@@ -283,15 +303,15 @@ class OTSimulation(object):
         self.objectImgCat = self.runSextractor(self.objectImg)
         self.templateImgCat = self.runSextractor(self.templateImg)
         #查找“真OT”，如小行星等
-        mchFile, nmhFile = self.runCrossMatch(self.objectImgCat, self.templateImgCat, self.r5)
+        mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgCat, self.templateImgCat, self.r5)
         self.obj_tmp_cm5 = mchFile
         self.obj_tmp_cn5 = nmhFile
         
-        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, r16)
+        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r16)
         self.osn16 = nmhFile
-        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, r5)
+        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r5)
         self.osn5 = nmhFile
-        mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, r5)
+        mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r5)
         self.tsn5 = nmhFile
         
         
@@ -302,20 +322,24 @@ class OTSimulation(object):
         
         if not os.path.exists(self.tmpDir):
             os.system("mkdir %s"%(self.tmpDir))
+        
+        objectImg = 'CombZ_0.fit'
+        templateImg = 'CombZ_temp.fit'
+        self.simFOT(objectImg, templateImg)
     
     def batchSim(self):
     
         if not os.path.exists(self.tmpDir):
             os.system("mkdir %s"%(self.tmpDir))
             
-        flist = os.listdir(source_dir)
+        flist = os.listdir(self.srcDir)
         flist.sort()
         for tfilename in flist:
             if tfilename.find("jpg")>-1:
-                tpath = "%s/%s"%(source_dir, tfilename)
-                tar.add(tpath, arcname=tfilename)
+                tpath = "%s/%s"%(self.srcDir, tfilename)
             
 if __name__ == "__main__":
     
-    
+    otsim = OTSimulation()
+    otsim.testSimImage()
     
