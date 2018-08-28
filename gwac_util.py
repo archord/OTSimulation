@@ -44,7 +44,7 @@ def zscale_image(input_img, contrast=0.25):
     return zimg
 
 
-def selectTempOTs(fname, tpath, log):
+def selectTempOTs(fname, tpath):
 #   1 NUMBER                 Running object number                                     
 #   2 ALPHA_J2000            Right ascension of barycenter (J2000)                      [deg]
 #   3 DELTA_J2000            Declination of barycenter (J2000)                          [deg]
@@ -80,15 +80,10 @@ def selectTempOTs(fname, tpath, log):
     targetMagMax = targetMag+3
     tdata = tdata[(mag>targetMagMin) & (mag<targetMagMax) & (elpct<maxEllipticity) & (fwhm<targetFwhmMax)]
     
-    log.debug("total read %d objects"%(origSize[0]))
-    log.debug("mag range from %f to %f, select mag from %f to %f"%(minMag, maxMag, targetMagMin, targetMagMax))
-    log.debug("with ellipticity less than %f, and fwhm less than %f"%(maxEllipticity, targetFwhmMax))
-    log.debug("after filter, left %d objects"%(tdata.shape[0]))
-    
     ds9RegionName = "%s/%s_filter_ds9.reg"%(tpath, fname[:fname.index(".")])
     with open(ds9RegionName, 'w') as fp1:
         for tobj in tdata:
-           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%ld-%.2f} font=\"times 7\"\n"%
+           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%ld-%.2f} font=\"times 10\"\n"%
            (tobj[3], tobj[4], 4.0, tobj[0], tobj[38]))
                
     ots = []
@@ -102,7 +97,30 @@ def selectTempOTs(fname, tpath, log):
             tempStarMag1 = 16 - (maxMag - tobj[2])
             fp0.write("%.2f %.2f %.2f\n"%(tobj[0], tobj[1], tempStarMag1))
     
-    log.debug("selectTempOTs done.")
+    return outCatName
+    
+    
+def filtByEllipticity(fname, tpath, maxEllip=0.5):
+    
+    tdata = np.loadtxt("%s/%s"%(tpath, fname))
+    elpct = tdata[:,15]
+    tdata = tdata[elpct<maxEllip]
+    
+    ds9RegionName = "%s/%sfe.reg"%(tpath, fname[:fname.index(".")])
+    with open(ds9RegionName, 'w') as fp1:
+        for tobj in tdata:
+           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%ld-%.2f-%.2f} font=\"times 10\"\n"%
+           (tobj[3], tobj[4], 4.0, tobj[0], tobj[38], tobj[15]))
+               
+    ots = []
+    for tobj in tdata:
+        ots.append((tobj[3],tobj[4],tobj[38]))     
+    
+    outCatName = "%sfe.cat"%(fname[:fname.index(".")])
+    outCatPath = "%s/%s"%(tpath, outCatName)
+    with open(outCatPath, 'w') as fp0:
+        for tobj in ots:
+            fp0.write("%.2f %.2f %.2f\n"%(tobj[0], tobj[1], tobj[2]))
     
     return outCatName
 
@@ -111,7 +129,7 @@ def selectTempOTs(fname, tpath, log):
 1）过滤最暗的magRatio（5%）
 2）过滤图像边缘的fSize（200px）
 '''
-def filtOTs(fname, tpath, log, magRatio=0.05, fSize=200, imgSize=[4096,4096]):
+def filtOTs(fname, tpath, magRatio=0.05, fSize=200, imgSize=[4096,4096]):
 
     tdata = np.loadtxt("%s/%s"%(tpath, fname))
     
@@ -146,15 +164,60 @@ def filtOTs(fname, tpath, log, magRatio=0.05, fSize=200, imgSize=[4096,4096]):
     with open(outCatPath, 'w') as fp0:
         for tobj in tobjs:
            fp0.write("%.2f %.2f %.2f\n"%(tobj[0], tobj[1], tobj[2]))
-               
-    log.debug("total read %d objects"%(tdata.shape[0]))
-    log.debug("filter maxMag %f"%(maxMag))
-    log.debug("after filter, left %d objects"%(len(tobjs)))
     
     ds9RegionName = "%s/%s_filter_ds9.reg"%(tpath, fname[:fname.index(".")])
     with open(ds9RegionName, 'w') as fp1:
         for tobj in tobjs:
-           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 12\"\n"%
+           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 10\"\n"%
            (tobj[0], tobj[1], 4.0, tobj[2]))
            
     return outCatName
+    
+def getDs9Reg(fname, tpath):
+    
+    tdata = np.loadtxt("%s/%s"%(tpath, fname))
+                
+    tobjs = []
+    for obj in tdata:
+        
+        if tdata.shape[1]==3:
+            tx = obj[0]
+            ty = obj[1]
+            tmag = obj[2]
+        else:
+            tx = obj[3]
+            ty = obj[4]
+            tmag = obj[38]
+            
+        tobjs.append([tx, ty, tmag])
+            
+    ds9RegionName = "%s.reg"%(fname[:fname.index(".")])
+    ds9RegionPath = "%s/%s"%(tpath, ds9RegionName)
+    with open(ds9RegionPath, 'w') as fp1:
+        for tobj in tobjs:
+           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 10\"\n"%
+           (tobj[0], tobj[1], 4.0, tobj[2]))
+           
+    return ds9RegionName
+    
+    
+def genFinalOTDs9Reg(tname, tpath, poslist):
+    
+    objPath = "%s/%s_obj.reg"%(tpath, tname)
+    tmpPath = "%s/%s_tmp.reg"%(tpath, tname)
+    resiPath = "%s/%s_resi.reg"%(tpath, tname)
+    
+    ofp= open(objPath,'w')
+    tfp= open(tmpPath,'w')
+    rfp= open(resiPath,'w')
+    
+    for tpos in poslist:
+        ofp.write("image;circle(%.2f,%.2f,%d) # color=green width=1\n"%(tpos[0], tpos[1], 4))
+        tfp.write("image;circle(%.2f,%.2f,%d) # color=green width=1\n"%(tpos[2], tpos[3], 4))
+        rfp.write("image;circle(%.2f,%.2f,%d) # color=green width=1\n"%(tpos[4], tpos[5], 4))
+        
+    rfp.close()
+    ofp.close()
+    tfp.close()
+        
+    

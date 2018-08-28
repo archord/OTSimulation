@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import cv2
 import scipy as S
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +12,7 @@ import os
 import time
 import logging
 import subprocess
-from gwac_util import zscale_image, selectTempOTs, filtOTs
+from gwac_util import zscale_image, selectTempOTs, filtOTs, filtByEllipticity, genFinalOTDs9Reg
 from imgSim import ImageSimulation
 
 
@@ -44,6 +44,7 @@ class OTSimulation(object):
         self.r5 = 5
         self.r10 = 10
         self.r16 = 16
+        self.r24 = 24
         self.r32 = 32
         self.r46 = 46
         
@@ -143,8 +144,8 @@ class OTSimulation(object):
         process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         (stdoutstr,stderrstr) = process.communicate()
         status = process.returncode
-        self.log.info(stdoutstr)
-        self.log.info(stderrstr)
+        #self.log.info(stdoutstr)
+        #self.log.info(stderrstr)
         
         if os.path.exists(outFPath) and status==0:
             self.log.debug("run sextractor success.")
@@ -173,8 +174,8 @@ class OTSimulation(object):
         process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         (stdoutstr,stderrstr) = process.communicate()
         status = process.returncode
-        self.log.info(stdoutstr)
-        self.log.info(stderrstr)
+        #self.log.info(stdoutstr)
+        #self.log.info(stderrstr)
         
         if os.path.exists(outFPath) and status==0:
             self.log.debug("run hotpants success.")
@@ -203,33 +204,41 @@ class OTSimulation(object):
             
         return widImg
 
-    def getWindowImgs(self, resiImg, objImg, tmpImg, poslist, size):
+    def getWindowImgs(self, objImg, tmpImg, resiImg, poslist, size):
         
-        resiPath = "%s/%s"%(self.tmpDir, resiImg)
         objPath = "%s/%s"%(self.tmpDir, objImg)
         tmpPath = "%s/%s"%(self.tmpDir, tmpImg)
+        resiPath = "%s/%s"%(self.tmpDir, resiImg)
         
-        resiData = fits.getdata(resiPath)
         objData = fits.getdata(objPath)
         tmpData = fits.getdata(tmpPath)
+        resiData = fits.getdata(resiPath)
         
         i = 0
         for tpos in poslist:
-            resiWid = self.getWindowImg(resiData, (tpos[0], tpos[1]), size)
-            objWid = self.getWindowImg(objData, (tpos[2], tpos[3]), size)
-            tmpWid = self.getWindowImg(tmpData, (tpos[4], tpos[5]), size)
+            objWid = self.getWindowImg(objData, (tpos[0], tpos[1]), size)
+            tmpWid = self.getWindowImg(tmpData, (tpos[2], tpos[3]), size)
+            resiWid = self.getWindowImg(resiData, (tpos[4], tpos[5]), size)
             
             if len(resiWid)>0 and len(objWid)>0 and len(tmpWid)>0:
                 
-                resiWidz = zscale_image(resiWid)
+                self.log.debug(tpos)
+                
+                #cv2.circle(img, center, radius, color, thickness=1, lineType=8, shift=0)
+                #cv2.circle(objWid,(int(size/2),int(size/2)),2,(255,0,0),1)
+                #cv2.circle(tmpWid,(int(size/2),int(size/2)),2,(255,0,0),1)
+                #cv2.circle(resiWid,(int(size/2),int(size/2)),2,(255,0,0),1)
+                
                 objWidz = zscale_image(objWid)
                 tmpWidz = zscale_image(tmpWid)
+                resiWidz = zscale_image(resiWid)
                 conWid = np.concatenate((objWidz, tmpWidz, resiWidz), axis=1)
                 plt.imshow(conWid, cmap='gray')
                 plt.show()
                 i = i+1
-                if i>10:
+                if i>20:
                     break
+    
     
     def simFOT(self, oImg, tImg):
         
@@ -239,7 +248,7 @@ class OTSimulation(object):
         #过滤“真OT”，如小行星等
         mchFile, nmhFile, mchPair = self.runCrossMatch(self.objTmpResiCat, self.obj_tmp_cn5, self.r5)
         otr_otcn5_cn5 = nmhFile
-        otr_otcn5_cn5f = filtOTs(otr_otcn5_cn5, self.tmpDir, self.log)
+        otr_otcn5_cn5f = filtOTs(otr_otcn5_cn5, self.tmpDir)
         
         mchFile1, nmhFile1, mchPair1 = self.runCrossMatch(otr_otcn5_cn5f, self.osn5, self.r5)
         mchFile2, nmhFile2, mchPair2 = self.runCrossMatch(otr_otcn5_cn5f, self.tsn5, self.r5)
@@ -256,25 +265,24 @@ class OTSimulation(object):
         df1 = pd.DataFrame(data=tIdx1, columns=tnames1)
         df2 = pd.DataFrame(data=tIdx2, columns=tnames2)
         unionIdx=pd.merge(df1, df2, how='inner', on=['resiId'])
-        unionIdx=unionIdx.values
         self.log.debug("innerjoin objectCat and templateCat matched data %d"%(unionIdx.shape[0]))
         
         tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, otr_otcn5_cn5f))
         tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.osn5))
         tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, self.tsn5))
         
-        tdata11 = tdata1[unionIdx[:,0]]
-        tdata12 = tdata2[unionIdx[:,1]]
-        tdata22 = tdata3[unionIdx[:,2]]
+        tdata11 = tdata2[unionIdx["objId"].values]
+        tdata12 = tdata3[unionIdx["tmpId"].values]
+        tdata22 = tdata1[unionIdx["resiId"].values]
         
-        poslist = np.concatenate(([tdata11[:,0]], [tdata11[:,1]], [tdata12[:,3]], [tdata12[:,4]], [tdata22[:,3]], [tdata22[:,4]]), axis=0).transpose()
+        poslist = np.concatenate(([tdata11[:,3]], [tdata11[:,4]], [tdata12[:,3]], [tdata12[:,4]], [tdata22[:,0]], [tdata22[:,1]]), axis=0).transpose()
         #print(poslist)
         
         size = 32
         resiImg = 'oi_ti_resi.fit'
         objImg = 'oi.fit'
         tmpImg = 'ti.fit'
-        self.getWindowImgs(resiImg, objImg, tmpImg, poslist, size)
+        self.getWindowImgs(objImg, tmpImg, resiImg, poslist, size)
         
     def simFOT2(self, oImg, tImg):
                       
@@ -294,7 +302,6 @@ class OTSimulation(object):
         df1 = pd.DataFrame(data=tIdx1, columns=tnames1)
         df2 = pd.DataFrame(data=tIdx2, columns=tnames2)
         unionIdx=pd.merge(df1, df2, how='inner', on=['resiId'])
-        unionIdx=unionIdx.values
         
         otr_otcn5_cn5f = 'oi_ti_resi_oi_ti_cn5_cn5f.cat'
         self.osn5 = 'oi_sn5.cat'
@@ -304,29 +311,29 @@ class OTSimulation(object):
         tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.osn5))
         tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, self.tsn5))
         
-        tdata11 = tdata1[unionIdx[:,0]]
-        tdata12 = tdata2[unionIdx[:,1]]
-        tdata22 = tdata3[unionIdx[:,2]]
+        tdata11 = tdata2[unionIdx["objId"].values]
+        tdata12 = tdata3[unionIdx["tmpId"].values]
+        tdata22 = tdata1[unionIdx["resiId"].values]
         
-        poslist = np.concatenate(([tdata11[:,0]], [tdata11[:,1]], [tdata12[:,3]], [tdata12[:,4]], [tdata22[:,3]], [tdata22[:,4]]), axis=0).transpose()
+        poslist = np.concatenate(([tdata11[:,3]], [tdata11[:,4]], [tdata12[:,3]], [tdata12[:,4]], [tdata22[:,0]], [tdata22[:,1]]), axis=0).transpose()
         print(poslist)
         
         size = 100
         resiImg = 'oi_ti_resi.fit'
         objImg = 'oi.fit'
         tmpImg = 'ti.fit'
-        self.getWindowImgs(resiImg, objImg, tmpImg, poslist, size)
+        self.getWindowImgs(objImg, tmpImg, resiImg, poslist, size)
 
     def simTOT(self, oImg, tImg):
         
-        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r32)
+        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r24)
         self.osn32 = nmhFile
         mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r10)
         self.osn10 = nmhFile
 
-        osn16s = selectTempOTs(self.osn16, self.tmpDir, self.log)
-        osn16sf = filtOTs(osn16s, self.tmpDir, self.log)
-        osn32f = filtOTs(self.osn32, self.tmpDir, self.log)
+        osn16s = selectTempOTs(self.osn16, self.tmpDir)
+        osn16sf = filtOTs(osn16s, self.tmpDir)
+        osn32f = filtOTs(self.osn32, self.tmpDir)
         
         mchFile, nmhFile, mchPair = self.runCrossMatch(osn32f, self.tsn5, self.r5)
         osn32s_tsn5_cm5 = mchFile
@@ -340,7 +347,9 @@ class OTSimulation(object):
         self.simTmpResi = self.runHotpants(self.objectImgSim, self.templateImg)
         self.simTmpResiCat = self.runSextractor(self.simTmpResi)
         
-        mchFile, nmhFile, mchPair = self.runCrossMatch(self.simTmpResiCat, self.objectImgSimAdd, self.r5)
+        simTmpResiCatEf = filtByEllipticity(self.simTmpResiCat, self.tmpDir, maxEllip=0.2)
+        
+        mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgSimAdd, simTmpResiCatEf, self.r5)
         str_oisa_cm5 = mchFile
         str_oisa_cm5_pair = mchPair
         
@@ -350,7 +359,7 @@ class OTSimulation(object):
         self.log.debug("objectCat matched data %d, templateCat matched data %d"%(tIdx1.shape[0], tIdx2.shape[0]))
                 
         tnames1 = ['objId', 'tmpId']
-        tnames2 = ['resiId','objId']
+        tnames2 = ['objId', 'resiId']
         
         #unionIdx = np.intersect1d(tIdx1[:,0], tIdx2[:,0])  #union1d
         #self.log.debug("intersect objectCat and templateCat matched data: %d"%(unionIdx.shape[0]))
@@ -362,7 +371,7 @@ class OTSimulation(object):
         
         tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgSimAdd))
         tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.tsn5))
-        tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, self.simTmpResiCat))
+        tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, simTmpResiCatEf))
         
         simDeltaXYA = np.array(simDeltaXYA)
         tdeltaXYA = simDeltaXYA[unionIdx["objId"].values]
@@ -372,11 +381,12 @@ class OTSimulation(object):
         
         poslist = np.concatenate(([tdata11[:,0]], [tdata11[:,1]], 
                                   [tdata12[:,3]+tdeltaXYA[:,0]], [tdata12[:,4]+tdeltaXYA[:,1]], 
-                                  [tdata22[:,3]], [tdata22[:,4]]), axis=0).transpose()
+                                  [tdata22[:,0]], [tdata22[:,1]]), axis=0).transpose()
         print(poslist)
-        size = 100
-        self.getWindowImgs(self.simTmpResi, self.objectImgSim, self.templateImg, poslist, size)
+        size = 32
+        self.getWindowImgs(self.objectImgSim, self.templateImg, self.simTmpResi, poslist, size)
         
+        genFinalOTDs9Reg('tot', self.tmpDir, poslist)
         
     def simImage(self, oImg, tImg):
     

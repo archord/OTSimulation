@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import matplotlib.pyplot as plt
 from random import random, randint
 from astropy.io import fits
 import numpy as np
@@ -131,6 +132,7 @@ class ImageSimulation(object):
     
         with fits.open(destImg) as hdul:
             
+            tflag = 0
             data0 = hdul[0].data
             for posamag in otAs:
                 posa = (posamag[0],posamag[1])
@@ -139,6 +141,22 @@ class ImageSimulation(object):
                 psft = otImgs[rimgIdx]
                 flux_ratio = 10**((10 - mag_add)/2.5)
                 data0 = self.addStar(data0,psft,posa,flux_ratio=flux_ratio)
+                
+                if tflag==0:
+                    plt.imshow(psft, cmap='gray')
+                    plt.show()
+                    
+                    ctrX = math.ceil(posa[0])
+                    ctrY = math.ceil(posa[1])
+                    
+                    minx = ctrX - 16
+                    maxx = ctrX + 16
+                    miny = ctrY - 16
+                    maxy = ctrY + 16
+                    widImg=data0[miny:maxy,minx:maxx]
+                    plt.imshow(widImg, cmap='gray')
+                    plt.show()
+                    tflag=1
                 
             outpre= objImg.split(".")[0]
             regfile= "%s_simaddstar1_ds9.reg" %(outpre)
