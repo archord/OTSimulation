@@ -12,11 +12,10 @@ import os
 import time
 import logging
 import subprocess
-from gwac_util import zscale_image, selectTempOTs, filtOTs, filtByEllipticity, genFinalOTDs9Reg
+from gwac_util import zscale_image, selectTempOTs, filtOTs, filtByEllipticity, genFinalOTDs9Reg, polyfit2d, polyval2d
 from imgSim import ImageSimulation
 
-
-class OTSimulation(object):
+class OTSimulation2(object):
     def __init__(self):
         
         self.verbose = True
@@ -244,179 +243,6 @@ class OTSimulation(object):
                 #    break
                 
         return subImgs
-    
-    
-    def simFOT(self, oImg, tImg):
-        
-        self.objTmpResi = self.runHotpants(self.objectImg, self.templateImg)
-        self.objTmpResiCat = self.runSextractor(self.objTmpResi)
-        
-        #过滤“真OT”，如小行星等
-        mchFile, nmhFile, mchPair = self.runCrossMatch(self.objTmpResiCat, self.obj_tmp_cn5, self.r5)
-        otr_otcn5_cn5 = nmhFile
-        otr_otcn5_cn5f = filtOTs(otr_otcn5_cn5, self.tmpDir)
-        
-        mchFile1, nmhFile1, mchPair1 = self.runCrossMatch(otr_otcn5_cn5f, self.osn5, self.r5)
-        mchFile2, nmhFile2, mchPair2 = self.runCrossMatch(otr_otcn5_cn5f, self.tsn5, self.r5)
-        
-        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair1)).astype(np.int)
-        tIdx2 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair2)).astype(np.int)
-        self.log.debug("objectCat matched data %d, templateCat matched data %d"%(len(tIdx1), len(tIdx2)))
-        
-        #unionIdx = np.intersect1d(tIdx1[:,0], tIdx2[:,0])  #union1d
-        #self.log.debug("intersect objectCat and templateCat matched data: %d"%(unionIdx.shape[0]))
-        
-        tnames1 = ['resiId','objId']
-        tnames2 = ['resiId','tmpId']
-        df1 = pd.DataFrame(data=tIdx1, columns=tnames1)
-        df2 = pd.DataFrame(data=tIdx2, columns=tnames2)
-        unionIdx=pd.merge(df1, df2, how='inner', on=['resiId'])
-        self.log.debug("innerjoin objectCat and templateCat matched data %d"%(unionIdx.shape[0]))
-        
-        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, otr_otcn5_cn5f))
-        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.osn5))
-        tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, self.tsn5))
-        
-        tdata11 = tdata2[unionIdx["objId"].values]
-        tdata12 = tdata3[unionIdx["tmpId"].values]
-        tdata22 = tdata1[unionIdx["resiId"].values]
-        
-        poslist = np.concatenate(([tdata11[:,3]], [tdata11[:,4]], [tdata12[:,3]], [tdata12[:,4]], [tdata22[:,0]], [tdata22[:,1]]), axis=0).transpose()
-        
-        #print(poslist)
-        #genFinalOTDs9Reg('fot', self.tmpDir, poslist)
-        
-        size = self.subImgSize
-        subImgBuffer = self.getWindowImgs(self.objectImg, self.templateImg, self.objTmpResi, poslist, size)
-        
-        self.log.info("\n******************")
-        self.log.info("simulation False OT, total sub image %d"%(len(subImgBuffer)))
-        
-        rsts = np.array(subImgBuffer)
-        print(rsts.shape)
-        
-        return rsts
-        
-    def simFOT2(self, oImg, tImg):
-                      
-        mchPair1 = 'oi_ti_resi_oi_ti_cn5_cn5f_oi_sn5_cm5.pair'
-        mchPair2 = 'oi_ti_resi_oi_ti_cn5_cn5f_ti_sn5_cm5.pair'
-        
-        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair1)).astype(np.int)
-        tIdx2 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair2)).astype(np.int)
-        self.log.debug("objectCat matched data %d, templateCat matched data %d"%(tIdx1.shape[0], tIdx2.shape[0]))
-                
-        tnames1 = ['resiId','objId']
-        tnames2 = ['resiId','tmpId']
-        
-        #unionIdx = np.intersect1d(tIdx1[:,0], tIdx2[:,0])  #union1d
-        #self.log.debug("intersect objectCat and templateCat matched data: %d"%(unionIdx.shape[0]))
-        
-        df1 = pd.DataFrame(data=tIdx1, columns=tnames1)
-        df2 = pd.DataFrame(data=tIdx2, columns=tnames2)
-        unionIdx=pd.merge(df1, df2, how='inner', on=['resiId'])
-        
-        otr_otcn5_cn5f = 'oi_ti_resi_oi_ti_cn5_cn5f.cat'
-        self.osn5 = 'oi_sn5.cat'
-        self.tsn5 = 'ti_sn5.cat'
-        
-        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, otr_otcn5_cn5f))
-        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.osn5))
-        tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, self.tsn5))
-        
-        tdata11 = tdata2[unionIdx["objId"].values]
-        tdata12 = tdata3[unionIdx["tmpId"].values]
-        tdata22 = tdata1[unionIdx["resiId"].values]
-        
-        poslist = np.concatenate(([tdata11[:,3]], [tdata11[:,4]], [tdata12[:,3]], [tdata12[:,4]], [tdata22[:,0]], [tdata22[:,1]]), axis=0).transpose()
-        #print(poslist)
-        
-        size = 100
-        resiImg = 'oi_ti_resi.fit'
-        objImg = 'oi.fit'
-        tmpImg = 'ti.fit'
-        self.getWindowImgs(objImg, tmpImg, resiImg, poslist, size)
-
-    def simTOT(self, oImg, tImg, subImgNum=100):
-        
-        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, 24)
-        self.osn32 = nmhFile
-
-        osn16s = selectTempOTs(self.osn16, self.tmpDir)
-        osn16sf = filtOTs(osn16s, self.tmpDir)
-        osn32f = filtOTs(self.osn32, self.tmpDir)
-        
-        mchFile, nmhFile, mchPair = self.runCrossMatch(osn32f, self.tsn5, self.r5)
-        osn32s_tsn5_cm5 = mchFile
-        osn32s_tsn5_cm5_pair = mchPair
-        
-        totalTOT = subImgNum
-        subImgBuffer = []
-        tnum = 0
-        imgSimClass = ImageSimulation()
-        
-        ii = 1
-        while tnum<totalTOT:
-            simFile, simPosFile, simDeltaXYA = imgSimClass.simulateImage1(osn32f, self.objectImg, osn16sf, self.objectImg)
-            self.objectImgSim = simFile
-            self.objectImgSimAdd = simPosFile
-            
-            self.simTmpResi = self.runHotpants(self.objectImgSim, self.templateImg)
-            self.simTmpResiCat = self.runSextractor(self.simTmpResi)
-            
-            simTmpResiCatEf = filtByEllipticity(self.simTmpResiCat, self.tmpDir, maxEllip=0.2)
-            mchFile, nmhFile = self.runSelfMatch(simTmpResiCatEf, self.r32)
-            simTmpResiCatEf_sn32 = nmhFile
-            
-            mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgSimAdd, simTmpResiCatEf_sn32, self.r5)
-            str_oisa_cm5 = mchFile
-            str_oisa_cm5_pair = mchPair
-            
-            
-            tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, osn32s_tsn5_cm5_pair)).astype(np.int)
-            tIdx2 = np.loadtxt("%s/%s"%(self.tmpDir, str_oisa_cm5_pair)).astype(np.int)
-            self.log.debug("objectCat matched data %d, templateCat matched data %d"%(tIdx1.shape[0], tIdx2.shape[0]))
-                    
-            tnames1 = ['objId', 'tmpId']
-            tnames2 = ['objId', 'resiId']
-            
-            #unionIdx = np.intersect1d(tIdx1[:,0], tIdx2[:,0])  #union1d
-            #self.log.debug("intersect objectCat and templateCat matched data: %d"%(unionIdx.shape[0]))
-            
-            df1 = pd.DataFrame(data=tIdx1, columns=tnames1)
-            df2 = pd.DataFrame(data=tIdx2, columns=tnames2)
-            unionIdx=pd.merge(df1, df2, how='inner', on=['objId'])
-            self.log.debug("innerjoin objectCat and templateCat matched data %d"%(unionIdx.shape[0]))
-            
-            tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgSimAdd))
-            tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.tsn5))
-            tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, simTmpResiCatEf_sn32))
-            
-            simDeltaXYA = np.array(simDeltaXYA)
-            tdeltaXYA = simDeltaXYA[unionIdx["objId"].values]
-            tdata11 = tdata1[unionIdx["objId"].values]
-            tdata12 = tdata2[unionIdx["tmpId"].values]
-            tdata22 = tdata3[unionIdx["resiId"].values]
-            
-            poslist = np.concatenate(([tdata11[:,0]], [tdata11[:,1]], 
-                                      [tdata12[:,3]+tdeltaXYA[:,0]], [tdata12[:,4]+tdeltaXYA[:,1]], 
-                                      [tdata22[:,0]], [tdata22[:,1]]), axis=0).transpose()
-            #print(poslist)
-            #genFinalOTDs9Reg('tot', self.tmpDir, poslist)
-            size = self.subImgSize
-            subImgs = self.getWindowImgs(self.objectImgSim, self.templateImg, self.simTmpResi, poslist, size)
-            tnum = tnum + len(subImgs)
-            
-            subImgBuffer.extend(subImgs)
-            
-            self.log.info("\n******************")
-            self.log.info("run %d, total sub image %d"%(ii, tnum))
-            ii = ii + 1
-        
-        rsts = np.array(subImgBuffer)
-        print(rsts.shape)
-        
-        return rsts
         
     def simImage(self, oImg, tImg):
     
@@ -427,26 +253,157 @@ class OTSimulation(object):
         
         self.objectImgCat = self.runSextractor(self.objectImg)
         self.templateImgCat = self.runSextractor(self.templateImg)
-        #查找“真OT”，如小行星等
-        mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgCat, self.templateImgCat, self.r5)
-        self.obj_tmp_cm5 = mchFile
-        self.obj_tmp_cn5 = nmhFile
         
         mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r16)
         self.osn16 = nmhFile
-        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r5)
-        self.osn5 = nmhFile
+        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r10)
+        osn10 = nmhFile
+        mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r10)
+        tsn10 = nmhFile
+        
+        osn16s = selectTempOTs(self.osn16, self.tmpDir)
+        osn16sf = filtOTs(osn16s, self.tmpDir)
+        
+        imgSimClass = ImageSimulation()
+        simFile, simPosFile = imgSimClass.simulateImage2(self.objectImg, osn16sf, self.objectImg)
+        
+        simTmpResi = self.runHotpants(simFile, self.templateImg)
+        simTmpResiCat = self.runSextractor(simTmpResi)
+        mchFile, nmhFile = self.runSelfMatch(simTmpResiCat, self.r10)
+        str_sn10 = nmhFile
+        
+        str_sn10f = filtOTs(str_sn10, self.tmpDir)
+        osn10f = filtOTs(osn10, self.tmpDir)
+        tsn10f = filtOTs(tsn10, self.tmpDir)
+        
+        mchFile1, nmhFile1, mchPair1 = self.runCrossMatch(str_sn10f, simPosFile, self.r5)
+        str_sn10f_spf_cn5 = nmhFile1
+        mchFile2, nmhFile2, mchPair2 = self.runCrossMatch(osn10f, tsn10f, self.r5)
+
+        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair1)).astype(np.int)
+        tIdx2 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair2)).astype(np.int)
+
+        tdata11 = np.loadtxt("%s/%s"%(self.tmpDir, str_sn10f))
+        tdata12 = np.loadtxt("%s/%s"%(self.tmpDir, simPosFile))
+        tdata21 = np.loadtxt("%s/%s"%(self.tmpDir, osn10f))
+        tdata22 = np.loadtxt("%s/%s"%(self.tmpDir, tsn10f))
+        
+        print(str_sn10f_spf_cn5)
+        print(mchPair1)
+        print(mchPair2)
+        
+        print(str_sn10f)
+        print(simPosFile)
+        print(osn10f)
+        print(tsn10f)
+        
+        resi2objCoorResi = tdata11[tIdx1[:,0]]
+        resi2objCoorObj  = tdata12[tIdx1[:,1]]
+        obj2tmpCoorObj   = tdata21[tIdx2[:,0]]
+        obj2tmpCoorTmp   = tdata22[tIdx2[:,1]]
+        
+        tx1 = resi2objCoorResi[:,0]
+        ty1 = resi2objCoorResi[:,1]
+        tz1 = resi2objCoorObj[:,0]
+        resi2objX = polyfit2d(tx1,ty1,tz1, order=3)
+        tz1 = resi2objCoorObj[:,1]
+        resi2objY = polyfit2d(tx1,ty1,tz1, order=3)
+                
+        tx2 = obj2tmpCoorObj[:,0]
+        ty2 = obj2tmpCoorObj[:,1]
+        tz2 = obj2tmpCoorTmp[:,0]
+        obj2tmpX = polyfit2d(tx2,ty2,tz2, order=3)
+        tz2 = obj2tmpCoorTmp[:,1]
+        obj2tmpY = polyfit2d(tx2,ty2,tz2, order=3)
+
+        
         mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r5)
-        self.tsn5 = nmhFile
+        tsn5 = nmhFile
+        mchFile, nmhFile, mchPair = self.runCrossMatch(str_sn10f_spf_cn5, tsn5, self.r5)
+        resiOTCandidates = nmhFile
+        
+        resiCoors = np.loadtxt("%s/%s"%(self.tmpDir, resiOTCandidates))
+        resiX = resiCoors[:,0]
+        resiY = resiCoors[:,1]
+        
+        objX = polyval2d(resiX, resiY, resi2objX)
+        objY = polyval2d(resiX, resiY, resi2objY)
+        
+        tmpX = polyval2d(objX, objY, obj2tmpX)
+        tmpY = polyval2d(objX, objY, obj2tmpY)
+        
+        poslist = np.array([objX, objY, tmpX, tmpY, resiX, resiY]).transpose()
+        print(poslist.shape)
+        
+        print(poslist[:3,:])
+        genFinalOTDs9Reg('resi', self.tmpDir, poslist)
         
         
-        simFOTs = self.simFOT(self.objectImg, self.templateImg)
-        simTOTs = self.simTOT(self.objectImg, self.templateImg, subImgNum=simFOTs.shape[0])
+    def simImage2(self, oImg, tImg):
+    
+        str_sn10f_spf_cn5 = 'oi_sim4calib_ti_resi_sn10f_oi_sim4calib_pos_cn5.cat'
+        mchPair1 = 'oi_sim4calib_ti_resi_sn10f_oi_sim4calib_pos_cm5.pair'
+        mchPair2 = 'oi_sn10f_ti_sn10f_cm5.pair'
         
-        #pickle
-        oImgPre = oImg[:oImg.index(".")]
-        tpath = '%s/%s_otimg.npz'%(self.tmpDir, oImgPre)
-        np.savez_compressed(tpath, tot=simTOTs, fot=simFOTs)
+        str_sn10f = 'oi_sim4calib_ti_resi_sn10f.cat'
+        simPosFile = 'oi_sim4calib_pos.cat'
+        osn10f = 'oi_sn10f.cat'
+        tsn10f = 'ti_sn10f.cat'
+
+        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair1)).astype(np.int)
+        tIdx2 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair2)).astype(np.int)
+
+        tdata11 = np.loadtxt("%s/%s"%(self.tmpDir, str_sn10f))
+        tdata12 = np.loadtxt("%s/%s"%(self.tmpDir, simPosFile))
+        tdata21 = np.loadtxt("%s/%s"%(self.tmpDir, osn10f))
+        tdata22 = np.loadtxt("%s/%s"%(self.tmpDir, tsn10f))
+        
+        resi2objCoorResi = tdata11[tIdx1[:,0]]
+        resi2objCoorObj  = tdata12[tIdx1[:,1]]
+        obj2tmpCoorObj   = tdata21[tIdx2[:,0]]
+        obj2tmpCoorTmp   = tdata22[tIdx2[:,1]]
+        
+        tx1 = resi2objCoorResi[:,0]
+        ty1 = resi2objCoorResi[:,1]
+        tz1 = resi2objCoorObj[:,0]
+        resi2objX = polyfit2d(tx1,ty1,tz1, order=6)
+        tz1 = resi2objCoorObj[:,1]
+        resi2objY = polyfit2d(tx1,ty1,tz1, order=6)
+        
+        print(resi2objCoorObj[:3])
+        objX = polyval2d(tx1, ty1, resi2objX)
+        objY = polyval2d(tx1, ty1, resi2objY)
+        tarr = np.array([objX, objY]).transpose()
+        print(tarr[:3])
+        
+        tx2 = obj2tmpCoorObj[:,0]
+        ty2 = obj2tmpCoorObj[:,1]
+        tz2 = obj2tmpCoorTmp[:,0]
+        obj2tmpX = polyfit2d(tx2,ty2,tz2, order=6)
+        tz2 = obj2tmpCoorTmp[:,1]
+        obj2tmpY = polyfit2d(tx2,ty2,tz2, order=6)
+
+        
+        mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r5)
+        tsn5 = nmhFile
+        mchFile, nmhFile, mchPair = self.runCrossMatch(str_sn10f_spf_cn5, tsn5, self.r5)
+        resiOTCandidates = nmhFile
+        
+        resiCoors = np.loadtxt("%s/%s"%(self.tmpDir, resiOTCandidates))
+        resiX = resiCoors[:,0]
+        resiY = resiCoors[:,1]
+        
+        objX = polyval2d(resiX, resiY, resi2objX)
+        objY = polyval2d(resiX, resiY, resi2objY)
+        
+        tmpX = polyval2d(objX, objY, obj2tmpX)
+        tmpY = polyval2d(objX, objY, obj2tmpY)
+        
+        poslist = np.array([objX, objY, tmpX, tmpY, resiX, resiY]).transpose()
+        print(poslist.shape)
+        
+        print(poslist[:3,:])
+        genFinalOTDs9Reg('resi', self.tmpDir, poslist)
         
         
     def testSimImage(self):
@@ -456,7 +413,7 @@ class OTSimulation(object):
         
         objectImg = 'CombZ_0.fit'
         templateImg = 'CombZ_temp.fit'
-        self.simImage(objectImg, templateImg)
+        self.simImage2(objectImg, templateImg)
     
     def batchSim(self):
     
@@ -471,7 +428,7 @@ class OTSimulation(object):
             
 if __name__ == "__main__":
     
-    otsim = OTSimulation()
+    otsim = OTSimulation2()
     otsim.testSimImage()
     #otsim.simFOT2('obj', 'tmp')
     

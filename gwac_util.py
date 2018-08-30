@@ -3,6 +3,24 @@
 from astropy.stats import sigma_clip
 import numpy as np
 import math
+import itertools
+
+def polyfit2d(x, y, z, order=3):
+    ncols = (order + 1)**2
+    G = np.zeros((x.size, ncols))
+    ij = itertools.product(range(order+1), range(order+1))
+    for k, (i,j) in enumerate(ij):
+        G[:,k] = x**i * y**j
+    m, _, _, _ = np.linalg.lstsq(G, z)
+    return m
+
+def polyval2d(x, y, m):
+    order = int(np.sqrt(len(m))) - 1
+    ij = itertools.product(range(order+1), range(order+1))
+    z = np.zeros_like(x)
+    for a, (i,j) in zip(m, ij):
+        z += a * x**i * y**j
+    return z
 
 def zscale_image(input_img, contrast=0.25):
 
@@ -126,10 +144,10 @@ def filtByEllipticity(fname, tpath, maxEllip=0.5):
 
 '''
 选择部分假OT，过滤条件：
-1）过滤最暗的magRatio（5%）
+1）过滤最暗的和最亮的（3%）
 2）过滤图像边缘的fSize（200px）
 '''
-def filtOTs(fname, tpath, magRatio=0.05, fSize=200, imgSize=[4096,4096]):
+def filtOTs(fname, tpath, darkMagRatio=0.03, brightMagRatio=0.03,fSize=200, imgSize=[4096,4096]):
 
     tdata = np.loadtxt("%s/%s"%(tpath, fname))
     
@@ -143,7 +161,8 @@ def filtOTs(fname, tpath, magRatio=0.05, fSize=200, imgSize=[4096,4096]):
     else:
         mag = tdata[:,38]
     mag = np.sort(mag)
-    maxMag = mag[int((1-magRatio)*tdata.shape[0])]
+    maxMag = mag[int((1-darkMagRatio)*tdata.shape[0])]
+    minMag = mag[int(brightMagRatio*tdata.shape[0])]
             
     tobjs = []
     for obj in tdata:
@@ -156,7 +175,7 @@ def filtOTs(fname, tpath, magRatio=0.05, fSize=200, imgSize=[4096,4096]):
             tx = obj[3]
             ty = obj[4]
             tmag = obj[38]
-        if tx>minX and tx <maxX and ty>minY and ty<maxY and tmag<maxMag:
+        if tx>minX and tx <maxX and ty>minY and ty<maxY and tmag<maxMag and tmag>minMag:
             tobjs.append([tx, ty, tmag])
             
     outCatName = "%sf.cat"%(fname[:fname.index(".")])

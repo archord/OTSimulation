@@ -12,6 +12,8 @@ class ImageSimulation(object):
         self.minMag=12
         self.maxMag=16
         self.tmpDir="/run/shm/gwacsim"
+        self.otImgs = []
+        self.otImgNum = 0
 
     def getPsfTemp(self, imgData,pos,boxs=(10,10),backsky=None):
        """
@@ -58,8 +60,10 @@ class ImageSimulation(object):
             flux_ratio = 10**((tobj[2]-10)/2.5)
             star = star*flux_ratio
             otImgs.append(star)
-            
-        return otImgs
+        
+        self.otImgs = otImgs
+        self.otImgNum = len(otImgs)
+        #return otImgs
     
     def getPos(self, minDis, maxDis):
         
@@ -81,8 +85,8 @@ class ImageSimulation(object):
         
     def randomOTAPos(self, objCat, minMag=12, maxMag=16):
         
-        minDis = 15
-        maxDis = 17
+        minDis = 5
+        maxDis = 12
         
         objOTs = np.loadtxt("%s/%s"%(self.tmpDir, objCat))
         posA = self.getPos(minDis, maxDis)
@@ -121,10 +125,10 @@ class ImageSimulation(object):
     
        return image
 
-    def simulateImage1(self, objCat, objImg, tmpCat, tmpImg):
+    def simulateImage1(self, objCat, objImg, tmpCat, tmpImg, tmpOtNum=100):
         
-        otImgs = self.getTmpOtImgs(tmpCat, tmpImg, otNum=100)
-        otImgSize = len(otImgs)
+        if self.otImgNum < tmpOtNum:
+            self.getTmpOtImgs(tmpCat, tmpImg, otNum=tmpOtNum)
         
         otAs, deltaXY = self.randomOTAPos(objCat)
         
@@ -132,13 +136,13 @@ class ImageSimulation(object):
     
         with fits.open(destImg) as hdul:
             
-            tflag = 0
+            tflag = 1
             data0 = hdul[0].data
             for posamag in otAs:
                 posa = (posamag[0],posamag[1])
                 mag_add = posamag[2]
-                rimgIdx = randint(0, otImgSize-1)
-                psft = otImgs[rimgIdx]
+                rimgIdx = randint(0, self.otImgNum-1)
+                psft = self.otImgs[rimgIdx]
                 flux_ratio = 10**((10 - mag_add)/2.5)
                 data0 = self.addStar(data0,psft,posa,flux_ratio=flux_ratio)
                 
@@ -186,3 +190,59 @@ class ImageSimulation(object):
         print("simulateImageByAddStar1 done.")
         
         return outfile, posfile, deltaXY
+
+    #仿真图像，用于残差图和观测图像对齐时拟合用
+    def simulateImage2(self, objImg, tmpCat, tmpImg, tmpOtNum=1, tempStarMag=10.,
+                       maxmag=16,magbin=0.1,posbin=80,xnum=40,ynum=40,center=(3700,3700)):
+        
+        if self.otImgNum == 0:
+            self.getTmpOtImgs(tmpCat, tmpImg, otNum=tmpOtNum)
+        
+        destImg = "%s/%s"%(self.tmpDir, objImg)
+    
+        with fits.open(destImg) as hdul:
+            
+            posamags= []
+            tmag = 10
+            stx =  int(np.random.randn()*xnum) + center[0]-int(xnum*posbin)
+            sty =  int(np.random.randn()*ynum) + center[1]-int(ynum*posbin)
+            for i in range(xnum):
+                for j in range(ynum):
+                     posamags.append([i*posbin+stx,j*posbin+sty,tmag])
+            
+            psft = self.otImgs[0]
+            data0 = hdul[0].data
+            for posamag in posamags:
+                posa = (posamag[0],posamag[1])
+                mag_add = posamag[2]
+                flux_ratio = 10**((10 - mag_add)/2.5)
+                data0 = self.addStar(data0,psft,posa,flux_ratio=flux_ratio)
+                                
+            outpre= objImg.split(".")[0]
+            regfile= "%s_sim4calib_ds9.reg" %(outpre)
+            posfile= "%s_sim4calib_pos.cat" %(outpre)
+            outfile="%s_sim4calib.fit" %(outpre)
+            
+            regPath = "%s/%s"%(self.tmpDir, regfile)
+            posPath = "%s/%s"%(self.tmpDir, posfile)
+            outPath = "%s/%s"%(self.tmpDir, outfile)
+            
+            hdul_new = fits.HDUList(hdul)
+            hdul_new.writeto(outPath, overwrite=True)
+            hdul_new.close()
+            print("output simulated fits file to %s " %(outfile))
+    
+            fp1= open(regPath,'w')
+            fp2= open(posPath,'w')
+            for posamag in posamags:
+                posa = (posamag[0],posamag[1])
+                mag_add = posamag[2]
+                fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 7\"\n"%
+                   (posa[0],posa[1],10.0, mag_add))
+                fp2.write("%6.2f %6.2f %2.1f\n" %(posa[0],posa[1],mag_add))
+            fp1.close()
+            fp2.close()
+         
+        print("simulateImageByAddStar1 done.")
+        
+        return outfile, posfile
