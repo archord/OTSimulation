@@ -246,3 +246,66 @@ class ImageSimulation(object):
         print("simulateImageByAddStar1 done.")
         
         return outfile, posfile
+    
+    
+    def simulateImage3(self, objCat, objImg, tmpCat, tmpImg, simObjNum, tmpOtNum=100):
+        
+        if self.otImgNum < tmpOtNum:
+            self.getTmpOtImgs(tmpCat, tmpImg, otNum=tmpOtNum)
+        
+        otAs = []
+        deltaXY = []
+        tnum = 0
+        while tnum<simObjNum*2:
+            tot, tdlt = self.randomOTAPos(objCat)
+            
+            tnum = tnum + len(tot)
+            otAs.extend(tot)
+            deltaXY.extend(tdlt)
+            
+            print("total %d, now %d"%(simObjNum, tnum))
+        
+        destImg = "%s/%s"%(self.tmpDir, objImg)
+    
+        with fits.open(destImg) as hdul:
+            
+            data0 = hdul[0].data
+            for posamag in otAs:
+                posa = (posamag[0],posamag[1])
+                mag_add = posamag[2]
+                rimgIdx = randint(0, self.otImgNum-1)
+                psft = self.otImgs[rimgIdx]
+                flux_ratio = 10**((10 - mag_add)/2.5)
+                data0 = self.addStar(data0,psft,posa,flux_ratio=flux_ratio)
+                
+                
+            outpre= objImg.split(".")[0]
+            regfile= "%s_simaddstar1_ds9.reg" %(outpre)
+            posfile= "%s_simaddstar1_pos.cat" %(outpre)
+            outfile="%s_simaddstar1.fit" %(outpre)
+            
+            regPath = "%s/%s"%(self.tmpDir, regfile)
+            posPath = "%s/%s"%(self.tmpDir, posfile)
+            outPath = "%s/%s"%(self.tmpDir, outfile)
+            
+            hdul_new = fits.HDUList(hdul)
+            hdul_new.writeto(outPath, overwrite=True)
+            hdul_new.close()
+            print("output simulated fits file to %s " %(outfile))
+    
+            fp1= open(regPath,'w')
+            fp2= open(posPath,'w')
+            for posamag in otAs:
+                posa = (posamag[0],posamag[1])
+                mag_add = posamag[2]
+                fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 7\"\n"%
+                   (posa[0],posa[1],10.0, mag_add))
+                fp2.write("%6.2f %6.2f %2.1f\n" %(posa[0],posa[1],mag_add))
+            fp1.close()
+            fp2.close()
+         
+        print("simulateImageByAddStar1 done.")
+        
+        return outfile, posfile, deltaXY
+    
+    

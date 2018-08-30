@@ -417,6 +417,85 @@ class OTSimulation(object):
         print(rsts.shape)
         
         return rsts
+    
+    def simTOT2(self, oImg, tImg, totalSubImgNum=100):
+        
+        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, 24)
+        self.osn32 = nmhFile
+
+        osn16s = selectTempOTs(self.osn16, self.tmpDir)
+        osn16sf = filtOTs(osn16s, self.tmpDir)
+        osn32f = filtOTs(self.osn32, self.tmpDir)
+        
+        mchFile, nmhFile, mchPair = self.runCrossMatch(osn32f, self.tsn5, self.r5)
+        osn32s_tsn5_cm5 = mchFile
+        osn32s_tsn5_cm5_pair = mchPair
+        
+        subImgBuffer = []
+        
+        imgSimClass = ImageSimulation()
+        simFile, simPosFile, simDeltaXYA = imgSimClass.simulateImage3(osn32f, self.objectImg, osn16sf, self.objectImg, totalSubImgNum)
+        self.objectImgSim = simFile
+        
+        print("before filter %d"%(len(simDeltaXYA)))
+        mchFile, nmhFile = self.runSelfMatch(simPosFile, self.r5)
+        self.objectImgSimAdd = nmhFile
+        
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
+        print("after filter %d"%(tdata1.shape[0]))
+        
+        self.simTmpResi = self.runHotpants(self.objectImgSim, self.templateImg)
+        self.simTmpResiCat = self.runSextractor(self.simTmpResi)
+        
+        simTmpResiCatEf = filtByEllipticity(self.simTmpResiCat, self.tmpDir, maxEllip=0.2)
+        mchFile, nmhFile = self.runSelfMatch(simTmpResiCatEf, self.r32)
+        simTmpResiCatEf_sn32 = nmhFile
+        
+        mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgSimAdd, simTmpResiCatEf_sn32, self.r5)
+        str_oisa_cm5 = mchFile
+        str_oisa_cm5_pair = mchPair
+        
+        
+        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, osn32s_tsn5_cm5_pair)).astype(np.int)
+        tIdx2 = np.loadtxt("%s/%s"%(self.tmpDir, str_oisa_cm5_pair)).astype(np.int)
+        self.log.debug("objectCat matched data %d, templateCat matched data %d"%(tIdx1.shape[0], tIdx2.shape[0]))
+                
+        tnames1 = ['objId', 'tmpId']
+        tnames2 = ['objId', 'resiId']
+        
+        #unionIdx = np.intersect1d(tIdx1[:,0], tIdx2[:,0])  #union1d
+        #self.log.debug("intersect objectCat and templateCat matched data: %d"%(unionIdx.shape[0]))
+        
+        df1 = pd.DataFrame(data=tIdx1, columns=tnames1)
+        df2 = pd.DataFrame(data=tIdx2, columns=tnames2)
+        unionIdx=pd.merge(df1, df2, how='inner', on=['objId'])
+        self.log.debug("innerjoin objectCat and templateCat matched data %d"%(unionIdx.shape[0]))
+        
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgSimAdd))
+        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.tsn5))
+        tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, simTmpResiCatEf_sn32))
+        
+        simDeltaXYA = np.array(simDeltaXYA)
+        tdeltaXYA = simDeltaXYA[unionIdx["objId"].values]
+        tdata11 = tdata1[unionIdx["objId"].values]
+        tdata12 = tdata2[unionIdx["tmpId"].values]
+        tdata22 = tdata3[unionIdx["resiId"].values]
+        
+        poslist = np.concatenate(([tdata11[:,0]], [tdata11[:,1]], 
+                                  [tdata12[:,3]+tdeltaXYA[:,0]], [tdata12[:,4]+tdeltaXYA[:,1]], 
+                                  [tdata22[:,0]], [tdata22[:,1]]), axis=0).transpose()
+        #print(poslist)
+        #genFinalOTDs9Reg('tot', self.tmpDir, poslist)
+        size = self.subImgSize
+        subImgBuffer = self.getWindowImgs(self.objectImgSim, self.templateImg, self.simTmpResi, poslist, size)
+        
+        self.log.info("\n******************")
+        self.log.info("simulation True OT, total sub image %d"%(len(subImgBuffer)))
+        
+        rsts = np.array(subImgBuffer)
+        print(rsts.shape)
+        
+        return rsts
         
     def simImage(self, oImg, tImg):
     
@@ -441,11 +520,13 @@ class OTSimulation(object):
         
         
         simFOTs = self.simFOT(self.objectImg, self.templateImg)
-        simTOTs = self.simTOT(self.objectImg, self.templateImg, subImgNum=simFOTs.shape[0])
+        simTOTs = self.simTOT(self.objectImg, self.templateImg, simFOTs.shape[0])
+        
+        print("%s with TOT %d, FOT %d"%(oImg, simTOTs.shape[0], simFOTs.shape[0]))
         
         #pickle
         oImgPre = oImg[:oImg.index(".")]
-        tpath = '%s/%s_otimg.npz'%(self.tmpDir, oImgPre)
+        tpath = '%s/%s_otimg.npz'%(self.destDir, oImgPre)
         np.savez_compressed(tpath, tot=simTOTs, fot=simFOTs)
         
         
@@ -462,16 +543,26 @@ class OTSimulation(object):
     
         if not os.path.exists(self.tmpDir):
             os.system("mkdir %s"%(self.tmpDir))
-            
+        
+        # ls CombZ_*fit
+        templateImg = 'CombZ_temp.fit'
         flist = os.listdir(self.srcDir)
         flist.sort()
+        
+        imgs = []
         for tfilename in flist:
-            if tfilename.find("jpg")>-1:
-                tpath = "%s/%s"%(self.srcDir, tfilename)
+            if tfilename.find("fit")>-1 and tfilename.find("temp")==-1:
+                imgs.append(tfilename)
+                
+        for timg in imgs:
+            print("\n\nprocess %s"%(timg))
+            self.simImage(timg, templateImg)
+            #break
             
 if __name__ == "__main__":
     
     otsim = OTSimulation()
-    otsim.testSimImage()
+    otsim.batchSim()
+    #otsim.testSimImage()
     #otsim.simFOT2('obj', 'tmp')
     
