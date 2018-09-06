@@ -26,6 +26,7 @@ class OTSimulation2(object):
         self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data"
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="/home/xy/program/C/hotpants/hotpants"
+        self.mapProgram="/home/xy/program/netbeans/C/GWACProject/dist/Debug/GNU-Linux/gwacproject"
                 
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
@@ -184,6 +185,65 @@ class OTSimulation2(object):
             self.log.error("hotpants failed.")
             
         return outFile
+        
+    def runGeoMap(self, pairsCat):
+        
+        objpre= pairsCat.split(".")[0]
+        objFPath = "%s/%s"%(self.tmpDir, pairsCat)
+        outFile = "%s_geomap.parm"%(objpre)
+        outFPath = "%s/%s"%(self.tmpDir, outFile)
+        
+        order='5'
+        iterNum='4'
+        rejSigma='2.5'
+        
+        #exeprog geomap pairs.cat map_parm.txt order=5 iterNum=4 rejSigma=2.5
+        cmd = [self.mapProgram, 'geomap', objFPath, outFPath, order, iterNum, rejSigma]
+        self.log.debug(cmd)
+           
+        # run command
+        process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        (stdoutstr,stderrstr) = process.communicate()
+        status = process.returncode
+        #self.log.info(stdoutstr)
+        #self.log.info(stderrstr)
+        
+        if os.path.exists(outFPath) and status==0:
+            self.log.debug("run geomap success.")
+            self.log.debug("generate geomap %s"%(outFPath))
+        else:
+            self.log.error("geomap failed.")
+            
+        return outFile
+        
+    def runGeoXytran(self, objCatalog, mapParmFile):
+        
+        objpre= objCatalog.split(".")[0]
+        objFPath = "%s/%s"%(self.tmpDir, objCatalog)
+        outFile = "%s_geoxytran.cat"%(objpre)
+        outFPath = "%s/%s"%(self.tmpDir, outFile)
+        mapParmFPath = "%s/%s"%(self.tmpDir, mapParmFile)
+        
+        direction='-1'
+        
+        #exeprog geoxytran data.cat mapParm.txt data.out direction=-1
+        cmd = [self.mapProgram, 'geoxytran', objFPath, mapParmFPath, outFPath, direction]
+        self.log.debug(cmd)
+           
+        # run command
+        process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        (stdoutstr,stderrstr) = process.communicate()
+        status = process.returncode
+        self.log.info(stdoutstr)
+        self.log.info(stderrstr)
+        
+        if os.path.exists(outFPath) and status==0:
+            self.log.debug("run geoxytran success.")
+            self.log.debug("generate geoxytran %s"%(outFPath))
+        else:
+            self.log.error("geoxytran failed.")
+            
+        return outFile
     
     def getWindowImg(self, img, ctrPos, size):
         
@@ -297,46 +357,6 @@ class OTSimulation2(object):
         print(osn10f)
         print(tsn10f)
         
-        resi2objCoorResi = tdata11[tIdx1[:,0]]
-        resi2objCoorObj  = tdata12[tIdx1[:,1]]
-        obj2tmpCoorObj   = tdata21[tIdx2[:,0]]
-        obj2tmpCoorTmp   = tdata22[tIdx2[:,1]]
-        
-        tx1 = resi2objCoorResi[:,0]
-        ty1 = resi2objCoorResi[:,1]
-        tz1 = resi2objCoorObj[:,0]
-        resi2objX = polyfit2d(tx1,ty1,tz1, order=3)
-        tz1 = resi2objCoorObj[:,1]
-        resi2objY = polyfit2d(tx1,ty1,tz1, order=3)
-                
-        tx2 = obj2tmpCoorObj[:,0]
-        ty2 = obj2tmpCoorObj[:,1]
-        tz2 = obj2tmpCoorTmp[:,0]
-        obj2tmpX = polyfit2d(tx2,ty2,tz2, order=3)
-        tz2 = obj2tmpCoorTmp[:,1]
-        obj2tmpY = polyfit2d(tx2,ty2,tz2, order=3)
-
-        
-        mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r5)
-        tsn5 = nmhFile
-        mchFile, nmhFile, mchPair = self.runCrossMatch(str_sn10f_spf_cn5, tsn5, self.r5)
-        resiOTCandidates = nmhFile
-        
-        resiCoors = np.loadtxt("%s/%s"%(self.tmpDir, resiOTCandidates))
-        resiX = resiCoors[:,0]
-        resiY = resiCoors[:,1]
-        
-        objX = polyval2d(resiX, resiY, resi2objX)
-        objY = polyval2d(resiX, resiY, resi2objY)
-        
-        tmpX = polyval2d(objX, objY, obj2tmpX)
-        tmpY = polyval2d(objX, objY, obj2tmpY)
-        
-        poslist = np.array([objX, objY, tmpX, tmpY, resiX, resiY]).transpose()
-        print(poslist.shape)
-        
-        print(poslist[:3,:])
-        genFinalOTDs9Reg('resi', self.tmpDir, poslist)
         
         
     def simImage2(self, oImg, tImg):
@@ -352,58 +372,76 @@ class OTSimulation2(object):
 
         tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair1)).astype(np.int)
         tIdx2 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair2)).astype(np.int)
+        tIdx1 = tIdx1 - 1
+        tIdx2 = tIdx2 - 1
+        print(tIdx1.shape)
+        print(tIdx2.shape)
 
         tdata11 = np.loadtxt("%s/%s"%(self.tmpDir, str_sn10f))
         tdata12 = np.loadtxt("%s/%s"%(self.tmpDir, simPosFile))
         tdata21 = np.loadtxt("%s/%s"%(self.tmpDir, osn10f))
         tdata22 = np.loadtxt("%s/%s"%(self.tmpDir, tsn10f))
         
+        print(tdata11.shape)
+        print(tdata12.shape)
+        print(tdata21.shape)
+        print(tdata22.shape)
+        
         resi2objCoorResi = tdata11[tIdx1[:,0]]
         resi2objCoorObj  = tdata12[tIdx1[:,1]]
         obj2tmpCoorObj   = tdata21[tIdx2[:,0]]
         obj2tmpCoorTmp   = tdata22[tIdx2[:,1]]
         
-        tx1 = resi2objCoorResi[:,0]
-        ty1 = resi2objCoorResi[:,1]
-        tz1 = resi2objCoorObj[:,0]
-        resi2objX = polyfit2d(tx1,ty1,tz1, order=6)
-        tz1 = resi2objCoorObj[:,1]
-        resi2objY = polyfit2d(tx1,ty1,tz1, order=6)
+        ox1 = resi2objCoorResi[:,0]
+        oy1 = resi2objCoorResi[:,1]
+        tx1 = resi2objCoorObj[:,0]
+        ty1 = resi2objCoorObj[:,1]
         
-        print(resi2objCoorObj[:3])
-        objX = polyval2d(tx1, ty1, resi2objX)
-        objY = polyval2d(tx1, ty1, resi2objY)
-        tarr = np.array([objX, objY]).transpose()
-        print(tarr[:3])
+        print(ox1.shape)
+        tfname1 = "resi2obj_pos_pair.cat"
+        with open("%s/resi2obj_pos_pair.cat"%(self.tmpDir), 'w') as fp1:
+            for i in range(len(ox1)):
+                fp1.write("%.5f %.5f %.5f %.5f \n"%(ox1[i], oy1[i], tx1[i], ty1[i]))
+                
+        tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, tfname1))
+        print(tdata3[:3])
+        xResi = np.fabs(tdata3[:,0] - tdata3[:,2])
+        yResi = np.fabs(tdata3[:,1] - tdata3[:,3])
         
-        tx2 = obj2tmpCoorObj[:,0]
-        ty2 = obj2tmpCoorObj[:,1]
-        tz2 = obj2tmpCoorTmp[:,0]
-        obj2tmpX = polyfit2d(tx2,ty2,tz2, order=6)
-        tz2 = obj2tmpCoorTmp[:,1]
-        obj2tmpY = polyfit2d(tx2,ty2,tz2, order=6)
+        print(np.max(xResi))
+        print(np.min(xResi))
+        print(np.std(xResi))
+        
+        print(np.max(yResi))
+        print(np.min(yResi))
+        print(np.std(yResi))
+        
+        mapParmFile = self.runGeoMap(tfname1)
+        txyTranFile = self.runGeoXytran(tfname1, mapParmFile)
+        
+        tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, txyTranFile))
+        print(tdata3[:3])
+        
+        xResi = np.fabs(tdata3[:,0] - tdata3[:,2])
+        yResi = np.fabs(tdata3[:,1] - tdata3[:,3])
+        
+        print(np.max(xResi))
+        print(np.min(xResi))
+        print(np.std(xResi))
+        
+        print(np.max(yResi))
+        print(np.min(yResi))
+        print(np.std(yResi))
+        
+        
+        '''
+        ox2 = obj2tmpCoorObj[:,0]
+        oy2 = obj2tmpCoorObj[:,1]
+        tx2 = obj2tmpCoorTmp[:,0]
+        ty2 = obj2tmpCoorTmp[:,1]
+        '''
+        
 
-        
-        mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r5)
-        tsn5 = nmhFile
-        mchFile, nmhFile, mchPair = self.runCrossMatch(str_sn10f_spf_cn5, tsn5, self.r5)
-        resiOTCandidates = nmhFile
-        
-        resiCoors = np.loadtxt("%s/%s"%(self.tmpDir, resiOTCandidates))
-        resiX = resiCoors[:,0]
-        resiY = resiCoors[:,1]
-        
-        objX = polyval2d(resiX, resiY, resi2objX)
-        objY = polyval2d(resiX, resiY, resi2objY)
-        
-        tmpX = polyval2d(objX, objY, obj2tmpX)
-        tmpY = polyval2d(objX, objY, obj2tmpY)
-        
-        poslist = np.array([objX, objY, tmpX, tmpY, resiX, resiY]).transpose()
-        print(poslist.shape)
-        
-        print(poslist[:3,:])
-        genFinalOTDs9Reg('resi', self.tmpDir, poslist)
         
         
     def testSimImage(self):

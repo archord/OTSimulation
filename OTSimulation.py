@@ -28,6 +28,9 @@ class OTSimulation(object):
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="/home/xy/program/C/hotpants/hotpants"
                 
+        if not os.path.exists(self.tmpDir):
+            os.system("mkdir %s"%(self.tmpDir))
+            
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
         self.objectImgSim = 'ois.fit'
@@ -532,18 +535,29 @@ class OTSimulation(object):
         
     def testSimImage(self):
         
-        if not os.path.exists(self.tmpDir):
-            os.system("mkdir %s"%(self.tmpDir))
-        
         objectImg = 'CombZ_0.fit'
         templateImg = 'CombZ_temp.fit'
         self.simImage(objectImg, templateImg)
     
-    def batchSim(self):
-    
-        if not os.path.exists(self.tmpDir):
-            os.system("mkdir %s"%(self.tmpDir))
+    def test(self):
+                    
+        oImg = 'CombZ_0.fit'
+        tImg = 'CombZ_temp.fit'
         
+        os.system("rm -rf %s/*"%(self.tmpDir))
+                
+        os.system("cp %s/%s %s/%s"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
+        os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
+        
+        self.objectImgCat = self.runSextractor(self.objectImg)
+        self.templateImgCat = self.runSextractor(self.templateImg)
+        #查找“真OT”，如小行星等
+        mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgCat, self.templateImgCat, self.r5)
+        mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgCat, self.objectImgCat, 1)
+        mchFile, nmhFile, mchPair = self.runCrossMatch(self.templateImgCat, self.templateImgCat, 1)
+    
+    def batchSim(self):
+            
         # ls CombZ_*fit
         templateImg = 'CombZ_temp.fit'
         flist = os.listdir(self.srcDir)
