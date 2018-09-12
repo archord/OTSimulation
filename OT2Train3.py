@@ -11,39 +11,10 @@ from keras.utils.vis_utils import plot_model
 from keras.utils.vis_utils import model_to_dot
 import keras
 
-def getData(tpath):
-    #tpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data/CombZ_0_otimg.npz"
-    tdata1 = np.load(tpath)
-    totImg = tdata1['tot']
-    fotImg = tdata1['fot']
-    totSize = totImg.shape[0]
-    fotSize = fotImg.shape[0]
-    totLabel = np.ones(totSize)
-    fotLabel = np.zeros(fotSize)
-    X = np.concatenate((totImg, fotImg), axis=0)
-    y = np.concatenate((totLabel, fotLabel), axis=0)
-    Y = np.array([np.logical_not(y), y]).transpose()
-
-    XY = []
-    for i in range(Y.shape[0]):
-        XY.append((X[i],Y[i]))
-    XY = np.array(XY)
-    np.random.shuffle(XY)
     
-    X = []
-    Y = []
-    for i in range(XY.shape[0]):
-        X.append(XY[i][0])
-        Y.append(XY[i][1])
-    X = np.array(X)
-    Y = np.array(Y)
-    print(X.shape)
-    print(Y.shape)
-    return X, Y
+def getData(tpath1, tpath2):
     
-def getData2(tpath):
-    
-    timgbinPath = '/home/xy/Downloads/myresource/deep_data2/simot/SIM_IMG_ALL_bin.npz'
+    timgbinPath = '/home/xy/Downloads/myresource/deep_data2/simot/SIM_IMG_ALL_with_OT2F_bin3.npz'
     if os.path.exists(timgbinPath):
         print("bin file exist, read from %s"%(timgbinPath))
         timgbin = np.load(timgbinPath)
@@ -51,53 +22,70 @@ def getData2(tpath):
         Ys = timgbin['Ys']
     else:
         #tpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data"
-        tdirs = os.listdir(tpath)
+        tdirs = os.listdir(tpath1)
         tdirs.sort()
         tdirNum =0
-        Xs = np.array([])
-        Ys = np.array([])
+        
+        totImgs = np.array([])
+        fotImgs = np.array([])
+        totLabels = np.array([])
+        fotLabels = np.array([])
         for fname in tdirs:
-            tpath2 = "%s/%s"%(tpath, fname)
-            #print(tpath2)
-            tdata1 = np.load(tpath2)
+            tpath11 = "%s/%s"%(tpath1, fname)
+            print(tpath11)
+            tdata1 = np.load(tpath11)
             totImg = tdata1['tot']
             fotImg = tdata1['fot']
             totSize = totImg.shape[0]
             fotSize = fotImg.shape[0]
             totLabel = np.ones(totSize)
             fotLabel = np.zeros(fotSize)
-            X = np.concatenate((totImg, fotImg), axis=0)
-            y = np.concatenate((totLabel, fotLabel), axis=0)
-            Y = np.array([np.logical_not(y), y]).transpose()
-
-            XY = []
-            for i in range(Y.shape[0]):
-                XY.append((X[i],Y[i]))
-            XY = np.array(XY)
-            np.random.shuffle(XY)
-            X = []
-            Y = []
-
-            for i in range(XY.shape[0]):
-                X.append(XY[i][0])
-                Y.append(XY[i][1])
-            X = np.array(X)
-            Y = np.array(Y)
-            if Xs.shape[0]==0:
-                Xs = X
+            
+            if totImgs.shape[0]==0:
+                totImgs = totImg
             else:
-                Xs = np.concatenate((Xs, X))
-
-            if Ys.shape[0]==0:
-                Ys = Y
+                totImgs = np.concatenate((totImgs, totImg), axis=0)
+            if fotImgs.shape[0]==0:
+                fotImgs = fotImg
             else:
-                Ys = np.concatenate((Ys, Y))
-
+                fotImgs = np.concatenate((fotImgs, fotImg), axis=0)
+            if totLabels.shape[0]==0:
+                totLabels = totLabel
+            else:
+                totLabels = np.concatenate((totLabels, totLabel), axis=0)
+            if fotLabels.shape[0]==0:
+                fotLabels = fotLabel
+            else:
+                fotLabels = np.concatenate((fotLabels, fotLabel), axis=0)
+            
             tdirNum = tdirNum+1
+        print("total read image file %d"%(tdirNum))
+        print(totImgs.shape)
+        print(totLabels.shape)
+        print(fotImgs.shape)
+        print(fotLabels.shape)
         
+            
+        Xs = np.concatenate((totImgs, fotImgs), axis=0)
+        Ys = np.concatenate((totLabels, fotLabels), axis=0)
+        Ys = np.array([np.logical_not(Ys), Ys]).transpose()
+        
+        XY = []
+        for i in range(Ys.shape[0]):
+            XY.append((Xs[i],Ys[i]))
+        XY = np.array(XY)
+        np.random.shuffle(XY)
+        Xs = []
+        Ys = []
+
+        for i in range(XY.shape[0]):
+            Xs.append(XY[i][0])
+            Ys.append(XY[i][1])
+        Xs = np.array(Xs)
+        Ys = np.array(Ys)
+            
         np.savez_compressed(timgbinPath, Xs=Xs, Ys=Ys)
         print("save bin fiel to %s"%(timgbinPath))
-    print("total read image file %d"%(tdirNum))
         
     return Xs, Ys
 
@@ -135,10 +123,12 @@ def createModel():
 
 if __name__ == "__main__":
     
-    tpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data"
-    X,Y = getData2(tpath)
+    tpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data"
+    tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2"
+    X,Y = getData(tpath1, tpath2)
     print(X.shape)
     print(Y.shape)
+
     
     keras.backend.set_image_dim_ordering('th')
     model = createModel()    
@@ -155,7 +145,7 @@ if __name__ == "__main__":
     
     model.fit(X_train, Y_train, batch_size=128, nb_epoch=5, validation_split=0.2)
     #model.save_weights("/home/xy/Downloads/myresource/deep_data2/simot/train_model/m0907.h5")
-    model.save("/home/xy/Downloads/myresource/deep_data2/simot/train_model/m0907-gpu-all-128.h5")
+    model.save("/home/xy/Downloads/myresource/deep_data2/simot/train_model/m180912-gpu-all-128.h5")
     
     Y_pred = model.predict(X_test)
     
@@ -163,4 +153,3 @@ if __name__ == "__main__":
     pred_labels = np.array((Y_pred[:, 1] > pbb_threshold), dtype = "int")
     print("Correctly classified %d out of %d"%((pred_labels == Y_test[:, 1].astype(int)).sum(), Y_test.shape[0]))
     print("accuracy = %f"%(1.*(pred_labels == Y_test[:, 1].astype(int)).sum() / Y_test.shape[0]))
-    
