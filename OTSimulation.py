@@ -414,6 +414,8 @@ class OTSimulation(object):
             
             self.log.info("\n******************")
             self.log.info("run %d, total sub image %d"%(ii, tnum))
+            if ii>6:
+                break
             ii = ii + 1
         
         rsts = np.array(subImgBuffer)

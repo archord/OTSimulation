@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import cv2
 import scipy as S
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +11,7 @@ import os
 import time
 import logging
 import subprocess
-from gwac_util import zscale_image, selectTempOTs, filtOTs, filtByEllipticity, genFinalOTDs9Reg, polyfit2d, polyval2d
+from gwac_util import zscale_image, selectTempOTs, filtOTs, filtByEllipticity, genFinalOTDs9Reg
 from imgSim import ImageSimulation
 
 class OTSimulation2(object):
@@ -28,6 +27,9 @@ class OTSimulation2(object):
         self.imgDiffProgram="/home/xy/program/C/hotpants/hotpants"
         self.mapProgram="/home/xy/program/netbeans/C/GWACProject/dist/Debug/GNU-Linux/gwacproject"
                 
+        if not os.path.exists(self.tmpDir):
+            os.system("mkdir %s"%(self.tmpDir))
+            
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
         self.objectImgSim = 'ois.fit'
@@ -136,9 +138,12 @@ class OTSimulation2(object):
         outFile = "%s.cat"%(outpre)
         outFPath = "%s/%s"%(self.tmpDir, outFile)
         cnfPath = "%s/config/OTsearch.sex"%(self.varDir)
+        chkFile = "%s_check.fit"%(outpre)
+        chkFPath = "%s/%s"%(self.tmpDir, chkFile)
         
         # run sextractor from the unix command line
-        cmd = ['sex', fullPath, '-c', cnfPath, '-CATALOG_NAME', outFPath]
+        cmd = ['sex', fullPath, '-c', cnfPath, '-CATALOG_NAME', outFPath, 
+            '-CHECKIMAGE TYPE', 'BACKGROUND', '-CHECKIMAGE NAME', chkFPath]
         self.log.debug(cmd)
            
         # run command
@@ -442,22 +447,27 @@ class OTSimulation2(object):
         '''
         
 
+    def simImage3(self, oImg, tImg):
+    
+        os.system("rm -rf %s/*"%(self.tmpDir))
+                
+        os.system("cp %s/%s %s/%s"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
+        os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
+        
+        #self.objectImgCat = self.runSextractor(self.objectImg)
+        self.objTmpResi = self.runHotpants(self.objectImg, self.templateImg)
+        self.objTmpResiCat = self.runSextractor(self.objTmpResi)
+        
         
         
     def testSimImage(self):
-        
-        if not os.path.exists(self.tmpDir):
-            os.system("mkdir %s"%(self.tmpDir))
-        
+                
         objectImg = 'CombZ_0.fit'
         templateImg = 'CombZ_temp.fit'
-        self.simImage2(objectImg, templateImg)
+        self.simImage3(objectImg, templateImg)
     
     def batchSim(self):
-    
-        if not os.path.exists(self.tmpDir):
-            os.system("mkdir %s"%(self.tmpDir))
-            
+                
         flist = os.listdir(self.srcDir)
         flist.sort()
         for tfilename in flist:

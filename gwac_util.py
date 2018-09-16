@@ -3,24 +3,77 @@
 from astropy.stats import sigma_clip
 import numpy as np
 import math
-import itertools
+from astropy.io import fits
 
-def polyfit2d(x, y, z, order=3):
-    ncols = (order + 1)**2
-    G = np.zeros((x.size, ncols))
-    ij = itertools.product(range(order+1), range(order+1))
-    for k, (i,j) in enumerate(ij):
-        G[:,k] = x**i * y**j
-    m, _, _, _ = np.linalg.lstsq(G, z)
-    return m
-
-def polyval2d(x, y, m):
-    order = int(np.sqrt(len(m))) - 1
-    ij = itertools.product(range(order+1), range(order+1))
-    z = np.zeros_like(x)
-    for a, (i,j) in zip(m, ij):
-        z += a * x**i * y**j
-    return z
+'''
+对图像均匀接取grid=width_num*height_num个子窗口图像，每个窗口图像的大小为stampSize=(stampW, stapmH)
+没有考虑grid=(1,1)的情形
+'''
+def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace = 1):
+    
+    fpath = "%s/%s"%(imgPath, imgName)
+    tdata = fits.getdata(fpath)
+    imgSize = tdata.shape
+    imgW = imgSize[1]
+    imgH = imgSize[0]
+    halfStampW = int(stampSize[0]/2)
+    halfStampH = int(stampSize[1]/2)
+    
+    startX = halfStampW
+    endX = imgW - halfStampW
+    startY = halfStampH
+    endY = imgH - halfStampH
+    
+    XInterval = int((endX-startX)/(grid[0]-1))
+    YInterval = int((endY-startY)/(grid[1]-1))
+    
+    subRegions = []
+    for y in range(grid[1]):
+        centerY = startY + y*YInterval
+        minY = centerY - halfStampH
+        maxY = centerY + halfStampH
+        if minY<0:
+            minY=0
+        if maxY>=imgH:
+            maxY = imgH-1
+        for x in range(grid[0]):
+            centerX = startX + x*XInterval
+            minX = centerX - halfStampW
+            maxX = centerX + halfStampW
+            if minX<0:
+                minX=0
+            if maxX>=imgW:
+                maxX = imgW-1
+            subRegions.append((minY, maxY, minX, maxX))
+    
+    #print(subRegions)
+    stampImgs = []
+    for treg in subRegions:
+        timg = tdata[treg[0]:treg[1], treg[2]:treg[3]]
+        timgz = zscale_image(timg)
+        if timgz.shape[0] == 0:
+            timgz = timg
+            tmin = np.min(timgz)
+            tmax = np.max(timgz)
+            timgz=(((timgz-tmin)/(tmax-tmin))*255).astype(np.uint8)
+        stampImgs.append(timgz)
+    
+    for y in range(grid[1]):
+        for x in range(grid[0]):
+            tidx = y*grid[0] + x
+            timg = stampImgs[tidx]
+            if x ==0:
+                rowImg = timg
+            else:
+                xspace = np.ones((timg.shape[0],innerSpace), np.uint8)*255
+                rowImg = np.concatenate((rowImg, xspace, timg), axis=1)
+        if y ==0:
+            conImg = rowImg
+        else:
+            yspace = np.ones((innerSpace,rowImg.shape[1]), np.uint8)*255
+            conImg = np.concatenate((conImg, yspace, rowImg), axis=0)
+    return conImg
+            
 
 def zscale_image(input_img, contrast=0.25):
 
