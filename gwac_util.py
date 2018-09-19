@@ -159,14 +159,14 @@ def selectTempOTs(fname, tpath):
                
     ots = []
     for tobj in tdata:
-        ots.append((tobj[3],tobj[4],tobj[38]))        
+        ots.append((tobj[3],tobj[4],tobj[38],1.087/tobj[39]))        
     
     outCatName = "%ss.cat"%(fname[:fname.index(".")])
     outCatPath = "%s/%s"%(tpath, outCatName)
     with open(outCatPath, 'w') as fp0:
         for tobj in ots:
             tempStarMag1 = 16 - (maxMag - tobj[2])
-            fp0.write("%.2f %.2f %.2f\n"%(tobj[0], tobj[1], tempStarMag1))
+            fp0.write("%.2f %.2f %.2f %.2f\n"%(tobj[0], tobj[1], tempStarMag1, tobj[3]))
     
     return outCatName
     
@@ -185,13 +185,13 @@ def filtByEllipticity(fname, tpath, maxEllip=0.5):
                
     ots = []
     for tobj in tdata:
-        ots.append((tobj[3],tobj[4],tobj[38]))     
+        ots.append((tobj[3],tobj[4],tobj[38],1.087/tobj[39]))     
     
     outCatName = "%sfe.cat"%(fname[:fname.index(".")])
     outCatPath = "%s/%s"%(tpath, outCatName)
     with open(outCatPath, 'w') as fp0:
         for tobj in ots:
-            fp0.write("%.2f %.2f %.2f\n"%(tobj[0], tobj[1], tobj[2]))
+            fp0.write("%.2f %.2f %.2f %.2f\n"%(tobj[0], tobj[1], tobj[2], tobj[3]))
     
     return outCatName
 
@@ -209,7 +209,7 @@ def filtOTs(fname, tpath, darkMagRatio=0.03, brightMagRatio=0.03,fSize=200, imgS
     maxX = imgSize[0] - fSize
     maxY = imgSize[1] - fSize
 
-    if tdata.shape[1]==3:
+    if tdata.shape[1]==4:
         mag = tdata[:,2]
     else:
         mag = tdata[:,38]
@@ -220,22 +220,24 @@ def filtOTs(fname, tpath, darkMagRatio=0.03, brightMagRatio=0.03,fSize=200, imgS
     tobjs = []
     for obj in tdata:
         
-        if tdata.shape[1]==3:
+        if tdata.shape[1]==4:
             tx = obj[0]
             ty = obj[1]
             tmag = obj[2]
+            ts2n = obj[3]
         else:
             tx = obj[3]
             ty = obj[4]
             tmag = obj[38]
+            ts2n = 1.087/obj[39]
         if tx>minX and tx <maxX and ty>minY and ty<maxY and tmag<maxMag and tmag>minMag:
-            tobjs.append([tx, ty, tmag])
+            tobjs.append([tx, ty, tmag, ts2n])
             
     outCatName = "%sf.cat"%(fname[:fname.index(".")])
     outCatPath = "%s/%s"%(tpath, outCatName)
     with open(outCatPath, 'w') as fp0:
         for tobj in tobjs:
-           fp0.write("%.2f %.2f %.2f\n"%(tobj[0], tobj[1], tobj[2]))
+           fp0.write("%.2f %.2f %.2f %.2f\n"%(tobj[0], tobj[1], tobj[2], tobj[3]))
     
     ds9RegionName = "%s/%s_filter_ds9.reg"%(tpath, fname[:fname.index(".")])
     with open(ds9RegionName, 'w') as fp1:

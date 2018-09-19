@@ -26,20 +26,20 @@ class ImageSimulation(object):
               center:(x,y) of star center with barycenter.
        """
        
-       deltx = boxs[0]%2
-       delty = boxs[1]%2
+       deltx = int(boxs[0]%2)
+       delty = int(boxs[1]%2)
        
        xs =  int(pos[0]) - int(boxs[0]/2.)
        xe =  int(pos[0]) + int(boxs[0]/2.) + deltx
        
-       ys =  pos[1] - int(boxs[1]/2.)
-       ye =  pos[1] + int(boxs[1]/2.) + delty
+       ys =  int(pos[1]) - int(boxs[1]/2.)
+       ye =  int(pos[1]) + int(boxs[1]/2.) + delty
     
-       #data = fits.getdata(fname)
-       #print pos,ys,ye,xs,xe
+       #print("%f,%f,%f,%f,%f,%f"%(pos[0],pos[1],ys,ye,xs,xe))
        star=imgData[ys:ye,xs:xe]
        if not backsky:
-          backsky = np.median(np.sort(np.ravel(star))[:int(boxs[0]*boxs[1]/2)])
+          #backsky = np.median(np.sort(np.ravel(star))[:int(boxs[0]*boxs[1]/2)])
+          backsky = np.median(np.sort(np.ravel(star)))
        #print("backsky = %s "%(backsky))
     
        return star,backsky
@@ -82,8 +82,15 @@ class ImageSimulation(object):
                     tpos.append((tx,ty))
                     
         return tpos
-        
-    def randomOTAPos(self, objCat, minMag=12, maxMag=16):
+    
+    '''
+    仿真星等占比：
+    15.5~16：40%
+    14.5~15.5：30%
+    13.5~14.5：20%
+    12~13.5：10%
+    '''
+    def randomOTAPos(self, objCat, minMag=12, maxMag=16.5):
         
         minDis = 5
         maxDis = 12
@@ -95,7 +102,26 @@ class ImageSimulation(object):
         ots = []
         deltaXY = []
         for tobj in objOTs:
-            rmag = minMag + math.ceil((maxMag-minMag)*random())
+            rmsLevel = random()
+            
+            if rmsLevel<0.4:
+                rmag = maxMag - random()
+            elif rmsLevel<0.7:
+                rmag = maxMag - 1 - random()
+            elif rmsLevel<0.9:
+                rmag = maxMag - 2 - random()
+            else:
+                rmag = maxMag - 3 - random()
+            '''    
+            if rmsLevel<0.4:
+                rmag = maxMag - random() *0.5
+            elif rmsLevel<0.7:
+                rmag = maxMag - 0.5 - random()
+            elif rmsLevel<0.9:
+                rmag = maxMag - 1.5 - random()
+            else:
+                rmag = maxMag - 2.5 - 1.5*random()
+            '''    
             rposIdx = randint(0, posNum-1)
             rpos = posA[rposIdx]
             deltaXY.append(rpos)

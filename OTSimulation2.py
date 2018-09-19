@@ -347,6 +347,8 @@ class OTSimulation2(object):
 
         tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair1)).astype(np.int)
         tIdx2 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair2)).astype(np.int)
+        tIdx1 = tIdx1 - 1
+        tIdx2 = tIdx2 - 1
 
         tdata11 = np.loadtxt("%s/%s"%(self.tmpDir, str_sn10f))
         tdata12 = np.loadtxt("%s/%s"%(self.tmpDir, simPosFile))

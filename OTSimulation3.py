@@ -23,14 +23,12 @@ class OTSimulation(object):
         self.varDir = "/home/xy/Downloads/myresource/deep_data2/simulate_tools"
         self.srcDir = "/home/xy/Downloads/myresource/deep_data2/chaodata" # ls CombZ_*fit
         self.tmpDir="/run/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_lows2n"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data"
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="/home/xy/program/C/hotpants/hotpants"
                 
         if not os.path.exists(self.tmpDir):
             os.system("mkdir %s"%(self.tmpDir))
-        if not os.path.exists(self.destDir):
-            os.system("mkdir %s"%(self.destDir))
             
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
@@ -46,6 +44,9 @@ class OTSimulation(object):
         self.simTmpResiCat = 'str.cat'
         
         self.subImgSize = 21
+        self.r1 = 1
+        self.r2 = 2
+        self.r3 = 3
         self.r5 = 5
         self.r10 = 10
         self.r16 = 16
@@ -242,9 +243,7 @@ class OTSimulation(object):
                 objWidz = zscale_image(objWid)
                 tmpWidz = zscale_image(tmpWid)
                 resiWidz = zscale_image(resiWid)
-                #异常残差图像处理，如果scale失败：1）等于原diffImg；2）直接量化到255
-                if resiWidz.shape[0]==21 and resiWidz.shape[1]==21:
-                    subImgs.append([objWidz, tmpWidz, resiWidz])
+                subImgs.append([objWidz, tmpWidz, resiWidz])
                 
                 #conWid = np.concatenate((objWidz, tmpWidz, resiWidz), axis=1)
                 #plt.imshow(conWid, cmap='gray')
@@ -259,9 +258,6 @@ class OTSimulation(object):
     def simFOT(self, oImg, tImg):
         
         self.objTmpResi = self.runHotpants(self.objectImg, self.templateImg)
-        
-        #sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','1','-ANALYSIS_THRESH','1']
-        #self.objTmpResiCat = self.runSextractor(self.objTmpResi, sexConf)
         self.objTmpResiCat = self.runSextractor(self.objTmpResi)
         
         #过滤“真OT”，如小行星等
@@ -303,17 +299,14 @@ class OTSimulation(object):
         
         size = self.subImgSize
         subImgBuffer = self.getWindowImgs(self.objectImg, self.templateImg, self.objTmpResi, poslist, size)
-        objS2NBuffer = tdata22[:,3]
         
         self.log.info("\n******************")
         self.log.info("simulation False OT, total sub image %d"%(len(subImgBuffer)))
         
-        subImgs = np.array(subImgBuffer)
-        print(subImgs.shape)
-        print(objS2NBuffer.shape)
+        rsts = np.array(subImgBuffer)
+        print(rsts.shape)
         
-        return subImgs, objS2NBuffer.flatten()
-        
+        return rsts
 
     def simTOT(self, oImg, tImg, subImgNum=100):
         
@@ -330,7 +323,6 @@ class OTSimulation(object):
         
         totalTOT = subImgNum
         subImgBuffer = []
-        objS2NBuffer = []
         tnum = 0
         imgSimClass = ImageSimulation()
         
@@ -342,12 +334,16 @@ class OTSimulation(object):
             self.objectImgSimAdd = simPosFile
             
             self.simTmpResi = self.runHotpants(self.objectImgSim, self.templateImg)
-            self.simTmpResiCat = self.runSextractor(self.simTmpResi, sexConf)
+            objectImgSimCat = self.runSextractor(self.simTmpResi, sexConf)
             
-            simTmpResiCatEf = filtByEllipticity(self.simTmpResiCat, self.tmpDir, maxEllip=0.5)
+            tdata0 = np.loadtxt("%s/%s"%(self.tmpDir, objectImgSimCat))
+            print(tdata0.shape)
+            
+            simTmpResiCatEf = filtByEllipticity(objectImgSimCat, self.tmpDir, maxEllip=0.5)
             mchFile, nmhFile = self.runSelfMatch(simTmpResiCatEf, self.r5)
             simTmpResiCatEf_sn32 = nmhFile
             #simTmpResiCatEf_sn32 = simTmpResiCatEf
+            
             
             mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgSimAdd, simTmpResiCatEf_sn32, self.r5)
             str_oisa_cm5 = mchFile
@@ -381,31 +377,38 @@ class OTSimulation(object):
             tdata12 = tdata2[unionIdx["tmpId"].values]
             tdata22 = tdata3[unionIdx["resiId"].values]
             
-            poslist = np.concatenate(([tdata11[:,0]], [tdata11[:,1]], 
-                                      [tdata12[:,3]+tdeltaXYA[:,0]], [tdata12[:,4]+tdeltaXYA[:,1]], 
-                                      [tdata22[:,0]], [tdata22[:,1]]), axis=0).transpose()
-            #print(poslist)
-            #genFinalOTDs9Reg('tot', self.tmpDir, poslist)
-            size = self.subImgSize
-            subImgs = self.getWindowImgs(self.objectImgSim, self.templateImg, self.simTmpResi, poslist, size)
-            tnum = tnum + len(subImgs)
+            print(tdata22.shape)
+            print("sim star %d, matched %d"%(tdata1.shape[0],tIdx2.shape[0]))
             
-            subImgBuffer.extend(subImgs)
-            objS2NBuffer.extend(tdata22[:,3].tolist())
+            magerr = tdata22[:,3]
+            print(magerr[:10])
+                        
+            from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+            xmajorLocator   = MultipleLocator(2)
+            xminorLocator   = MultipleLocator(1)
             
+            plt.figure(figsize = (16, 8))
+            ax = plt.subplot(111)
+            plt.hist(magerr, bins=20, range=(0,20), normed=False,     
+                    weights=None, cumulative=False, bottom=None,     
+                    histtype=u'bar', align=u'left', orientation=u'vertical',     
+                    rwidth=0.8, log=False, color=None, label=None, stacked=False,     
+                    hold=None) 
+            ax.xaxis.set_major_locator(xmajorLocator)
+            ax.xaxis.set_minor_locator(xminorLocator)
+            plt.show()
+            
+        
             self.log.info("\n******************")
             self.log.info("run %d, total sub image %d"%(ii, tnum))
-            if ii>6:
+            if ii>0:
                 break
             ii = ii + 1
         
-        subImgs = np.array(subImgBuffer)
-        objS2NBuffer = np.array(objS2NBuffer)
-        print(subImgs.shape)
-        print(objS2NBuffer.shape)
+        rsts = np.array(subImgBuffer)
+        print(rsts.shape)
         
-        return subImgs, objS2NBuffer
-    
+        return rsts
         
     def simImage(self, oImg, tImg):
     
@@ -429,15 +432,66 @@ class OTSimulation(object):
         self.tsn5 = nmhFile
         
         
-        simFOTs, s2nf = self.simFOT(self.objectImg, self.templateImg)
-        simTOTs, s2nt = self.simTOT(self.objectImg, self.templateImg, simFOTs.shape[0])
+        simFOTs = self.simFOT(self.objectImg, self.templateImg)
+        simTOTs = self.simTOT(self.objectImg, self.templateImg, simFOTs.shape[0])
         
         print("%s with TOT %d, FOT %d"%(oImg, simTOTs.shape[0], simFOTs.shape[0]))
-        
+        '''
         #pickle
         oImgPre = oImg[:oImg.index(".")]
         tpath = '%s/%s_otimg.npz'%(self.destDir, oImgPre)
-        np.savez_compressed(tpath, tot=simTOTs, fot=simFOTs, ts2n=s2nt, fs2n=s2nf)
+        np.savez_compressed(tpath, tot=simTOTs, fot=simFOTs)
+        '''
+        
+    def simImage2(self, oImg, tImg):
+    
+        #sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','1','-ANALYSIS_THRESH','1']
+        #self.objectImgCat = self.runSextractor(self.objectImg, sexConf)
+        
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, 'oi_simaddstar1_pos.cat'))
+        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, 'oi_simaddstar1_oi_simaddstar1_pos_cm1.cat'))
+        #tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, 'oi.cat'))
+        
+        print("sim star %d, matched %d"%(tdata1.shape[0],tdata2.shape[0]))
+        print(tdata2.shape)
+        #print(tdata2[:3])
+        magerr = tdata2[:,tdata2.shape[1]-1]
+        print(magerr[:10])
+        magerr = 1.087/magerr
+        print(magerr[:10])
+        
+        from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+        xmajorLocator   = MultipleLocator(4)
+        xminorLocator   = MultipleLocator(2)
+        
+        plt.figure(figsize = (16, 8))
+        
+        ax = plt.subplot(111)
+        plt.hist(magerr, bins=30, range=(0,100), normed=False,     
+                weights=None, cumulative=False, bottom=None,     
+                histtype=u'bar', align=u'left', orientation=u'vertical',     
+                rwidth=0.8, log=False, color=None, label=None, stacked=False,     
+                hold=None) 
+        ax.xaxis.set_major_locator(xmajorLocator)
+        ax.xaxis.set_minor_locator(xminorLocator)
+        plt.show()
+        
+        tdata3 = tdata2[magerr<8]
+        
+        print(tdata2.shape)
+        print(tdata3.shape)
+        
+        tmag1 = tdata3[:,tdata2.shape[1]-2]
+        print(tmag1)
+        print(np.min(tmag1))
+        print(np.max(tmag1))
+        print(np.average(tmag1))
+        
+        tmag = tdata2[:,tdata2.shape[1]-2]
+        tmag = np.sort(tmag, axis=None) 
+        print(tmag[:50])
+        print(tmag[-50:])
+
         
         
     def testSimImage(self):
@@ -478,7 +532,7 @@ class OTSimulation(object):
         for timg in imgs:
             print("\n\nprocess %s"%(timg))
             self.simImage(timg, templateImg)
-            #break
+            break
             
 if __name__ == "__main__":
     
