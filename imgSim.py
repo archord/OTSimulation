@@ -98,9 +98,9 @@ class ImageSimulation(object):
         objOTs = np.loadtxt("%s/%s"%(self.tmpDir, objCat))
         
         #过滤部分亮星
-        #tmag = objOTs[:, objOTs.shape[1]-2]
-        #maxMag = np.max(tmag)
-        #objOTs = objOTs[tmag>maxMag-3.5]
+        tmag = objOTs[:, objOTs.shape[1]-2]
+        tmaxMag = np.max(tmag)
+        objOTs = objOTs[tmag>tmaxMag-3.5]
         
         posA = self.getPos(minDis, maxDis)
         posNum = len(posA)

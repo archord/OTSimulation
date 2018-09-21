@@ -23,7 +23,7 @@ class OTSimulation(object):
         self.varDir = "/home/xy/Downloads/myresource/deep_data2/simulate_tools"
         self.srcDir = "/home/xy/Downloads/myresource/deep_data2/chaodata" # ls CombZ_*fit
         self.tmpDir="/run/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_s2n25"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0922"
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="/home/xy/program/C/hotpants/hotpants"
                 
@@ -478,7 +478,7 @@ class OTSimulation(object):
         for timg in imgs:
             print("\n\nprocess %s"%(timg))
             self.simImage(timg, templateImg)
-            break
+            #break
             
 if __name__ == "__main__":
     
