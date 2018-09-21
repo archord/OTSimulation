@@ -327,7 +327,7 @@ class OTSimulation(object):
         imgSimClass = ImageSimulation()
         
         ii = 1
-        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','1','-ANALYSIS_THRESH','1']
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         while tnum<totalTOT:
             simFile, simPosFile, simDeltaXYA = imgSimClass.simulateImage1(osn32f, self.objectImg, osn16sf, self.objectImg)
             self.objectImgSim = simFile
@@ -432,16 +432,118 @@ class OTSimulation(object):
         self.tsn5 = nmhFile
         
         
-        simFOTs = self.simFOT(self.objectImg, self.templateImg)
-        simTOTs = self.simTOT(self.objectImg, self.templateImg, simFOTs.shape[0])
+        #simFOTs = self.simFOT(self.objectImg, self.templateImg)
+        #simTOTs = self.simTOT(self.objectImg, self.templateImg, simFOTs.shape[0])
+        simTOTs = self.simTOT(self.objectImg, self.templateImg, 500)
         
-        print("%s with TOT %d, FOT %d"%(oImg, simTOTs.shape[0], simFOTs.shape[0]))
+        #print("%s with TOT %d, FOT %d"%(oImg, simTOTs.shape[0], simFOTs.shape[0]))
         '''
         #pickle
         oImgPre = oImg[:oImg.index(".")]
         tpath = '%s/%s_otimg.npz'%(self.destDir, oImgPre)
         np.savez_compressed(tpath, tot=simTOTs, fot=simFOTs)
         '''
+        
+    def simImage3(self, oImg, tImg):
+    
+        os.system("rm -rf %s/*"%(self.tmpDir))
+                
+        os.system("cp %s/%s %s/%s"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
+        os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
+        
+        #sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        #self.objectImgCat = self.runSextractor(self.objectImg, sexConf)
+        #self.templateImgCat = self.runSextractor(self.templateImg, sexConf)
+        self.objectImgCat = self.runSextractor(self.objectImg)
+        self.templateImgCat = self.runSextractor(self.templateImg)
+        
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgCat))
+        print(tdata1.shape)
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.templateImgCat))
+        print(tdata1.shape)
+        #查找“真OT”，如小行星等
+        mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgCat, self.templateImgCat, self.r5)
+        self.obj_tmp_cm5 = mchFile
+        self.obj_tmp_cn5 = nmhFile
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.obj_tmp_cm5))
+        print(tdata1.shape)
+        
+        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, 24)
+        self.osn32 = nmhFile
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.osn32))
+        
+        tdata2 = tdata1
+        print(tdata2.shape)
+        tmag = tdata2[:,tdata2.shape[1]-2]
+        maxMag = np.max(tmag)
+        tdata2 = tdata2[tmag>maxMag-3]
+        magerr = tdata2[:,tdata2.shape[1]-1]
+        print(magerr.shape)
+        print(magerr[:10])
+        magerr = 1.087/magerr
+        print(magerr[:10])
+        
+        from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+        xmajorLocator   = MultipleLocator(5)
+        xminorLocator   = MultipleLocator(2)
+        
+        plt.figure(figsize = (16, 8))
+        
+        ax = plt.subplot(111)
+        plt.hist(magerr, bins=30, range=(0,100), normed=False,     
+                weights=None, cumulative=False, bottom=None,     
+                histtype=u'bar', align=u'left', orientation=u'vertical',     
+                rwidth=0.8, log=False, color=None, label=None, stacked=False,     
+                hold=None) 
+        ax.xaxis.set_major_locator(xmajorLocator)
+        ax.xaxis.set_minor_locator(xminorLocator)
+        plt.show()
+        
+        
+        tdata2 = tdata1
+        magerr = tdata2[:,tdata2.shape[1]-1]
+        magerr = np.sort(magerr, axis=None)
+        magerr = magerr[int(0.05*magerr.shape[0]):int(0.9*magerr.shape[0])]
+        print(magerr[:10])
+        magerr = 1.087/magerr
+        print(magerr[:10])
+                
+        plt.figure(figsize = (16, 8))
+        
+        ax = plt.subplot(111)
+        plt.hist(magerr, bins=30, range=(0,100), normed=False,     
+                weights=None, cumulative=False, bottom=None,     
+                histtype=u'bar', align=u'left', orientation=u'vertical',     
+                rwidth=0.8, log=False, color=None, label=None, stacked=False,     
+                hold=None) 
+        ax.xaxis.set_major_locator(xmajorLocator)
+        ax.xaxis.set_minor_locator(xminorLocator)
+        plt.show()
+        
+        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r16)
+        self.osn16 = nmhFile
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.osn16))
+        print(tdata1.shape)
+
+        tdata2 = tdata1
+        magerr = tdata2[:,tdata2.shape[1]-1]
+        print(magerr[:10])
+        magerr = 1.087/magerr
+        print(magerr[:10])
+        
+        plt.figure(figsize = (16, 8))
+        
+        ax = plt.subplot(111)
+        plt.hist(magerr, bins=30, range=(0,20), normed=False,     
+                weights=None, cumulative=False, bottom=None,     
+                histtype=u'bar', align=u'left', orientation=u'vertical',     
+                rwidth=0.8, log=False, color=None, label=None, stacked=False,     
+                hold=None) 
+        ax.xaxis.set_major_locator(xmajorLocator)
+        ax.xaxis.set_minor_locator(xminorLocator)
+        plt.show()
+        
+        
         
     def simImage2(self, oImg, tImg):
     

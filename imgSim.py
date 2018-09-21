@@ -90,12 +90,18 @@ class ImageSimulation(object):
     13.5~14.5：20%
     12~13.5：10%
     '''
-    def randomOTAPos(self, objCat, minMag=12, maxMag=16.5):
+    def randomOTAPos(self, objCat, minMag=12, maxMag=16):
         
-        minDis = 5
+        minDis = 8
         maxDis = 12
         
         objOTs = np.loadtxt("%s/%s"%(self.tmpDir, objCat))
+        
+        #过滤部分亮星
+        #tmag = objOTs[:, objOTs.shape[1]-2]
+        #maxMag = np.max(tmag)
+        #objOTs = objOTs[tmag>maxMag-3.5]
+        
         posA = self.getPos(minDis, maxDis)
         posNum = len(posA)
         

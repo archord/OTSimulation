@@ -23,7 +23,7 @@ class OTSimulation(object):
         self.varDir = "/home/xy/Downloads/myresource/deep_data2/simulate_tools"
         self.srcDir = "/home/xy/Downloads/myresource/deep_data2/chaodata" # ls CombZ_*fit
         self.tmpDir="/run/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_lows2n"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_s2n25"
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="/home/xy/program/C/hotpants/hotpants"
                 
@@ -335,7 +335,7 @@ class OTSimulation(object):
         imgSimClass = ImageSimulation()
         
         ii = 1
-        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','1','-ANALYSIS_THRESH','1']
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         while tnum<totalTOT:
             simFile, simPosFile, simDeltaXYA = imgSimClass.simulateImage1(osn32f, self.objectImg, osn16sf, self.objectImg)
             self.objectImgSim = simFile
@@ -358,7 +358,7 @@ class OTSimulation(object):
             tIdx2 = np.loadtxt("%s/%s"%(self.tmpDir, str_oisa_cm5_pair)).astype(np.int)
             tIdx1 = tIdx1 - 1
             tIdx2 = tIdx2 - 1
-            self.log.debug("objectCat matched data %d, templateCat matched data %d"%(tIdx1.shape[0], tIdx2.shape[0]))
+            self.log.debug("objectCat matched data %d, ResiCat matched data %d"%(tIdx1.shape[0], tIdx2.shape[0]))
                     
             tnames1 = ['objId', 'tmpId']
             tnames2 = ['objId', 'resiId']
@@ -478,7 +478,7 @@ class OTSimulation(object):
         for timg in imgs:
             print("\n\nprocess %s"%(timg))
             self.simImage(timg, templateImg)
-            #break
+            break
             
 if __name__ == "__main__":
     
