@@ -5,6 +5,7 @@ from random import random, randint
 from astropy.io import fits
 import numpy as np
 import math
+from gwac_util import zscale_image
 
 class ImageSimulation(object):
     
@@ -39,11 +40,11 @@ class ImageSimulation(object):
        star=imgData[ys:ye,xs:xe]
        if not backsky:
           #backsky = np.median(np.sort(np.ravel(star))[:int(boxs[0]*boxs[1]/2)])
-          backsky = np.median(np.sort(np.ravel(star)))
+          backsky = np.median(star)
        #print("backsky = %s "%(backsky))
     
        return star,backsky
-
+        
     #所有的子图像的星等都为10等
     def getTmpOtImgs(self, templateOTFile, templateImage, otNum=100):
         
@@ -54,16 +55,20 @@ class ImageSimulation(object):
         tmpOtNum = np.min([tmpOTs.shape[0],otNum])
         randomIdx = np.random.randint(0, tmpOTs.shape[0], size=tmpOtNum)
         otImgs = []
+        bkgs = []
         for tobj in tmpOTs[randomIdx]:
             star,backsky = self.getPsfTemp(timgData,(tobj[0],tobj[1]))
             star = star - backsky
+            star[star<0] = 0
             flux_ratio = 10**((tobj[2]-10)/2.5)
             star = star*flux_ratio
             otImgs.append(star)
+            bkgs.append(tobj[4])
         
         self.otImgs = otImgs
         self.otImgNum = len(otImgs)
-        #return otImgs
+        #np.savez_compressed("/run/shm/gwacsim/otImgs.npz", otImgs=otImgs, bkgs=bkgs)
+        return otImgs
     
     def getPos(self, minDis, maxDis):
         
@@ -159,6 +164,7 @@ class ImageSimulation(object):
 
     def simulateImage1(self, objCat, objImg, tmpCat, tmpImg, tmpOtNum=100):
         
+        #对同一幅图多次仿真，只用提取一次仿真psf模板
         if self.otImgNum < tmpOtNum:
             self.getTmpOtImgs(tmpCat, tmpImg, otNum=tmpOtNum)
         
@@ -179,8 +185,6 @@ class ImageSimulation(object):
                 data0 = self.addStar(data0,psft,posa,flux_ratio=flux_ratio)
                 
                 if tflag==0:
-                    plt.imshow(psft, cmap='gray')
-                    plt.show()
                     
                     ctrX = math.ceil(posa[0])
                     ctrY = math.ceil(posa[1])
@@ -189,8 +193,15 @@ class ImageSimulation(object):
                     maxx = ctrX + 16
                     miny = ctrY - 16
                     maxy = ctrY + 16
+                    plt.clf()
+                    fig, axes = plt.subplots(1, 4, figsize=(6, 8))
+                    axes.flat[0].imshow(psft, interpolation = "nearest", cmap='gray')
+                    psftz = zscale_image(psft)
+                    axes.flat[1].imshow(psftz, interpolation = "nearest", cmap='gray')
                     widImg=data0[miny:maxy,minx:maxx]
-                    plt.imshow(widImg, cmap='gray')
+                    axes.flat[2].imshow(widImg, interpolation = "nearest", cmap='gray')
+                    widImgz = zscale_image(widImg)
+                    axes.flat[3].imshow(widImgz, interpolation = "nearest", cmap='gray')
                     plt.show()
                     tflag=1
                 

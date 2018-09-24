@@ -2,9 +2,43 @@
 
 from astropy.stats import sigma_clip
 import numpy as np
+import scipy.ndimage
 import math
 from astropy.io import fits
 
+
+def genPSFView(psfImgs, innerSpace = 1):
+    
+    imgNum = len(psfImgs)
+    gridNum = math.floor(math.sqrt(imgNum))
+    
+    for y in range(gridNum):
+        for x in range(gridNum):
+            tidx = y*gridNum + x
+            timg = psfImgs[tidx]
+            
+            timgz = zscale_image(timg)
+            if timgz.shape[0] == 0:
+                timgz = timg
+                tmin = np.min(timgz)
+                tmax = np.max(timgz)
+                timgz=(((timgz-tmin)/(tmax-tmin))*255).astype(np.uint8)
+            
+            if x ==0:
+                rowImg = timgz
+            else:
+                xspace = np.ones((timgz.shape[0],innerSpace), np.uint8)*255
+                rowImg = np.concatenate((rowImg, xspace, timgz), axis=1)
+        if y ==0:
+            conImg = rowImg
+        else:
+            yspace = np.ones((innerSpace,rowImg.shape[1]), np.uint8)*255
+            conImg = np.concatenate((conImg, yspace, rowImg), axis=0)
+    
+    conImg = scipy.ndimage.zoom(conImg, 4, order=0)
+    return conImg    
+        
+        
 '''
 对图像均匀接取grid=width_num*height_num个子窗口图像，每个窗口图像的大小为stampSize=(stampW, stapmH)
 没有考虑grid=(1,1)的情形
@@ -159,14 +193,14 @@ def selectTempOTs(fname, tpath):
                
     ots = []
     for tobj in tdata:
-        ots.append((tobj[3],tobj[4],tobj[38],1.087/tobj[39]))        
+        ots.append((tobj[3],tobj[4],tobj[38],1.087/tobj[39], tobj[17]))        
     
     outCatName = "%ss.cat"%(fname[:fname.index(".")])
     outCatPath = "%s/%s"%(tpath, outCatName)
     with open(outCatPath, 'w') as fp0:
         for tobj in ots:
             tempStarMag1 = 16 - (maxMag - tobj[2])
-            fp0.write("%.2f %.2f %.2f %.2f\n"%(tobj[0], tobj[1], tempStarMag1, tobj[3]))
+            fp0.write("%.2f %.2f %.2f %.2f %.2f\n"%(tobj[0], tobj[1], tempStarMag1, tobj[3], tobj[4]))
     
     return outCatName
     
@@ -209,7 +243,7 @@ def filtOTs(fname, tpath, darkMagRatio=0.03, brightMagRatio=0.03,fSize=200, imgS
     maxX = imgSize[0] - fSize
     maxY = imgSize[1] - fSize
 
-    if tdata.shape[1]==4:
+    if tdata.shape[1]==5:
         mag = tdata[:,2]
     else:
         mag = tdata[:,38]
@@ -220,24 +254,26 @@ def filtOTs(fname, tpath, darkMagRatio=0.03, brightMagRatio=0.03,fSize=200, imgS
     tobjs = []
     for obj in tdata:
         
-        if tdata.shape[1]==4:
+        if tdata.shape[1]==5:
             tx = obj[0]
             ty = obj[1]
             tmag = obj[2]
             ts2n = obj[3]
+            bkg = obj[4]
         else:
             tx = obj[3]
             ty = obj[4]
             tmag = obj[38]
             ts2n = 1.087/obj[39]
+            bkg = obj[17]
         if tx>minX and tx <maxX and ty>minY and ty<maxY and tmag<maxMag and tmag>minMag:
-            tobjs.append([tx, ty, tmag, ts2n])
+            tobjs.append([tx, ty, tmag, ts2n, bkg])
             
     outCatName = "%sf.cat"%(fname[:fname.index(".")])
     outCatPath = "%s/%s"%(tpath, outCatName)
     with open(outCatPath, 'w') as fp0:
         for tobj in tobjs:
-           fp0.write("%.2f %.2f %.2f %.2f\n"%(tobj[0], tobj[1], tobj[2], tobj[3]))
+           fp0.write("%.2f %.2f %.2f %.2f %.2f\n"%(tobj[0], tobj[1], tobj[2], tobj[3], tobj[4]))
     
     ds9RegionName = "%s/%s_filter_ds9.reg"%(tpath, fname[:fname.index(".")])
     with open(ds9RegionName, 'w') as fp1:

@@ -10,6 +10,7 @@ import math
 import os
 import time
 import logging
+import shutil
 import subprocess
 from gwac_util import zscale_image, selectTempOTs, filtOTs, filtByEllipticity, genFinalOTDs9Reg
 from imgSim import ImageSimulation
@@ -22,8 +23,9 @@ class OTSimulation(object):
         
         self.varDir = "/home/xy/Downloads/myresource/deep_data2/simulate_tools"
         self.srcDir = "/home/xy/Downloads/myresource/deep_data2/chaodata" # ls CombZ_*fit
+        self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/chaodata_bad"
         self.tmpDir="/run/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0922"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0924"
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="/home/xy/program/C/hotpants/hotpants"
                 
@@ -31,6 +33,8 @@ class OTSimulation(object):
             os.system("mkdir %s"%(self.tmpDir))
         if not os.path.exists(self.destDir):
             os.system("mkdir %s"%(self.destDir))
+        if not os.path.exists(self.srcDirBad):
+            os.system("mkdir %s"%(self.srcDirBad))
             
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
@@ -398,6 +402,7 @@ class OTSimulation(object):
             if ii>6:
                 break
             ii = ii + 1
+            #break
         
         subImgs = np.array(subImgBuffer)
         objS2NBuffer = np.array(objS2NBuffer)
@@ -464,6 +469,16 @@ class OTSimulation(object):
         mchFile, nmhFile, mchPair = self.runCrossMatch(self.templateImgCat, self.templateImgCat, 1)
     
     def batchSim(self):
+        
+        badImgList = 'bad_fit.txt'
+        f = open(badImgList, 'r')
+        for line in  f.readlines():
+            tfname = line[:-1]
+            srcPath = "%s/%s"%(self.srcDir, tfname)
+            destPath = "%s/%s"%(self.srcDirBad, tfname)
+            if os.path.exists(srcPath):
+                print("move bad img %s"%(tfname))
+                shutil.move(srcPath, destPath)
             
         # ls CombZ_*fit
         templateImg = 'CombZ_temp.fit'
@@ -475,10 +490,11 @@ class OTSimulation(object):
             if tfilename.find("fit")>-1 and tfilename.find("temp")==-1:
                 imgs.append(tfilename)
                 
-        for timg in imgs:
-            print("\n\nprocess %s"%(timg))
-            self.simImage(timg, templateImg)
-            #break
+        for i, timg in enumerate(imgs):
+            if timg=='CombZ_107.fit':
+                print("\n\nprocess %s"%(timg))
+                self.simImage(timg, templateImg)
+                break
             
 if __name__ == "__main__":
     

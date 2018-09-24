@@ -73,25 +73,25 @@ def getData(tpath1, tpath2):
         timgs = np.array([])
         tprops = np.array([])
         tnum = 0
-        for fname in tdirs:
-            tpath21 = "%s/%s"%(tpath2, fname)
-            print(tpath21)
-            tdata1 = np.load(tpath21)
-            imgs = tdata1['imgs']
-            props = tdata1['props']
-            
-            if timgs.shape[0]==0:
-                timgs = imgs
-            else:
-                timgs = np.concatenate((timgs, imgs), axis=0)
-            if tprops.shape[0]==0:
-                tprops = props
-            else:
-                tprops = np.concatenate((tprops, props), axis=0)
+        for i, fname in enumerate(tdirs):
+            if i> 50 and i < 100:
+                tpath21 = "%s/%s"%(tpath2, fname)
+                print(tpath21)
+                tdata1 = np.load(tpath21)
+                imgs = tdata1['imgs']
+                props = tdata1['props']
                 
-            tnum = tnum + imgs.shape[0]
-            if tnum>totNum/4:
-                break
+                if timgs.shape[0]==0:
+                    timgs = imgs
+                    tprops = props
+                else:
+                    if len(imgs.shape)==4:
+                        timgs = np.concatenate((timgs, imgs), axis=0)
+                        tprops = np.concatenate((tprops, props), axis=0)
+                    
+                tnum = tnum + imgs.shape[0]
+                if tnum>totNum/4:
+                    break
         
         print(timgs.shape)
         print(tprops.shape)
@@ -170,7 +170,7 @@ def createModel():
 
 if __name__ == "__main__":
     
-    tpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data"
+    tpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0922"
     tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2"
     X,Y = getData(tpath1, tpath2)
     print(X.shape)
@@ -180,7 +180,8 @@ if __name__ == "__main__":
     keras.backend.set_image_dim_ordering('th')
     model = createModel()    
     #optimizer = keras.optimizers.SGD(lr=0.0001, decay=1e-6, momentum=0.9, nesterov=True)
-    optimizer = keras.optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999,decay=0.0)
+    optimizer = keras.optimizers.Adam(lr=0.000001, beta_1=0.9, beta_2=0.999,decay=0.0)
+    #optimizer = keras.optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999,decay=0.0)
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     
     N_data = X.shape[0]
@@ -192,7 +193,7 @@ if __name__ == "__main__":
     
     model.fit(X_train, Y_train, batch_size=128, nb_epoch=5, validation_split=0.2)
     #model.save_weights("/home/xy/Downloads/myresource/deep_data2/simot/train_model/m0907.h5")
-    model.save("/home/xy/Downloads/myresource/deep_data2/simot/train_model/m180912-gpu-all-128.h5")
+    model.save("/home/xy/Downloads/myresource/deep_data2/simot/train_model/m180924-gpu-all-128.h5")
     
     Y_pred = model.predict(X_test)
     
