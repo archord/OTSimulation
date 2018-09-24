@@ -55,7 +55,6 @@ class ImageSimulation(object):
         tmpOtNum = np.min([tmpOTs.shape[0],otNum])
         randomIdx = np.random.randint(0, tmpOTs.shape[0], size=tmpOtNum)
         otImgs = []
-        bkgs = []
         for tobj in tmpOTs[randomIdx]:
             star,backsky = self.getPsfTemp(timgData,(tobj[0],tobj[1]))
             star = star - backsky
@@ -63,7 +62,6 @@ class ImageSimulation(object):
             flux_ratio = 10**((tobj[2]-10)/2.5)
             star = star*flux_ratio
             otImgs.append(star)
-            bkgs.append(tobj[4])
         
         self.otImgs = otImgs
         self.otImgNum = len(otImgs)

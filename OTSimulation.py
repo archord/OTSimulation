@@ -433,16 +433,22 @@ class OTSimulation(object):
         mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r5)
         self.tsn5 = nmhFile
         
-        
-        simFOTs, s2nf = self.simFOT(self.objectImg, self.templateImg)
-        simTOTs, s2nt = self.simTOT(self.objectImg, self.templateImg, simFOTs.shape[0])
-        
-        print("%s with TOT %d, FOT %d"%(oImg, simTOTs.shape[0], simFOTs.shape[0]))
-        
         #pickle
         oImgPre = oImg[:oImg.index(".")]
-        tpath = '%s/%s_otimg.npz'%(self.destDir, oImgPre)
-        np.savez_compressed(tpath, tot=simTOTs, fot=simFOTs, ts2n=s2nt, fs2n=s2nf)
+        totpath = '%s/%s_otimg_tot.npz'%(self.destDir, oImgPre)
+        fotpath = '%s/%s_otimg_fot.npz'%(self.destDir, oImgPre)
+        if not os.path.exists(fotpath):
+            simFOTs, s2nf = self.simFOT(self.objectImg, self.templateImg)
+            np.savez_compressed(fotpath, fot=simFOTs, fs2n=s2nf)
+        else:
+            tdata1 = np.load(fotpath)
+            simFOTs = tdata1['fot']
+            print("read %d false OT from %s"%(simFOTs.shape[0], fotpath))
+            
+        simTOTs, s2nt = self.simTOT(self.objectImg, self.templateImg, simFOTs.shape[0])
+        np.savez_compressed(totpath, tot=simTOTs, ts2n=s2nt)
+        
+        print("%s with TOT %d, FOT %d"%(oImg, simTOTs.shape[0], simFOTs.shape[0]))
         
         
     def testSimImage(self):
@@ -491,10 +497,9 @@ class OTSimulation(object):
                 imgs.append(tfilename)
                 
         for i, timg in enumerate(imgs):
-            if timg=='CombZ_107.fit':
-                print("\n\nprocess %s"%(timg))
-                self.simImage(timg, templateImg)
-                break
+            print("\n\nprocess %s"%(timg))
+            self.simImage(timg, templateImg)
+            break
             
 if __name__ == "__main__":
     
