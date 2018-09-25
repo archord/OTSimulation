@@ -52,6 +52,10 @@ class ImageSimulation(object):
         timgData = fits.getdata(tPath)
         
         tmpOTs = np.loadtxt("%s/%s"%(self.tmpDir, templateOTFile))
+        if len(tmpOTs.shape)<2:
+            print(tmpOTs.shape)
+            print("error: %s data error"%(templateOTFile))
+            return []
         tmpOtNum = np.min([tmpOTs.shape[0],otNum])
         randomIdx = np.random.randint(0, tmpOTs.shape[0], size=tmpOtNum)
         otImgs = []

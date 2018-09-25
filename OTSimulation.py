@@ -325,7 +325,17 @@ class OTSimulation(object):
         self.osn32 = nmhFile
 
         osn16s = selectTempOTs(self.osn16, self.tmpDir)
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, osn16s))
+        if len(tdata.shape)<2 or tdata.shape[0]<100:
+            print("%s has too little stars, break this run"%(oImg))
+            return np.array([]), np.array([])
+        
         osn16sf = filtOTs(osn16s, self.tmpDir)
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, osn16sf))
+        if len(tdata.shape)<2 or tdata.shape[0]<45:
+            print("%s has too little stars, break this run"%(oImg))
+            return np.array([]), np.array([])
+        
         osn32f = filtOTs(self.osn32, self.tmpDir)
         
         mchFile, nmhFile, mchPair = self.runCrossMatch(osn32f, self.tsn5, self.r5)
@@ -411,6 +421,23 @@ class OTSimulation(object):
         
         return subImgs, objS2NBuffer
     
+    def removeHeader(self, fname):
+        
+        fullPath = "%s/%s"%(self.tmpDir, fname)
+        
+        fname='G022_mon_objt_180226T17492514_2.fits'
+        keyword=['WCSASTRM','WCSDIM','CTYPE1','CTYPE2',
+                 'CRVAL1','CRVAL2','CRPIX1','CRPIX2',
+                 'CD1_1','CD1_2','CD2_1','CD2_2','WAT0_001',
+                 'WAT1_001','WAT1_002','WAT1_003','WAT1_004','WAT1_005','WAT1_006','WAT1_007','WAT1_008',
+                 'WAT2_001','WAT2_002','WAT2_003','WAT2_004','WAT2_005','WAT2_006','WAT2_007','WAT2_008']
+    
+        with fits.open(fullPath, mode='update') as hdul:
+            hdr = hdul[0].header
+            for kw in keyword:
+                hdr.remove(kw,ignore_missing=True)
+            hdul.flush()
+            hdul.close()
         
     def simImage(self, oImg, tImg):
     
@@ -419,8 +446,20 @@ class OTSimulation(object):
         os.system("cp %s/%s %s/%s"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
         os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
         
+        self.removeHeader(self.objectImg)
+        
         self.objectImgCat = self.runSextractor(self.objectImg)
         self.templateImgCat = self.runSextractor(self.templateImg)
+        
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgCat))
+        if len(tdata.shape)<2 or tdata.shape[0]<5000:
+            print("%s has too little stars, break this run"%(oImg))
+            return
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, self.templateImgCat))
+        if len(tdata.shape)<2 or tdata.shape[0]<5000:
+            print("%s has too little stars, break this run"%(tImg))
+            return
+        
         #查找“真OT”，如小行星等
         mchFile, nmhFile, mchPair = self.runCrossMatch(self.objectImgCat, self.templateImgCat, self.r5)
         self.obj_tmp_cm5 = mchFile

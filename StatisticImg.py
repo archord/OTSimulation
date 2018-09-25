@@ -17,13 +17,14 @@ import scipy.ndimage
 from PIL import Image
 
 
-class GenerateCheckImage(object):
+class StatisticImg(object):
     def __init__(self):
         
         self.verbose = True
         
         self.varDir = "/home/xy/Downloads/myresource/deep_data2/simulate_tools"
         self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216" # ls CombZ_*fit
+        self.catDir = "/home/xy/Downloads/myresource/deep_data2/G180216Cat"
         self.tmpDir="/run/shm/gwacsim"
         self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0923"
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
@@ -33,6 +34,8 @@ class GenerateCheckImage(object):
             os.system("mkdir %s"%(self.tmpDir))
         if not os.path.exists(self.destDir):
             os.system("mkdir %s"%(self.destDir))
+        if not os.path.exists(self.catDir):
+            os.system("mkdir %s"%(self.catDir))
             
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
@@ -67,80 +70,16 @@ class GenerateCheckImage(object):
             streamhandler = logging.StreamHandler() #create print to screen logging
             streamhandler.setFormatter(formatter) #add format to screen logging
             self.log.addHandler(streamhandler) #link logger to screen logging
-    
-    #catalog self match
-    def runSelfMatch(self, fname, mchRadius):
-        
-        outpre= fname.split(".")[0]
-        fullPath = "%s/%s"%(self.tmpDir, fname)
-        
-        # run sextractor from the unix command line
-        cmd = [self.matchProgram, fullPath, str(mchRadius), '4', '5', '39']
-        self.log.debug(cmd)
-           
-        # run command
-        process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        (stdoutstr,stderrstr) = process.communicate()
-        status = process.returncode
-        self.log.info(stdoutstr)
-        self.log.info(stderrstr)
-        
-        mchFile = "%s_sm%d.cat"%(outpre,mchRadius)
-        nmhFile = "%s_sn%d.cat"%(outpre,mchRadius)
-        mchFilePath = "%s/%s"%(self.tmpDir,mchFile)
-        nmhFilePath = "%s/%s"%(self.tmpDir,nmhFile)
-        if os.path.exists(mchFilePath) and os.path.exists(nmhFilePath) and status==0:
-            self.log.debug("run self match success.")
-            self.log.debug("generate matched file %s"%(mchFile))
-            self.log.debug("generate not matched file %s"%(nmhFile))
-        else:
-            self.log.error("self match failed.")
-        
-        return mchFile, nmhFile
-    
-    #crossmatch 
-    def runCrossMatch(self, objCat, tmpCat, mchRadius):
-        
-        objpre= objCat.split(".")[0]
-        tmppre= tmpCat.split(".")[0]
-        objFPath = "%s/%s"%(self.tmpDir, objCat)
-        tmpFPath = "%s/%s"%(self.tmpDir, tmpCat)
-        outFPath = "%s/%s_%s.out"%(self.tmpDir, objpre,tmppre)
-        
-        # run sextractor from the unix command line
-        cmd = [self.matchProgram, tmpFPath, objFPath, outFPath, str(mchRadius), '4', '5', '39']
-        self.log.debug(cmd)
-           
-        # run command
-        process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        (stdoutstr,stderrstr) = process.communicate()
-        status = process.returncode
-        self.log.info(stdoutstr)
-        self.log.info(stderrstr)
-        
-        mchPair = "%s_%s_cm%d.pair"%(objpre,tmppre,mchRadius)
-        mchFile = "%s_%s_cm%d.cat"%(objpre,tmppre,mchRadius)
-        nmhFile = "%s_%s_cn%d.cat"%(objpre,tmppre,mchRadius)
-        mchPairPath = "%s/%s"%(self.tmpDir,mchPair)
-        mchFilePath = "%s/%s"%(self.tmpDir,mchFile)
-        nmhFilePath = "%s/%s"%(self.tmpDir,nmhFile)
-        if os.path.exists(mchPairPath) and os.path.exists(mchFilePath) and os.path.exists(nmhFilePath) and status==0:
-            self.log.debug("run catalog match success.")
-            self.log.debug("generate pair file %s"%(mchPair))
-            self.log.debug("generate matched file %s"%(mchFile))
-            self.log.debug("generate not matched file %s"%(nmhFile))
-        else:
-            self.log.error("cross match failed.")
-        
-        return mchFile, nmhFile, mchPair
+
+
     
     #source extract
     def runSextractor(self, fname, sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']):
         
         outpre= fname.split(".")[0]
-        fullPath = "%s/%s"%(self.tmpDir, fname)
+        fullPath = "%s/%s"%(self.tmpDir, self.objectImg)
         outFile = "%s.cat"%(outpre)
-        outFPath = "%s/%s"%(self.tmpDir, outFile)
+        outFPath = "%s/%s"%(self.catDir, outFile)
         cnfPath = "%s/config/OTsearch.sex"%(self.varDir)
         
         #DETECT_MINAREA   5              # minimum number of pixels above threshold
@@ -165,36 +104,7 @@ class GenerateCheckImage(object):
             self.log.error("sextractor failed.")
             
         return outFile
-        
-    #hotpants
-    def runHotpants(self, objImg, tmpImg):
-        
-        objpre= objImg.split(".")[0]
-        tmppre= tmpImg.split(".")[0]
-        objFPath = "%s/%s"%(self.tmpDir, objImg)
-        tmpFPath = "%s/%s"%(self.tmpDir, tmpImg)
-        outFile = "%s_%s_resi.fit"%(objpre,tmppre)
-        outFPath = "%s/%s"%(self.tmpDir, outFile)
-        
-        # run sextractor from the unix command line
-        cmd = [self.imgDiffProgram, '-inim', objFPath, '-tmplim', tmpFPath, '-outim', 
-                 outFPath, '-v', '0', '-nrx', '4', '-nry', '4']
-        self.log.debug(cmd)
-           
-        # run command
-        process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        (stdoutstr,stderrstr) = process.communicate()
-        status = process.returncode
-        #self.log.info(stdoutstr)
-        #self.log.info(stderrstr)
-        
-        if os.path.exists(outFPath) and status==0:
-            self.log.debug("run hotpants success.")
-            self.log.debug("generate diff residual image %s"%(outFPath))
-        else:
-            self.log.error("hotpants failed.")
-            
-        return outFile
+
     
     def removeHeader(self, fname):
         
@@ -260,7 +170,7 @@ class GenerateCheckImage(object):
         Image.fromarray(psfView).save(dpath1)
         Image.fromarray(thumbnail).save(dpath2)
         
-    def batchSim2(self):
+    def batchSim(self):
             
         # ls CombZ_*fit
         templateImg = 'CombZ_temp.fit'
@@ -274,34 +184,17 @@ class GenerateCheckImage(object):
                 
         for i, timg in enumerate(imgs):
             print("\n\nprocess %s"%(timg))
-            self.simImage(timg)
+            os.system("rm -rf %s/*"%(self.tmpDir))
+            os.system("cp %s/%s %s/%s"%(self.srcDir, timg, self.tmpDir, self.objectImg))
+            
+            self.removeHeader(self.objectImg)
+            self.objectImgCat = self.runSextractor(timg)
             break
-            
-    def batchSim(self):
-            
-        # ls CombZ_*fit
-        templateImg = 'CombZ_temp.fit'
-        flist = os.listdir(self.srcDir)
-        flist.sort()
-        
-        flag = False
-        imgs = []
-        for tfilename in flist:
-            if tfilename.find("fit")>-1:
-                if flag==False and tfilename == 'G044_mon_objt_180416T20464944.fit':
-                    imgs.append(tfilename)
-                    flag = True
-                elif flag:
-                    imgs.append(tfilename)
-                
-        for i, timg in enumerate(imgs):
-            print("\n\nprocess %s"%(timg))
-            self.simImage(timg)
-            #break
+
         
 if __name__ == "__main__":
     
-    otsim = GenerateCheckImage()
+    otsim = StatisticImg()
     otsim.batchSim()
     #otsim.testSimImage()
     #otsim.simFOT2('obj', 'tmp')
