@@ -7,6 +7,7 @@ from random import randint, random
 import pandas as pd
 import sys
 import math
+import shutil
 import os
 import time
 import logging
@@ -191,6 +192,78 @@ class StatisticImg(object):
             self.objectImgCat = self.runSextractor(timg)
             break
 
+    def plotStarNum(self):
+        
+        dirs = ['17320495.0', '25020495.0']
+        for ii, tdir in enumerate(dirs):
+            spath = "%s/%s"%(self.catDir, tdir)
+            flist = os.listdir(spath)
+            flist.sort()
+            
+            imgs = []
+            for tfilename in flist:
+                if tfilename.find("cat")>-1:
+                    imgs.append(tfilename)
+            
+            tnums = []
+            for i, timg in enumerate(imgs):
+                tpath = "%s/%s"%(spath, timg)
+                #print("%d, %s"%(i,tpath))
+                tf = open(tpath,"r")
+                tnum = len(tf.readlines())
+                tf.close()
+                tnums.append(tnum)
+            #print(tnums)
+            if ii==0:
+                tnums = tnums[:600]
+            else:
+                tnums = tnums[100:900]
+                
+            plt.plot(tnums)
+            plt.show()
+    
+    def moveByFieldId(self):
+        
+        flist = os.listdir(self.srcDir)
+        flist.sort()
+        
+        imgs = []
+        for tfilename in flist:
+            if tfilename.find("fit")>-1:
+                imgs.append(tfilename)
+                
+        for i, timg in enumerate(imgs):
+            spath = "%s/%s"%(self.srcDir, timg)
+            with fits.open(spath,memmap=False) as hdul:
+                hdr = hdul[0].header
+                fieldId = hdr["FIELD_ID"]
+                hdul.close()
+                print(fieldId)
+                dpath = "%s/%s"%(self.srcDir,fieldId)
+                if not os.path.exists(dpath):
+                    os.system("mkdir %s"%(dpath))
+                dpath2 = "%s/%s"%(dpath,timg)
+                shutil.move(spath,dpath2)
+            if i>10:
+                break
+            
+    def moveCat(self):
+        
+        spath = "%s/17320495.0"%(self.srcDir)
+        flist = os.listdir(spath)
+        flist.sort()
+        
+        dpath = "%s/17320495.0"%(self.catDir)
+        if not os.path.exists(dpath):
+            os.system("mkdir %s"%(dpath))
+                        
+        for i, timg in enumerate(flist):
+            tname = timg[:-4]
+            spath11 = "%s/%s.cat"%(self.catDir, tname)
+            dpath11 = "%s/%s.cat"%(dpath, tname)
+            if os.path.exists(spath11):
+                print(dpath11)
+                shutil.move(spath11,dpath11)
         
 if __name__ == "__main__":
     

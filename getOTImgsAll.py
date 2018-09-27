@@ -38,6 +38,7 @@ class OTRecord:
         try:
             with fits.open(filename,memmap=False) as ft:
                 data = ft[0].data
+                ft.close()
         except Exception as err:
             print("read %s error"%(filename))
         return data

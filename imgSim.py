@@ -150,6 +150,9 @@ class ImageSimulation(object):
        @param posa: positon...in [x,y]
        @flux_ratio: to ad star flux ratio to template
        """
+       psft = psft*flux_ratio
+       psft = psft.astype(np.uint16)
+       
        boxs = psft.shape
        delt_x = boxs[0]/2
        delt_y = boxs[1]/2
@@ -160,7 +163,7 @@ class ImageSimulation(object):
        yc_as = int( posa[1] - delt_y)
        yc_ae = int( posa[1] + delt_y) + boxs[1]%2
         #print "flux_ratio=",flux_ratio
-       image[yc_as:yc_ae,xc_as:xc_ae] += psft*flux_ratio
+       image[yc_as:yc_ae,xc_as:xc_ae] += psft
     
        return image
 
