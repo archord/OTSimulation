@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+#21像素，吴朝图像
 import numpy as np
 import os
 import shutil

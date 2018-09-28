@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#12像素，FOT吴朝图像（加上观测假OT2误分为真OT2的部分），TOT小辛图像
 from astropy.io import fits
 import numpy as np
 import math

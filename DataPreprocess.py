@@ -26,6 +26,37 @@ def getImgStamp(imgArray, size=12, padding = 1):
             rstImgs.append([img1,img2,img3])
         rst = np.array(rstImgs)
     return rst
+
+def dataAugment(srcPath):
+    
+    timgbinPath = '%s_aug.npz'%(srcPath[:-4])
+    if os.path.exists(timgbinPath):
+        print("bin file exist, read from %s"%(timgbinPath))
+        timgbin = np.load(timgbinPath)
+        X = timgbin['X']
+        Y = timgbin['Y']
+        s2n = timgbin['s2n']
+    else:
+        print(srcPath)
+        timgbin = np.load(srcPath)
+        X = timgbin['X']
+        Y = timgbin['Y']
+        s2n = timgbin['s2n']
+        
+        print("before augment %d"%(X.shape[0]))
+        X1 = np.rot90(X, 1, (2,3))
+        X2 = np.rot90(X1, 1, (2,3))
+        X3 = np.rot90(X2, 1, (2,3))
+        
+        X = np.concatenate((X, X1, X2, X3), axis=0)
+        Y = np.concatenate((Y, Y, Y, Y), axis=0)
+        s2n = np.concatenate((s2n, s2n, s2n, s2n), axis=0)
+        
+        print("after augment %d"%(Y.shape[0]))
+    
+        np.savez_compressed(timgbinPath, X=X, Y=Y, s2n=s2n)
+        print("save bin fiel to %s"%(timgbinPath))
+    return X, Y, s2n
     
 def getData(fotPath, totPath, destPath):
     
@@ -217,6 +248,117 @@ def getData2(fotPath, totPath, realFotPath, destPath):
             fotImgs = fotImgs[0:totNum]
             fs2ns = fs2ns[0:totNum]
         
+        totSize = totImgs.shape[0]
+        fotSize = fotImgs.shape[0]
+        totLabel = np.ones(totSize)
+        fotLabel = np.zeros(fotSize)
+        X = np.concatenate((totImgs, fotImgs), axis=0)
+        s2n = np.concatenate((ts2ns, fs2ns), axis=0)
+        y = np.concatenate((totLabel, fotLabel), axis=0)
+        Y = np.array([np.logical_not(y), y]).transpose()
+            
+        XY = []
+        for i in range(Y.shape[0]):
+            XY.append((X[i],Y[i],s2n[i]))
+        XY = np.array(XY)
+        np.random.shuffle(XY)
+        
+        X = []
+        Y = []
+        s2n = []
+        for i in range(XY.shape[0]):
+            X.append(XY[i][0])
+            Y.append(XY[i][1])
+            s2n.append(XY[i][2])
+        X = np.array(X)
+        Y = np.array(Y)
+        s2n = np.array(s2n)
+        
+        np.savez_compressed(timgbinPath, X=X, Y=Y, s2n=s2n)
+        print("save bin fiel to %s"%(timgbinPath))
+    return X, Y, s2n
+    
+def getData3(totPath, realFotPath, destPath):
+    
+    timgbinPath = '%s/SIM_IMG_ALL_RealFOT_bin12.npz'%(destPath)
+    if os.path.exists(timgbinPath):
+        print("bin file exist, read from %s"%(timgbinPath))
+        timgbin = np.load(timgbinPath)
+        X = timgbin['X']
+        Y = timgbin['Y']
+        s2n = timgbin['s2n']
+    else:
+                
+        fotImgs = np.array([])
+        fs2ns = np.array([])
+                
+        tdirs = os.listdir(realFotPath)
+        tdirs.sort()
+        for fname in tdirs:
+            if fname[-7:]=='_12.npz' and fname[:3]=='fot':
+                tpath1 = "%s/%s"%(realFotPath, fname)
+                print(tpath1)
+                fdata1 = np.load(tpath1)
+                
+                fotImg = fdata1['imgs']
+                fs2n = np.zeros(fotImg.shape[0])
+                
+                if fotImgs.shape[0]==0:
+                    fotImgs = fotImg
+                    fs2ns = fs2n
+                else:
+                    fotImgs = np.concatenate((fotImgs, fotImg), axis=0)
+                    fs2ns = np.concatenate((fs2ns, fs2n), axis=0)
+                #break
+        
+        print(fotImgs.shape)
+        totImgs = np.array([])
+        ts2ns = np.array([])
+        
+        totNum = 0
+        tdirs = os.listdir(totPath)
+        tdirs.sort()
+        for fname in tdirs:
+            tpath1 = "%s/%s"%(totPath, fname)
+            print(tpath1)
+            tdata1 = np.load(tpath1)
+            
+            totImg = tdata1['tot']
+            ts2n = tdata1['ts2n']
+            totImg = getImgStamp(totImg)
+            
+            if totImgs.shape[0]==0:
+                totImgs = totImg
+                ts2ns = ts2n
+            else:
+                totImgs = np.concatenate((totImgs, totImg), axis=0)
+                ts2ns = np.concatenate((ts2ns, ts2n), axis=0)
+            
+            totNum = totNum + totImg.shape[0]
+            if totNum >= fotImgs.shape[0]:
+                break
+            #break
+                
+        print(totImgs.shape)
+        
+        totNum = totImgs.shape[0]
+        fotNum = fotImgs.shape[0]
+        if totNum>fotNum:
+            totImgs = totImgs[0:fotNum]
+            ts2ns = ts2ns[0:fotNum]
+        elif totNum<fotNum:
+            fotImgs = fotImgs[0:totNum]
+            fs2ns = fs2ns[0:totNum]
+        '''
+        
+        totNum = 1000000
+        fotNum = 1000000
+        totImgs = totImgs[0:fotNum]
+        ts2ns = ts2ns[0:fotNum]
+        fotImgs = fotImgs[0:totNum]
+        fs2ns = fs2ns[0:totNum]
+        
+        '''
         totSize = totImgs.shape[0]
         fotSize = fotImgs.shape[0]
         totLabel = np.ones(totSize)

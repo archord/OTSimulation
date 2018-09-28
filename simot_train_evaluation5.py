@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#12像素，FOT吴朝图像，TOT小辛图像，原始图像和3次旋转图像
+#12像素，FOT观测假OT2，TOT小辛图像
 from astropy.io import fits
 import numpy as np
 import math
@@ -49,10 +49,10 @@ def createModel():
         
     return model
 
+#train with real Sample of False miss classify as True
 def train():
     
-    tpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0924"
-    tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2"
+    tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
     tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0927"
     
     dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
@@ -61,9 +61,7 @@ def train():
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    #X,Y,s2n = getData(tpath1, tpath3, workPath)
-    timgbinPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_20180928/SIM_IMG_ALL_bin12.npz"
-    X,Y,s2n = dataAugment(timgbinPath)
+    X,Y,s2n = getData3(tpath3, tpath2, workPath)
     print(X.shape)
     print(Y.shape)
     print(s2n.shape)
@@ -80,12 +78,11 @@ def train():
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     
     model.fit(X_train, Y_train, batch_size=128, nb_epoch=5, validation_split=0.2)
-    model.save("%s/model_128_5.h5"%(workPath))
-    
+    model.save("%s/model_128_5_RealFOT.h5"%(workPath))
+        
 def test():
-    
-    tpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0924"
-    tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2"
+
+    tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
     tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0927"
     
     dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
@@ -94,7 +91,7 @@ def test():
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    X,Y,s2n = getData(tpath1, tpath3, workPath)
+    X,Y,s2n = getData3(tpath3, tpath2, workPath)
     print(X.shape)
     print(Y.shape)
     print(s2n.shape)
@@ -106,7 +103,7 @@ def test():
     X_test, Y_test, s2n_test = X[N_train:], Y[N_train:], s2n[N_train:]
     
     from keras.models import load_model
-    model = load_model("%s/model_128_5.h5"%(workPath))
+    model = load_model("%s/model_128_5_RealFOT.h5"%(workPath))
     Y_pred = model.predict(X_test)
     pbb_threshold = 0.5
     pred_labels = np.array((Y_pred[:, 1] > pbb_threshold), dtype = "int")
@@ -235,7 +232,7 @@ def realDataTest():
     
     print(X.shape)
     from keras.models import load_model
-    model = load_model("%s/model_128_5.h5"%(workPath))
+    model = load_model("%s/model_128_5_RealFOT.h5"%(workPath))
     preY = model.predict(X, batch_size=128)
 
     trueThred = 0.5
@@ -322,62 +319,6 @@ def realDataTest():
     
     print("look back FOT %d, classify as true:  %d, with %d in badImg"%(tNum, tNum2, badNum))
 
-def realDataTestAndStore():
-        
-    dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
-    workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
-    if not os.path.exists(workPath):
-        os.system("mkdir %s"%(workPath))
-    print("work path is %s"%(workPath))
-    
-    from keras.models import load_model
-    model = load_model("%s/model_128_5.h5"%(workPath))
-    
-    realDataPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
-    tdirs = os.listdir(realDataPath)
-    tdirs.sort()
-    
-    showNum = 50
-    trueThred = 0.5
-    for i, fname in enumerate(tdirs):
-        if fname[:3]=='fot' and fname[-6:]=='12.npz':
-            tpath21 = "%s/%s"%(realDataPath, fname)
-            print(tpath21)
-            tdata1 = np.load(tpath21)
-            timgs = tdata1['imgs']
-            tprops = tdata1['props']
-        
-            X = timgs
-            preY = model.predict(X, batch_size=4096)
-            
-            falseIdx = preY[:,1]>trueThred
-            falseImgs = timgs[falseIdx]
-            falseProps = tprops[falseIdx]
-            falsePreY = preY[falseIdx]
-            
-            print("total false ot %d, classify as true %d, %f%%"%(X.shape[0], falseImgs.shape[0], falseImgs.shape[0]*100.0/X.shape[0]))
-            
-            dpath21 = '%s/%s_F2T.npz'%(realDataPath, fname[:-4])
-            np.savez_compressed(dpath21, imgs=falseImgs, props=falseProps)
-            print("save %d False classify as True bin to %s"%(falseImgs.shape[0], dpath21))
-            
-            '''
-            X = falseImgs
-            for i in range(X.shape[0]):
-                tot2 = falseProps[i]
-                tlabel = tot2[4]
-                ttype = tot2[5]
-                
-                fig, axes = plt.subplots(1, 3, figsize=(3, 1))
-                axes.flat[0].imshow(X[i][0], cmap='gray')
-                axes.flat[1].imshow(X[i][1], cmap='gray')
-                axes.flat[2].imshow(X[i][2], cmap='gray')
-                axes.flat[1].set_title("%d, %s, look=%s, type=%s, pbb=%.2f"%(i, tot2[1][:14], tlabel, ttype, falsePreY[i][1]))
-                plt.show()
-                if i>showNum:
-                    break
-            '''    
-            #break
     
 if __name__ == "__main__":
     

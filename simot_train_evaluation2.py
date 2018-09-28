@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#12像素，吴朝图像
 from astropy.io import fits
 import numpy as np
 import math
