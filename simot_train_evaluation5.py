@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#12像素，FOT观测假OT2，TOT小辛图像
+#12像素，FOT观测假OT2，TOT小辛图像, 减背景和不减背景
 from astropy.io import fits
 import numpy as np
 import math
@@ -53,7 +53,7 @@ def createModel():
 def train():
     
     tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
-    tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0927"
+    tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0928"
     
     dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
     workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
@@ -83,7 +83,7 @@ def train():
 def test():
 
     tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
-    tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0927"
+    tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0928"
     
     dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
     workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)

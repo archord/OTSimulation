@@ -25,7 +25,7 @@ class OTSimulation(object):
         self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0" # ls CombZ_*fit
         self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0_bad"
         self.tmpDir="/run/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0928"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0929"
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="/home/xy/program/C/hotpants/hotpants"
                 
@@ -223,7 +223,28 @@ class OTSimulation(object):
             
         return widImg
 
+
     def getWindowImgs(self, objImg, tmpImg, resiImg, poslist, size):
+        
+        objPath = "%s/%s"%(self.tmpDir, objImg)
+        tmpPath = "%s/%s"%(self.tmpDir, tmpImg)
+        resiPath = "%s/%s"%(self.tmpDir, resiImg)
+        
+        objData = fits.getdata(objPath)
+        tmpData = fits.getdata(tmpPath)
+        resiData = fits.getdata(resiPath)
+        
+        subImgs = []
+        for tpos in poslist:
+            objWid = self.getWindowImg(objData, (tpos[0], tpos[1]), size)
+            tmpWid = self.getWindowImg(tmpData, (tpos[2], tpos[3]), size)
+            resiWid = self.getWindowImg(resiData, (tpos[4], tpos[5]), size)
+            
+            subImgs.append([objWid, tmpWid, resiWid])
+                
+        return subImgs
+    
+    def getWindowImgs2(self, objImg, tmpImg, resiImg, poslist, size):
         
         objPath = "%s/%s"%(self.tmpDir, objImg)
         tmpPath = "%s/%s"%(self.tmpDir, tmpImg)
@@ -263,7 +284,7 @@ class OTSimulation(object):
                 #if i>20:
                 #    break
                 
-        return subImgs      
+        return subImgs
 
     def simTOT(self, oImg, tImg, subImgNum=1000):
         

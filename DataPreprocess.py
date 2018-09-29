@@ -710,6 +710,26 @@ def showImgs(tpath, showTitle, showNum=50):
         if i> showNum:
             break
         
+        
+def showImgs2(tpath, showTitle, showNum=50):
+    
+    tdata1 = np.load(tpath)
+    totImgs = tdata1['tot']
+    ts2n = tdata1['ts2n']
+    
+    print(showTitle)
+    for i in range(totImgs.shape[0]):
+
+        fig, axes = plt.subplots(1, 3, figsize=(3, 1))
+        axes.flat[0].imshow(totImgs[i][0], cmap='gray')
+        axes.flat[1].imshow(totImgs[i][1], cmap='gray')
+        axes.flat[2].imshow(totImgs[i][2], cmap='gray')
+        axes.flat[1].set_title("%d, s2n=%f"%(i, ts2n[i]))
+        plt.show()
+        
+        if i> showNum:
+            break
+        
 def viewRealData():
     
     totPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart/tot_all_12.npz"
@@ -720,6 +740,16 @@ def viewRealData():
     showImgs(minorPlantPath, "\n\n**********show MinorPlant")
     showImgs(fotPath, "\n\n**********show FOT")
 
+def viewSimData():
+    tpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0928"
+    
+    tdirs = os.listdir(tpath1)
+    tdirs.sort()
+    for ii, fname in enumerate(tdirs):
+        if ii<10 or ii>590:
+            tpath11 = "%s/%s"%(tpath1, fname)
+            showImgs2(tpath11, fname, showNum=20)
+    
 def resizeRealData():
     
     realDataPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
