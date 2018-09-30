@@ -312,6 +312,9 @@ def getData3(totPath, realFotPath, destPath):
                 #break
         
         print(fotImgs.shape)
+        fotImgs=fotImgs[:-10000]
+        fotImgs=fotImgs[:-10000]
+        
         totImgs = np.array([])
         ts2ns = np.array([])
         
@@ -699,17 +702,29 @@ def showImgs(tpath, showTitle, showNum=50):
         tot2 = totProps[i]
         tlabel = tot2[4]
         ttype = tot2[5]
+        #print(tot2)
 
         fig, axes = plt.subplots(1, 3, figsize=(3, 1))
         axes.flat[0].imshow(totImgs[i][0], cmap='gray')
         axes.flat[1].imshow(totImgs[i][1], cmap='gray')
         axes.flat[2].imshow(totImgs[i][2], cmap='gray')
-        axes.flat[1].set_title("%d, %s, look=%s, type=%s"%(i, tot2[1][:14], tlabel, ttype))
+        axes.flat[1].set_title("%d, %s, look=%s, type=%s, s2n=%s"%(i, tot2[1][:14], tlabel, ttype, tot2[8]))
         plt.show()
         
         if i> showNum:
             break
         
+def viewRealData():
+    
+    totPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart/tot_all_12.npz"
+    minorPlantPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart/minorplant_all_12.npz"
+    fotPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart/fot_tail_12.npz"
+    ttPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2/GWAC_OT_ALL_0001000.npz"
+    
+    #showImgs(totPath, "\n\n**********show TOT")
+    #showImgs(minorPlantPath, "\n\n**********show MinorPlant")
+    #showImgs(fotPath, "\n\n**********show FOT")
+    showImgs(ttPath, "\n\n**********show GWAC_OT_ALL_0001000.npz")
         
 def showImgs2(tpath, showTitle, showNum=50):
     
@@ -729,16 +744,6 @@ def showImgs2(tpath, showTitle, showNum=50):
         
         if i> showNum:
             break
-        
-def viewRealData():
-    
-    totPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart/tot_all_12.npz"
-    minorPlantPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart/minorplant_all_12.npz"
-    fotPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart/fot_tail_12.npz"
-    
-    showImgs(totPath, "\n\n**********show TOT")
-    showImgs(minorPlantPath, "\n\n**********show MinorPlant")
-    showImgs(fotPath, "\n\n**********show FOT")
 
 def viewSimData():
     tpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0928"

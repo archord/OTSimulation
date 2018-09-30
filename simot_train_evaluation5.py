@@ -53,7 +53,7 @@ def createModel():
 def train():
     
     tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
-    tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0928"
+    tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0929"
     
     dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
     workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)

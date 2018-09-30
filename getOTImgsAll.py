@@ -34,14 +34,25 @@ class OTRecord:
         self.conn.close()
     
     def readfits(self, filename):
-        data = np.array([])
+        rstdata = np.array([])
         try:
             with fits.open(filename,memmap=False) as ft:
                 data = ft[0].data
                 ft.close()
+                data = data[40:61,40:61]
+                data[data<0] = 0
+                tmin = np.min(data)
+                tmax = np.max(data)
+                if tmax-tmin<10:
+                    rstdata = np.array([])
+                else:
+                    data = (data-tmin)*255.0/(tmax-tmin)
+                    data[data>255] = 255
+                    rstdata = data.astype(np.uint8)
         except Exception as err:
             print("read %s error"%(filename))
-        return data
+            print(err)
+        return rstdata
     
     def getOTImgs(self, dpath):
         
@@ -49,10 +60,12 @@ class OTRecord:
         if not os.path.exists(dpath):
             os.makedirs(dpath)
         
-        sql = "select ffc.store_path, ffc.file_name ot_sub_img, ffcr.file_name ot_sub_img_ref, ot2.look_back_result, ot2.ot_type, ot2.name, ot2.date_str " \
+        sql = "select ffc.store_path, ffc.file_name ot_sub_img, ffcr.file_name ot_sub_img_ref, " \
+            "ot2.look_back_result, ot2.ot_type, ot2.name, ot2.date_str, oor.mag_aper mag, oor.magerr_aper magerr " \
             "FROM fits_file_cut_his ffc " \
             "INNER JOIN ot_level2_his ot2 on ot2.ot_id=ffc.ot_id " \
             "INNER JOIN fits_file2_his ff on ff.ff_id=ffc.ff_id " \
+            "INNER JOIN ot_observe_record_his oor on oor.ffc_id>0 and oor.ffc_id=ffc.ffc_id " \
             "INNER JOIN fits_file_cut_ref ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
             "WHERE ot2.first_ff_number=ff.ff_number and ffc.success_cut=true " \
             "ORDER BY ot2.name "
@@ -76,6 +89,8 @@ class OTRecord:
             ot2Type = trow[4]
             ot2Name = trow[5]
             ot2Date = trow[6]
+            ot2Mag = trow[7]
+            ot2MagErr = trow[8]
             
             ot2ImgP = "%s/%s/%s"%(rootPath, tpath1, ot2Img)
             ot2DiffP = "%s/%s/%s"%(rootPath, tpath1, ot2Diff)
@@ -92,26 +107,9 @@ class OTRecord:
                     continue
                 if diffImg.shape[0]==0:
                     continue
-        
-                objImg = objImg[40:61,40:61]
-                refImg = refImg[40:61,40:61]
-                diffImg = diffImg[40:61,40:61]
-        
-                objImgz = zscale_image(objImg)
-                refImgz = zscale_image(refImg)
-                diffImgz = zscale_image(diffImg)
-        
-                isBad = False
-                #异常残差图像处理，如果scale失败：1）等于原diffImg；2）直接量化到255
-                if diffImgz.shape[0]!=21 or diffImgz.shape[1]!=21:
-                    diffImgz = diffImg
-                    tmin = np.min(diffImgz)
-                    tmax = np.max(diffImgz)
-                    diffImgz=(((diffImgz-tmin)/(tmax-tmin))*255).astype(np.uint8)
-                    isBad = True
-        
-                timgs.append([objImgz, refImgz, diffImgz])
-                props.append([ot2Name, ot2Img, ot2Ref, ot2Diff, ot2LBR, ot2Type, ot2Date, isBad])
+                        
+                timgs.append([objImg, refImg, diffImg])
+                props.append([ot2Name, ot2Img, ot2Ref, ot2Diff, ot2LBR, ot2Type, ot2Date, ot2Mag, 1.087/ot2MagErr])
                 i = i + 1
                 if i%500 == 0:
                     print("process %d images"%(i))
@@ -124,12 +122,14 @@ class OTRecord:
                     print("save %s"%(binFile))
                     timgs = []
                     props = []
+                    #break
+        
         timgs =  np.array(timgs)
         props =  np.array(props)
         binFile = "%s/GWAC_OT_ALL_%07d.npz"%(dpath,i)
         np.savez_compressed(binFile, imgs=timgs, props=props)
         print("total search record %d, with obj-tmp-diff exist %d\n"%(len(rows), i))
-                
+        
     
 if __name__ == '__main__':
     
