@@ -7,7 +7,7 @@ from astropy.io import fits
 from gwac_util import zscale_image
 import numpy as np
 
-
+#nohup python getOTImgsAll.py > /dev/null 2>&1 &
 class OTRecord:
     
     connParam={
@@ -40,15 +40,7 @@ class OTRecord:
                 data = ft[0].data
                 ft.close()
                 data = data[40:61,40:61]
-                data[data<0] = 0
-                tmin = np.min(data)
-                tmax = np.max(data)
-                if tmax-tmin<10:
-                    rstdata = np.array([])
-                else:
-                    data = (data-tmin)*255.0/(tmax-tmin)
-                    data[data>255] = 255
-                    rstdata = data.astype(np.uint8)
+                rstdata = data
         except Exception as err:
             print("read %s error"%(filename))
             print(err)
@@ -79,7 +71,7 @@ class OTRecord:
         
         timgs = []
         props = []
-        i = 0
+        i = 1
         for trow in rows:
             tpath1 = trow[0]
             ot2Img = trow[1] + '.fit'
@@ -96,33 +88,34 @@ class OTRecord:
             ot2DiffP = "%s/%s/%s"%(rootPath, tpath1, ot2Diff)
             ot2RefP = "%s/%s/%s"%(rootPath, tpath1, ot2Ref)
             
-            if os.path.exists(ot2ImgP) and os.path.exists(ot2DiffP) and os.path.exists(ot2RefP):
-
-                objImg = self.readfits(ot2ImgP)
-                refImg = self.readfits(ot2RefP)
-                diffImg = self.readfits(ot2DiffP)
-                if objImg.shape[0]==0:
-                    continue
-                if refImg.shape[0]==0:
-                    continue
-                if diffImg.shape[0]==0:
-                    continue
-                        
-                timgs.append([objImg, refImg, diffImg])
-                props.append([ot2Name, ot2Img, ot2Ref, ot2Diff, ot2LBR, ot2Type, ot2Date, ot2Mag, 1.087/ot2MagErr])
-                i = i + 1
-                if i%500 == 0:
-                    print("process %d images"%(i))
+            if os.path.exists(ot2ImgP) and os.path.exists(ot2DiffP) and os.path.exists(ot2RefP) and ot2MagErr>0:
+                if i>180000:
+                    objImg = self.readfits(ot2ImgP)
+                    refImg = self.readfits(ot2RefP)
+                    diffImg = self.readfits(ot2DiffP)
+                    if objImg.shape[0]==0:
+                        continue
+                    if refImg.shape[0]==0:
+                        continue
+                    if diffImg.shape[0]==0:
+                        continue
+                            
+                    timgs.append([objImg, refImg, diffImg])
+                    props.append([ot2Name, ot2Img, ot2Ref, ot2Diff, ot2LBR, ot2Type, ot2Date, ot2Mag, 1.087/ot2MagErr])
+                    if i%500 == 0:
+                        print("process %d images"%(i))
                 
-                if i%10000 == 0:
-                    timgs =  np.array(timgs)
-                    props =  np.array(props)
-                    binFile = "%s/GWAC_OT_ALL_%07d.npz"%(dpath,i)
-                    np.savez_compressed(binFile, imgs=timgs, props=props)
-                    print("save %s"%(binFile))
-                    timgs = []
-                    props = []
-                    #break
+                    if i%10000 == 0:
+                        timgs =  np.array(timgs)
+                        props =  np.array(props)
+                        binFile = "%s/GWAC_OT_ALL_%07d.npz"%(dpath,i)
+                        np.savez_compressed(binFile, imgs=timgs, props=props)
+                        print("save %s"%(binFile))
+                        timgs = []
+                        props = []
+                        #break
+                
+                i = i + 1
         
         timgs =  np.array(timgs)
         props =  np.array(props)

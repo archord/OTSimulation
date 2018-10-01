@@ -7,6 +7,46 @@ import shutil
 from datetime import datetime
 import matplotlib.pyplot as plt
 
+def float2Int(data):
+    
+    data[data<0] = 0
+    tmin = np.min(data)
+    tmax = np.max(data)
+    if tmax-tmin<10:
+        rstdata = np.array([])
+    else:
+        data = (data-tmin)*255.0/(tmax-tmin)
+        data[data>255] = 255
+        rstdata = data.astype(np.uint8)
+        
+    return rstdata
+
+def float2Int2(data1, data2, data3):
+    
+    data1[data1<0] = 0
+    data2[data2<0] = 0
+    data3[data3<0] = 0
+    tmax1 = np.max(data1)
+    tmax2 = np.max(data2)
+    tmax3 = np.max(data3)
+    tmax = np.max([tmax1, tmax2,tmax3])
+    if tmax<10:
+        return np.array([]), np.array([]), np.array([])
+    else:
+        data1 = data1*255.0/tmax
+        data1[data1>255] = 255
+        data1 = data1.astype(np.uint8)
+        
+        data2 = data2*255.0/tmax
+        data2[data2>255] = 255
+        data2 = data2.astype(np.uint8)
+        
+        data3 = data3*255.0/tmax
+        data3[data3>255] = 255
+        data3 = data3.astype(np.uint8)
+        
+        return data1, data2, data3
+    
 def getImgStamp(imgArray, size=12, padding = 1):
     
     rst = np.array([])
@@ -23,7 +63,10 @@ def getImgStamp(imgArray, size=12, padding = 1):
             img1 = timgs[0][minIdx:maxIdx,minIdx:maxIdx]
             img2 = timgs[1][minIdx:maxIdx,minIdx:maxIdx]
             img3 = timgs[2][minIdx:maxIdx,minIdx:maxIdx]
-            rstImgs.append([img1,img2,img3])
+            
+            img1, img2, img3 = float2Int2(img1, img2, img3)
+            if img1.shape[0]>0 and img2.shape[0]>0 and img3.shape[0]>0:
+                rstImgs.append([img1,img2,img3])
         rst = np.array(rstImgs)
     return rst
 
@@ -280,7 +323,7 @@ def getData2(fotPath, totPath, realFotPath, destPath):
     
 def getData3(totPath, realFotPath, destPath):
     
-    timgbinPath = '%s/SIM_IMG_ALL_RealFOT_bin12.npz'%(destPath)
+    timgbinPath = '%s/SIM_IMG_ALL_RealFOT_bin8.npz'%(destPath)
     if os.path.exists(timgbinPath):
         print("bin file exist, read from %s"%(timgbinPath))
         timgbin = np.load(timgbinPath)
@@ -295,13 +338,15 @@ def getData3(totPath, realFotPath, destPath):
         tdirs = os.listdir(realFotPath)
         tdirs.sort()
         for fname in tdirs:
-            if fname[-7:]=='_12.npz' and fname[:3]=='fot':
+            if fname[-6:]=='_8.npz' and fname[:3]=='fot':
                 tpath1 = "%s/%s"%(realFotPath, fname)
                 print(tpath1)
                 fdata1 = np.load(tpath1)
                 
                 fotImg = fdata1['imgs']
-                fs2n = np.zeros(fotImg.shape[0])
+                fprops = fdata1['props']
+                #fs2n = np.zeros(fotImg.shape[0])
+                fs2n = fprops[:,-1].astype(np.float)
                 
                 if fotImgs.shape[0]==0:
                     fotImgs = fotImg
@@ -312,8 +357,6 @@ def getData3(totPath, realFotPath, destPath):
                 #break
         
         print(fotImgs.shape)
-        fotImgs=fotImgs[:-10000]
-        fotImgs=fotImgs[:-10000]
         
         totImgs = np.array([])
         ts2ns = np.array([])
@@ -328,7 +371,7 @@ def getData3(totPath, realFotPath, destPath):
             
             totImg = tdata1['tot']
             ts2n = tdata1['ts2n']
-            totImg = getImgStamp(totImg)
+            totImg = getImgStamp(totImg, size=8)
             
             if totImgs.shape[0]==0:
                 totImgs = totImg
@@ -396,7 +439,7 @@ def viewData():
     
     tpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0924"
     tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2"
-    tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0927"
+    tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0929"
     
     dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
     workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
@@ -532,11 +575,12 @@ def getRealData(destPath):
     print(ot2list[:3])
     
     X = []
+    ot2prop = []
     badImgNum = 0
     badIdx = []
     
     #timgbinPath = '%s/gwac_otimg_nozscale.npz'%(destPath)
-    timgbinPath = '%s/gwac_otimg.npz'%(destPath)
+    timgbinPath = '%s/gwac_otimg_8.npz'%(destPath)
     if os.path.exists(timgbinPath):
         print("bin file exist, read from %s"%(timgbinPath))
         timgbin = np.load(timgbinPath)
@@ -549,20 +593,21 @@ def getRealData(destPath):
             refPath = "%s/%s"%(ot2path, tot2[2])
             diffPath = "%s/%s"%(ot2path, tot2[3])
     
-            objImg = readStampFromFits(objPath)
-            refImg = readStampFromFits(refPath)
-            diffImg = readStampFromFits(diffPath)
+            objImg = readStampFromFits(objPath, size=8)
+            refImg = readStampFromFits(refPath, size=8)
+            diffImg = readStampFromFits(diffPath, size=8)
             
             if objImg.shape[0]==0 or refImg.shape[0]==0 or diffImg.shape[0]==0:
                 continue
-            
+            '''
             objImgz = zscale_image(objImg)
             refImgz = zscale_image(refImg)
             diffImgz = zscale_image(diffImg)
             '''
-            objImgz = objImg
-            refImgz = refImg
-            diffImgz = diffImg
+
+            objImgz, refImgz, diffImgz = float2Int2(objImg, refImg, diffImg)
+            if objImgz.shape[0]==0 or refImgz.shape[0]==0 or diffImgz.shape[0]==0:
+                continue
             '''
             #异常残差图像处理，如果scale失败：1）等于原diffImg；2）直接量化到255
             if diffImgz.shape[0]!=12 or diffImgz.shape[1]!=12:
@@ -573,10 +618,12 @@ def getRealData(destPath):
                 diffImgz=(((diffImg-tmin)/(tmax-tmin))*255).astype(np.uint8)
                 #diffImgz = diffImg
                 badImgNum = badImgNum + 1
-    
+            '''
             X.append([objImgz, refImgz, diffImgz])
+            ot2prop.append(tot2)
         
         X = np.array(X)
+        ot2prop = np.array(ot2prop)
         '''
         for i in range(X.shape[0]):
             tot2 = ot2list[i]
@@ -590,11 +637,23 @@ def getRealData(destPath):
                 axes.flat[1].set_title("%d, %s, look=%s, type=%s"%(i, tot2[1][:14], tlabel, ttype))
                 plt.show()
         '''
-        ot2prop = ot2list
         print("save bin fiel to %s"%(timgbinPath))
         np.savez_compressed(timgbinPath, ot=X, ot2prop = ot2prop)
         print("bad image %d"%(badImgNum))
     return X, ot2prop
+    
+def getRealData2():
+        
+    totPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart/tot_all_8.npz"
+    mpPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart/minorplant_all_8.npz"
+    
+    tots = np.load(totPath)
+    mps = np.load(mpPath)
+    
+    imgs = np.concatenate((tots['imgs'], mps['imgs']), axis=0)
+    props = np.concatenate((tots['props'], mps['props']), axis=0)
+        
+    return imgs, props
     
 def realDataApart():
             
@@ -607,6 +666,8 @@ def realDataApart():
     totprops = np.array([])
     fotimgs = np.array([])
     fotprops = np.array([])
+    mpimgs = np.array([])
+    mpprops = np.array([])
 
     for i, fname in enumerate(tdirs):
         tpath21 = "%s/%s"%(realDataPath, fname)
@@ -623,6 +684,11 @@ def realDataApart():
         fotImg2 = timgs[fot2Idx]
         fotprop2 = tprops[fot2Idx]
         
+        ttype = tprops[:,5].astype(np.int)
+        mpIdx = ttype==2
+        mpimg = timgs[mpIdx]
+        mpprop = tprops[mpIdx]
+        
         if totimgs.shape[0]==0:
             totimgs = totImg2
             totprops = totprop2
@@ -630,6 +696,14 @@ def realDataApart():
             if len(totImg2.shape)==4:
                 totimgs = np.concatenate((totimgs, totImg2), axis=0)
                 totprops = np.concatenate((totprops, totprop2), axis=0)
+                
+        if mpimgs.shape[0]==0:
+            mpimgs = mpimg
+            mpprops = mpprop
+        else:
+            if len(mpimg.shape)==4:
+                mpimgs = np.concatenate((mpimgs, mpimg), axis=0)
+                mpprops = np.concatenate((mpprops, mpprop), axis=0)
             
         if fotimgs.shape[0]==0:
             fotimgs = fotImg2
@@ -656,41 +730,10 @@ def realDataApart():
     np.savez_compressed(totSavePath, imgs=totimgs, props=totprops)
     print("save %d tot bin to %s"%(totimgs.shape[0], totSavePath))
     
+    mpSavePath = "%s/minorplant_all.npz"%(realDataPath2)
+    np.savez_compressed(mpSavePath, imgs=mpimgs, props=mpprops)
+    print("save %d minor plant bin to %s"%(mpimgs.shape[0], mpSavePath))
     
-def realDataMinorPlant():
-            
-    realDataPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2"
-    realDataPath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
-    tdirs = os.listdir(realDataPath)
-    tdirs.sort()
-    
-    totimgs = np.array([])
-    totprops = np.array([])
-
-    for i, fname in enumerate(tdirs):
-        tpath21 = "%s/%s"%(realDataPath, fname)
-        print(tpath21)
-        tdata1 = np.load(tpath21)
-        timgs = tdata1['imgs']
-        tprops = tdata1['props']
-        
-        tlabel = tprops[:,5].astype(np.int)
-        tot2Idx = tlabel==2
-        totImg2 = timgs[tot2Idx]
-        totprop2 = tprops[tot2Idx]
-        
-        if totimgs.shape[0]==0:
-            totimgs = totImg2
-            totprops = totprop2
-        else:
-            if len(totImg2.shape)==4:
-                totimgs = np.concatenate((totimgs, totImg2), axis=0)
-                totprops = np.concatenate((totprops, totprop2), axis=0)
-            
-    totSavePath = "%s/minorplant_all.npz"%(realDataPath2)
-    np.savez_compressed(totSavePath, imgs=totimgs, props=totprops)
-    print("save %d minor plant bin to %s"%(totimgs.shape[0], totSavePath))
-
 def showImgs(tpath, showTitle, showNum=50):
     
     tdata1 = np.load(tpath)
@@ -761,6 +804,7 @@ def resizeRealData():
     tdirs = os.listdir(realDataPath)
     tdirs.sort()
     
+    imgSize = 8
     for i, fname in enumerate(tdirs):
         
         tpath21 = "%s/%s"%(realDataPath, fname)
@@ -768,9 +812,9 @@ def resizeRealData():
         tdata1 = np.load(tpath21)
         timgs = tdata1['imgs']
         tprops = tdata1['props']
-        timgs = getImgStamp(timgs, size=12, padding = 0)
+        timgs = getImgStamp(timgs, size=imgSize, padding = 0)
     
-        dpath21 = '%s/%s_12.npz'%(realDataPath, fname[:-4])
+        dpath21 = '%s/%s_%d.npz'%(realDataPath, fname[:-4], imgSize)
         np.savez_compressed(dpath21, imgs=timgs, props=tprops)
         print("save %d minor plant bin to %s"%(timgs.shape[0], dpath21))
         

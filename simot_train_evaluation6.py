@@ -21,7 +21,7 @@ def createModel():
     
     keras.backend.set_image_dim_ordering('th')
     model = Sequential ()
-    model.add(ZeroPadding2D((1, 1), input_shape = (3, 12, 12)))
+    model.add(ZeroPadding2D((1, 1), input_shape = (3, 8, 8)))
     model.add(Convolution2D(24, 3, 3))
     model.add(Activation('relu'))
     model.add(ZeroPadding2D((1, 1)))
@@ -79,7 +79,7 @@ def train():
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     
     model.fit(X_train, Y_train, batch_size=128, nb_epoch=5, validation_split=0.2)
-    model.save("%s/model_128_5_RealFOT.h5"%(workPath))
+    model.save("%s/model_128_5_RealFOT_8.h5"%(workPath))
         
 def test():
 
@@ -104,7 +104,7 @@ def test():
     X_test, Y_test, s2n_test = X[N_train:], Y[N_train:], s2n[N_train:]
     
     from keras.models import load_model
-    model = load_model("%s/model_128_5_RealFOT.h5"%(workPath))
+    model = load_model("%s/model_128_5_RealFOT_8.h5"%(workPath))
     Y_pred = model.predict(X_test)
     pbb_threshold = 0.5
     pred_labels = np.array((Y_pred[:, 1] > pbb_threshold), dtype = "int")
@@ -269,7 +269,7 @@ def realDataTest():
     
     print(X.shape)
     from keras.models import load_model
-    model = load_model("%s/model_128_5_RealFOT.h5"%(workPath))
+    model = load_model("%s/model_128_5_RealFOT_8.h5"%(workPath))
     preY = model.predict(X, batch_size=128)
 
     trueThred = 0.5
@@ -369,7 +369,7 @@ def realDataTest2():
     
     print(X.shape)
     from keras.models import load_model
-    model = load_model("%s/model_128_5_RealFOT.h5"%(workPath))
+    model = load_model("%s/model_128_5_RealFOT_8.h5"%(workPath))
     preY = model.predict(X, batch_size=128)
 
     showNum = 100
