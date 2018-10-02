@@ -51,13 +51,23 @@ class OTRecord:
         rootPath = '/data/gwac_data'
         if not os.path.exists(dpath):
             os.makedirs(dpath)
-        
+        '''
         sql = "select ffc.store_path, ffc.file_name ot_sub_img, ffcr.file_name ot_sub_img_ref, " \
             "ot2.look_back_result, ot2.ot_type, ot2.name, ot2.date_str, oor.mag_aper mag, oor.magerr_aper magerr " \
             "FROM fits_file_cut_his ffc " \
             "INNER JOIN ot_level2_his ot2 on ot2.ot_id=ffc.ot_id " \
             "INNER JOIN fits_file2_his ff on ff.ff_id=ffc.ff_id " \
             "INNER JOIN ot_observe_record_his oor on oor.ffc_id>0 and oor.ffc_id=ffc.ffc_id " \
+            "INNER JOIN fits_file_cut_ref ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
+            "WHERE ot2.first_ff_number=ff.ff_number and ffc.success_cut=true " \
+            "ORDER BY ot2.name "
+         '''   
+        sql = "select ffc.store_path, ffc.file_name ot_sub_img, ffcr.file_name ot_sub_img_ref, " \
+            "ot2.look_back_result, ot2.ot_type, ot2.name, ot2.date_str, oor.mag_aper mag, oor.magerr_aper magerr " \
+            "FROM fits_file_cut ffc " \
+            "INNER JOIN ot_level2 ot2 on ot2.ot_id=ffc.ot_id " \
+            "INNER JOIN fits_file2 ff on ff.ff_id=ffc.ff_id " \
+            "INNER JOIN ot_observe_record oor on oor.ffc_id>0 and oor.ffc_id=ffc.ffc_id " \
             "INNER JOIN fits_file_cut_ref ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
             "WHERE ot2.first_ff_number=ff.ff_number and ffc.success_cut=true " \
             "ORDER BY ot2.name "
@@ -89,31 +99,31 @@ class OTRecord:
             ot2RefP = "%s/%s/%s"%(rootPath, tpath1, ot2Ref)
             
             if os.path.exists(ot2ImgP) and os.path.exists(ot2DiffP) and os.path.exists(ot2RefP) and ot2MagErr>0:
-                if i>180000:
-                    objImg = self.readfits(ot2ImgP)
-                    refImg = self.readfits(ot2RefP)
-                    diffImg = self.readfits(ot2DiffP)
-                    if objImg.shape[0]==0:
-                        continue
-                    if refImg.shape[0]==0:
-                        continue
-                    if diffImg.shape[0]==0:
-                        continue
-                            
-                    timgs.append([objImg, refImg, diffImg])
-                    props.append([ot2Name, ot2Img, ot2Ref, ot2Diff, ot2LBR, ot2Type, ot2Date, ot2Mag, 1.087/ot2MagErr])
-                    if i%500 == 0:
-                        print("process %d images"%(i))
-                
-                    if i%10000 == 0:
-                        timgs =  np.array(timgs)
-                        props =  np.array(props)
-                        binFile = "%s/GWAC_OT_ALL_%07d.npz"%(dpath,i)
-                        np.savez_compressed(binFile, imgs=timgs, props=props)
-                        print("save %s"%(binFile))
-                        timgs = []
-                        props = []
-                        #break
+                #if i>180000:
+                objImg = self.readfits(ot2ImgP)
+                refImg = self.readfits(ot2RefP)
+                diffImg = self.readfits(ot2DiffP)
+                if objImg.shape[0]==0:
+                    continue
+                if refImg.shape[0]==0:
+                    continue
+                if diffImg.shape[0]==0:
+                    continue
+                        
+                timgs.append([objImg, refImg, diffImg])
+                props.append([ot2Name, ot2Img, ot2Ref, ot2Diff, ot2LBR, ot2Type, ot2Date, ot2Mag, 1.087/ot2MagErr])
+                if i%500 == 0:
+                    print("process %d images"%(i))
+            
+                if i%10000 == 0:
+                    timgs =  np.array(timgs)
+                    props =  np.array(props)
+                    binFile = "%s/GWAC_OT_ALL_%07d.npz"%(dpath,i)
+                    np.savez_compressed(binFile, imgs=timgs, props=props)
+                    print("save %s"%(binFile))
+                    timgs = []
+                    props = []
+                    #break
                 
                 i = i + 1
         
@@ -127,7 +137,7 @@ class OTRecord:
 if __name__ == '__main__':
     
     dateStr = '180906'
-    dpath = "/data/work/ot2_img_collection"
+    dpath = "/data/work/ot2_img_collection_20181001"
     mr = OTRecord()
     mr.getOTImgs(dpath)
     mr.closeDb()

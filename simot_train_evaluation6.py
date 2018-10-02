@@ -13,7 +13,7 @@ from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D
 from gwac_util import zscale_image
 
-from DataPreprocess import *
+from DataPreprocess2 import *
 
 #%matplotlib inline
 
@@ -22,28 +22,28 @@ def createModel():
     keras.backend.set_image_dim_ordering('th')
     model = Sequential ()
     model.add(ZeroPadding2D((1, 1), input_shape = (3, 8, 8)))
-    model.add(Convolution2D(24, 3, 3))
+    model.add(Convolution2D(36, 3, 3))
     model.add(Activation('relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(24, 3, 3))
+    model.add(Convolution2D(36, 3, 3))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size =(2, 2)))
     
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(32, 3, 3))
+    model.add(Convolution2D(64, 3, 3))
     model.add(Activation('relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(32, 3, 3))
+    model.add(Convolution2D(64, 3, 3))
     model.add(Activation('relu'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(32, 3, 3))
+    model.add(Convolution2D(64, 3, 3))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size =(2, 2)))
     
     model.add(Flatten())
-    model.add(Dense(32))
+    model.add(Dense(64))
     model.add(Activation('relu'))
-    model.add(Dense(32))
+    model.add(Dense(64))
     model.add(Activation('relu'))
     model.add(Dense(2))
     model.add(Activation('softmax'))
@@ -62,7 +62,7 @@ def train():
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    X,Y,s2n = getData3(tpath3, tpath2, workPath)
+    X,Y,s2n = getData(tpath3, tpath2, workPath)
     print(X.shape)
     print(Y.shape)
     print(s2n.shape)
@@ -92,7 +92,7 @@ def test():
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    X,Y,s2n = getData3(tpath3, tpath2, workPath)
+    X,Y,s2n = getData(tpath3, tpath2, workPath)
     print(X.shape)
     print(Y.shape)
     print(s2n.shape)
@@ -254,117 +254,18 @@ def test():
             if tnum>showNum:
                 break
 
-    
 def realDataTest():
         
-    dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
+    #dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
+    dateStr = '20181001'
     workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
     if not os.path.exists(workPath):
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    realDataPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_20181001"
-    X, ot2prop = getRealData(realDataPath)
-    ot2list = ot2prop
-    
-    print(X.shape)
-    from keras.models import load_model
-    model = load_model("%s/model_128_5_RealFOT_8.h5"%(workPath))
-    preY = model.predict(X, batch_size=128)
-
-    trueThred = 0.5
-    print("minor planet classify")
-    tNum = 0
-    tNum2 = 0
-    badNum = 0
-    for i in range(ot2list.shape[0]):
-        tot2 = ot2list[i]
-        tlabel = tot2[4]
-        ttype = tot2[5]
-        if ttype=='2':
-            fig, axes = plt.subplots(1, 3, figsize=(3, 1))
-            axes.flat[0].imshow(X[i][0], cmap='gray')
-            axes.flat[1].imshow(X[i][1], cmap='gray')
-            axes.flat[2].imshow(X[i][2], cmap='gray')
-            axes.flat[1].set_title("%d, %s, look=%s, type=%s, pbb=%.2f"%(i, tot2[1][:14], tlabel, ttype, preY[i][1]))
-            plt.show()
-            tNum = tNum + 1
-            if preY[i][1]>trueThred:
-                tNum2 = tNum2 + 1
-                
-    print("total minor planet %d, classify as true %d, with %d in badImg"%(tNum, tNum2, badNum))
-    print("look back TOT classify as true")
-    tNum = 0
-    tNum2 = 0
-    badNum = 0
-    for i in range(ot2list.shape[0]):
-        tot2 = ot2list[i]
-        tlabel = tot2[4]
-        ttype = tot2[5]
-        if tlabel=='1':
-            tNum = tNum + 1
-            if preY[i][1]>=trueThred:
-                fig, axes = plt.subplots(1, 3, figsize=(3, 1))
-                axes.flat[0].imshow(X[i][0], cmap='gray')
-                axes.flat[1].imshow(X[i][1], cmap='gray')
-                axes.flat[2].imshow(X[i][2], cmap='gray')
-                axes.flat[1].set_title("%d, %s, look=%s, type=%s, pbb=%.2f"%(i, tot2[1][:14], tlabel, ttype, preY[i][1]))
-                plt.show()
-                tNum2 = tNum2 + 1
-    
-    print("look back TOT %d, classify as true:  %d, with %d in badImg"%(tNum, tNum2, badNum))
-
-    print("look back TOT classify as false")
-    tNum = 0
-    tNum2 = 0
-    badNum = 0
-    for i in range(ot2list.shape[0]):
-        tot2 = ot2list[i]
-        tlabel = tot2[4]
-        ttype = tot2[5]
-        if tlabel=='1':
-            tNum = tNum + 1
-            if preY[i][1]<trueThred:
-                tNum2 = tNum2 + 1
-                fig, axes = plt.subplots(1, 3, figsize=(3, 1))
-                axes.flat[0].imshow(X[i][0], cmap='gray')
-                axes.flat[1].imshow(X[i][1], cmap='gray')
-                axes.flat[2].imshow(X[i][2], cmap='gray')
-                axes.flat[1].set_title("%d, %s, look=%s, type=%s, pbb=%.2f"%(i, tot2[1][:14], tlabel, ttype, preY[i][1]))
-                plt.show()
-    
-    print("look back TOT %d, classify as false:  %d, with %d in badImg"%(tNum, tNum2, badNum))
-    print("look back FOT classify")
-    tNum = 0
-    tNum2 = 0
-    badNum = 0
-    for i in range(ot2list.shape[0]):
-        tot2 = ot2list[i]
-        tlabel = tot2[4]
-        ttype = tot2[5]
-        if tlabel!='1':
-            tNum = tNum + 1
-            if preY[i][1]>trueThred:
-                tNum2 = tNum2 + 1
-                if tNum2<40:
-                    fig, axes = plt.subplots(1, 3, figsize=(3, 1))
-                    axes.flat[0].imshow(X[i][0], cmap='gray')
-                    axes.flat[1].imshow(X[i][1], cmap='gray')
-                    axes.flat[2].imshow(X[i][2], cmap='gray')
-                    axes.flat[1].set_title("%d, %s, look=%s, type=%s, pbb=%.2f"%(i, tot2[1][:14], tlabel, ttype, preY[i][1]))
-                    plt.show()
-    
-    print("look back FOT %d, classify as true:  %d, with %d in badImg"%(tNum, tNum2, badNum))
-
-def realDataTest2():
-        
-    dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
-    workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
-    if not os.path.exists(workPath):
-        os.system("mkdir %s"%(workPath))
-    print("work path is %s"%(workPath))
-    
-    X, ot2prop = getRealData2()
+    #realOtPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
+    realOtPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_20181001"
+    X, ot2prop = getRealData(realOtPath, imgSize=8, transMethod='none')
     ot2list = ot2prop
     
     print(X.shape)

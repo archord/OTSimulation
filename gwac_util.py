@@ -43,7 +43,7 @@ def genPSFView(psfImgs, innerSpace = 1):
 对图像均匀接取grid=width_num*height_num个子窗口图像，每个窗口图像的大小为stampSize=(stampW, stapmH)
 没有考虑grid=(1,1)的情形
 '''
-def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace = 1):
+def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contrast=0.25):
     
     fpath = "%s/%s"%(imgPath, imgName)
     tdata = fits.getdata(fpath)
@@ -84,7 +84,7 @@ def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace 
     stampImgs = []
     for treg in subRegions:
         timg = tdata[treg[0]:treg[1], treg[2]:treg[3]]
-        timgz = zscale_image(timg)
+        timgz = zscale_image(timg, contrast=0.25)
         if timgz.shape[0] == 0:
             timgz = timg
             tmin = np.min(timgz)
