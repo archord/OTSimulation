@@ -75,7 +75,7 @@ class OTRecord:
         try:
             
             sql = "update ot_level2 set look_back_cnn=%d where name='%s'"%(rst, ot2Name)
-            print(sql)
+            #print(sql)
             conn = psycopg2.connect(**self.connParam2)
             cur = conn.cursor()
             cur.execute(sql)
@@ -137,17 +137,14 @@ class OTRecord:
                     objImg = self.readfits(ot2ImgP)
                     refImg = self.readfits(ot2RefP)
                     diffImg = self.readfits(ot2DiffP)
-                    if objImg.shape[0]==0:
-                        continue
-                    if refImg.shape[0]==0:
-                        continue
-                    if diffImg.shape[0]==0:
-                        continue
-                            
-                    timgs.append([objImg, refImg, diffImg])
-                    props.append([ot2Name, ot2Img, ot2Ref, ot2Diff, ot2LBR, ot2Type, ot2Date, ot2Mag, 1.087/ot2MagErr])
-                    
+                    if objImg.shape[0]>0 and refImg.shape[0]>0 and diffImg.shape[0]>0: 
+                        timgs.append([objImg, refImg, diffImg])
+                        props.append([ot2Name, ot2Img, ot2Ref, ot2Diff, ot2LBR, ot2Type, ot2Date, ot2Mag, 1.087/ot2MagErr])
+                    else:
+                        print("read image error")
                     i = i + 1
+                else:
+                    print("%s image not exist, or magErr=%f"%(ot2Name, ot2MagErr))
             
             timgs =  np.array(timgs)
             props =  np.array(props)

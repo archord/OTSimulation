@@ -70,7 +70,7 @@ def realDataClassify():
 
                 timgs, props = mr.getOTImgs()
                 otNum = timgs.shape[0]
-                print("get %d ot2"%(otNum))
+                #print("get %d ot2"%(otNum))
                 
                 if otNum > 0:
                     timgs = getImgStamp(timgs, size=imgSize, padding = 0, transMethod='none')
@@ -89,7 +89,7 @@ def realDataClassify():
                 time.sleep(60)
             else:
                 time.sleep(10*60)
-                print("sleep 600 seconds")
+                #print("sleep 600 seconds")
             sys.stdout.flush()
         except Exception as e:
             print(str(e))
