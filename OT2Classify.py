@@ -5,6 +5,7 @@ import numpy as np
 import math
 import os
 import shutil
+import scipy.ndimage
 from datetime import datetime
 from keras.models import load_model
 from getOTImgsAll2 import OTRecord
@@ -12,6 +13,7 @@ from DataPreprocess2 import getImgStamp
 from datetime import datetime, timedelta
 import time
 import sys
+from PIL import Image
     
 def realDataTest():
     
@@ -43,7 +45,21 @@ def realDataTest():
     print("total minor planet %d, classify as true %d"%(mpImgs.shape[0], trueMP))
     print("look back TOT %d, classify as true %d"%(ot2Imgs.shape[0], trueOT2))
     print("look back FOT %d, classify as true %d"%(otherImgs.shape[0], trueOther))
+
+def saveOT2View(ot2Name, ot2Imgs, innerSpace=1, scale=10):
     
+    dateStr = ot2Name[1:7]
+    rootPath = '/data/gwac_ot2_lookback_cnn/%s'%(dateStr)
+    if not os.path.exists(rootPath):
+        os.makedirs(rootPath)
+    
+    objImgz, refImgz, diffImgz = ot2Imgs[0], ot2Imgs[1], ot2Imgs[2]
+    xspace = np.ones((objImgz.shape[0],innerSpace), np.uint8)*255
+    conImg = np.concatenate((objImgz, xspace, refImgz, xspace, diffImgz), axis=1)
+    conImg = scipy.ndimage.zoom(conImg, scale, order=0)
+    
+    savePath = "%s/%s.jpg"%(rootPath,ot2Name)
+    Image.fromarray(conImg).save(savePath)
     
 def realDataClassify():
     
@@ -73,12 +89,13 @@ def realDataClassify():
                 #print("get %d ot2"%(otNum))
                 
                 if otNum > 0:
-                    timgs = getImgStamp(timgs, size=imgSize, padding = 0, transMethod='none')
-                    preY = model.predict(timgs, batch_size=128)
-                    #print(timgs.shape)
+                    timgs2 = getImgStamp(timgs, size=imgSize, padding = 0, transMethod='none')
+                    preY = model.predict(timgs2, batch_size=128)
+                    #print(timgs2.shape)
                     #print(preY.shape)
                     
-                    for i in range(props.shape[0]):
+                    tzimgs = getImgStamp(timgs, size=imgSize, padding = 0, transMethod='zscale')
+                    for i in range(props.shape[0]): #timgs, props, timgs2, tzimgs数量有可能不一样
     
                         otName = props[i][0]
                         if preY[i][1]>=0.5:
@@ -86,6 +103,8 @@ def realDataClassify():
                         else:
                             prb = 0
                         mr.updateOT2LookBackCNN(otName, prb)
+                        
+                        saveOT2View(otName, tzimgs[i])
                 time.sleep(60)
             else:
                 time.sleep(10*60)

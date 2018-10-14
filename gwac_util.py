@@ -6,7 +6,6 @@ import scipy.ndimage
 import math
 from astropy.io import fits
 
-
 def genPSFView(psfImgs, innerSpace = 1):
     
     imgNum = len(psfImgs)

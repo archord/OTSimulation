@@ -342,7 +342,6 @@ def realDataTest():
         tlabel = tot2[4]
         ttype = tot2[5]
         ot2Name = tot2[1][:14]
-        print(ot2Name)
         if ot2Name=='G181011_C05424':
                 fig, axes = plt.subplots(1, 3, figsize=(3, 1))
                 axes.flat[0].imshow(X[i][0], cmap='gray')

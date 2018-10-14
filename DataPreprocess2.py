@@ -45,13 +45,26 @@ def imgTransform(data1, data2, data3, transMethod='none'):
             data2 = data2*255.0/tmax
             data3 = data3*255.0/tmax
     elif transMethod == 'zscale':
-        data1 = zscale_image(data1)
-        data2 = zscale_image(data2)
-        data3 = zscale_image(data3)
-        if data1.shape[0]==0 or data2.shape[0]==0 or data3.shape[0]==0:
-            data1, data2, data3 = np.array([]), np.array([]), np.array([])
+        tdata1 = zscale_image(data1)
+        tdata2 = zscale_image(data2)
+        tdata3 = zscale_image(data3)
+        if tdata1.shape[0]==0:
+            tmin = np.min(data1)
+            tmax = np.max(data1)
+            tdata1=(((data1-tmin)/(tmax-tmin))*255).astype(np.uint8)
+        if tdata2.shape[0]==0:
+            tmin = np.min(data2)
+            tmax = np.max(data2)
+            tdata2=(((data2-tmin)/(tmax-tmin))*255).astype(np.uint8)
+        if tdata3.shape[0]==0:
+            tmin = np.min(data3)
+            tmax = np.max(data3)
+            tdata3=(((data3-tmin)/(tmax-tmin))*255).astype(np.uint8)
+        data1 = tdata1
+        data2 = tdata2
+        data3 = tdata3
     
-    if transMethod == 'eachMax' or transMethod == 'unionMax':
+    if transMethod == 'eachMax' or transMethod == 'unionMax' or transMethod == 'zscale':
         data1[data1>255] = 255
         data2[data2>255] = 255
         data3[data3>255] = 255
@@ -86,7 +99,7 @@ def getImgStamp(imgArray, size=12, padding = 1, transMethod='none'):
             img2 = timgs[1][minIdx:maxIdx,minIdx:maxIdx]
             img3 = timgs[2][minIdx:maxIdx,minIdx:maxIdx]
             
-            img1, img2, img3 = imgTransform(img1, img2, img3, transMethod='none')
+            img1, img2, img3 = imgTransform(img1, img2, img3, transMethod)
             if img1.shape[0]>0 and img2.shape[0]>0 and img3.shape[0]>0:
                 rstImgs.append([img1,img2,img3])
         rst = np.array(rstImgs)
