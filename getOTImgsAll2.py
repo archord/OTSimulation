@@ -224,7 +224,7 @@ class OTRecord:
             np.savez_compressed(binFile, imgs=timgs, props=props)
             print("total search record %d, with obj-tmp-diff exist %d\n"%(len(rows), i))
             
-            self.closeDb()
+            self.closeDb2()
         except Exception as err:
             print(" query OT2 image error ")
             print(err)
