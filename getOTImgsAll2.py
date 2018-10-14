@@ -156,6 +156,8 @@ class OTRecord:
 
     def getHisOTImgs(self, dpath, dateStr):
         
+        if not os.path.exists(dpath):
+            os.makedirs(dpath)
         
         timgs =  np.array([])
         props =  np.array([])
