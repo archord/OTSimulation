@@ -169,7 +169,7 @@ class OTRecord:
                 "WHERE ot2.first_ff_number=ff.ff_number and ffc.success_cut=true " \
                 "ORDER BY ot2.name "
             
-            cur = self.conn.cursor()
+            cur = self.conn2.cursor()
             cur.execute(sql)
             rows = cur.fetchall()
             cur.close()
@@ -179,6 +179,7 @@ class OTRecord:
             props = []
             i = 0
             for trow in rows:
+                
                 tpath1 = trow[0]
                 ot2Img = trow[1] + '.fit'
                 ot2Diff = trow[1] + '_sub.fit'
