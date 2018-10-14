@@ -2,15 +2,8 @@
 #12像素，FOT观测假OT2，TOT小辛图像, 减背景和不减背景
 from astropy.io import fits
 import numpy as np
-import math
 import os
-import shutil
 import psycopg2
-from datetime import datetime
-import matplotlib.pyplot as plt
-from keras.models import load_model
-
-from DataPreprocess2 import getRealData
 
 
 #nohup python getOTImgsAll.py > /dev/null 2>&1 &
@@ -172,7 +165,7 @@ class OTRecord:
                 "INNER JOIN ot_level2_his ot2 on ot2.ot_id=ffc.ot_id " \
                 "INNER JOIN fits_file2_his ff on ff.ff_id=ffc.ff_id " \
                 "INNER JOIN ot_observe_record_his oor on oor.ffc_id>0 and oor.ffc_id=ffc.ffc_id " \
-                "INNER JOIN fits_file_cut_ref ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
+                "INNER JOIN fits_file_cut_ref_his ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
                 "WHERE ot2.first_ff_number=ff.ff_number and ffc.success_cut=true and ot2.date_str='"+dateStr+"' " \
                 "ORDER BY ot2.name "
             
@@ -180,10 +173,11 @@ class OTRecord:
             cur.execute(sql)
             rows = cur.fetchall()
             cur.close()
+            print("sql query %d rows"%(len(rows)))
             
             timgs = []
             props = []
-            i = 1
+            i = 0
             for trow in rows:
                 tpath1 = trow[0]
                 ot2Img = trow[1] + '.fit'
