@@ -98,7 +98,8 @@ class OTRecord:
                 "INNER JOIN ot_observe_record oor on oor.ot_id=ot2.ot_id and oor.ff_number=ot2.first_ff_number " \
                 "INNER JOIN fits_file_cut_ref ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
                 "WHERE ot2.first_ff_number=ffc.number and ffc.success_cut=true " \
-                "ORDER BY ot2.name limit 100"
+                "ORDER BY ot2.name"
+            #    "ORDER BY ot2.name limit 100"
             
             cur = self.conn.cursor()
             cur.execute(sql)
@@ -165,7 +166,7 @@ class OTRecord:
                 "INNER JOIN ot_observe_record_his oor on oor.ot_id=ot2.ot_id and oor.ff_number=ot2.first_ff_number " \
                 "INNER JOIN fits_file_cut_ref_his ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
                 "WHERE ot2.first_ff_number=ffc.number and ffc.success_cut=true " \
-                "ORDER BY ot2.name "
+                "ORDER BY ot2.name limit 100"
             
             cur = self.conn2.cursor()
             cur.execute(sql)
@@ -218,9 +219,9 @@ class OTRecord:
             timgs =  np.array(timgs)
             props =  np.array(props)
             
-            binFile = "%s/GWAC_OT_ALL_%07d.npz"%(dpath,i)
-            np.savez_compressed(binFile, imgs=timgs, props=props)
-            print("total search record %d, with obj-tmp-diff exist %d\n"%(len(rows), i))
+            #binFile = "%s/GWAC_OT_ALL_%07d.npz"%(dpath,i)
+            #np.savez_compressed(binFile, imgs=timgs, props=props)
+            #print("total search record %d, with obj-tmp-diff exist %d\n"%(len(rows), i))
             
             self.closeDb2()
         except Exception as err:

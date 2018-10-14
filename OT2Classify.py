@@ -49,7 +49,7 @@ def realDataTest():
 def saveOT2View(ot2Name, ot2Imgs, innerSpace=1, scale=10):
     
     dateStr = ot2Name[1:7]
-    rootPath = '/data/gwac_ot2_lookback_cnn/%s'%(dateStr)
+    rootPath = '/data/gwac_data/ot2lbcnn/%s'%(dateStr)
     if not os.path.exists(rootPath):
         os.makedirs(rootPath)
     
@@ -61,6 +61,46 @@ def saveOT2View(ot2Name, ot2Imgs, innerSpace=1, scale=10):
     savePath = "%s/%s.jpg"%(rootPath,ot2Name)
     Image.fromarray(conImg).save(savePath)
     
+def hisDataClassify():
+    
+    imgSize = 8
+    workPath = "/data/work/program/ot2classify"
+    model = load_model("%s/model_128_5_RealFOT_8.h5"%(workPath))
+    
+
+    try:
+
+        dateStr = '181011'
+        dpath = "/data/work/ot2_img_collection_%s"%(dateStr)
+        mr = OTRecord()
+        timgs, props = mr.getHisOTImgs(dpath, dateStr)
+        otNum = timgs.shape[0]
+        print("get %d ot2"%(otNum))
+        
+        if otNum > 0:
+            timgs2 = getImgStamp(timgs, size=imgSize, padding = 0, transMethod='none')
+            preY = model.predict(timgs2, batch_size=128)
+            print(timgs2.shape)
+            print(preY.shape)
+            
+            tzimgs = getImgStamp(timgs, size=imgSize, padding = 0, transMethod='zscale')
+            print(tzimgs.shape)
+            for i in range(props.shape[0]): #timgs, props, timgs2, tzimgs数量有可能不一样
+    
+                otName = props[i][0]
+                '''
+                if preY[i][1]>=0.5:
+                    prb = 1
+                else:
+                    prb = 0
+                mr.updateOT2LookBackCNN(otName, prb)
+                '''
+                saveOT2View(otName, tzimgs[i])
+
+
+    except Exception as e:
+        print(str(e))
+            
 def realDataClassify():
     
     imgSize = 8
@@ -117,7 +157,7 @@ def realDataClassify():
 #nohup python OT2Classify.py >> OT2Classify.log &
 if __name__ == "__main__":
     
-    realDataClassify()
-
+    #realDataClassify()
+    hisDataClassify()
 
 
