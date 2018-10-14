@@ -157,7 +157,7 @@ def realDataClassify():
 #nohup python OT2Classify.py >> OT2Classify.log &
 if __name__ == "__main__":
     
-    #realDataClassify()
-    hisDataClassify()
+    realDataClassify()
+    #hisDataClassify()
 
 
