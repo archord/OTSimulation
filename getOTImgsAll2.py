@@ -95,10 +95,9 @@ class OTRecord:
                 "ot2.look_back_result, ot2.ot_type, ot2.name, ot2.date_str, oor.mag_aper mag, oor.magerr_aper magerr " \
                 "FROM fits_file_cut ffc " \
                 "INNER JOIN ot_level2 ot2 on ot2.ot_id=ffc.ot_id and ot2.look_back_cnn<0 " \
-                "INNER JOIN fits_file2 ff on ff.ff_id=ffc.ff_id " \
-                "INNER JOIN ot_observe_record oor on oor.ffc_id>0 and oor.ffc_id=ffc.ffc_id " \
+                "INNER JOIN ot_observe_record oor on oor.ot_id=ot2.ot_id and oor.ff_number=ot2.first_ff_number " \
                 "INNER JOIN fits_file_cut_ref ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
-                "WHERE ot2.first_ff_number=ff.ff_number and ffc.success_cut=true " \
+                "WHERE ot2.first_ff_number=ffc.number and ffc.success_cut=true " \
                 "ORDER BY ot2.name limit 100"
             
             cur = self.conn.cursor()
@@ -163,10 +162,9 @@ class OTRecord:
                 "ot2.look_back_result, ot2.ot_type, ot2.name, ot2.date_str, oor.mag_aper mag, oor.magerr_aper magerr " \
                 "FROM fits_file_cut_his ffc " \
                 "INNER JOIN ot_level2_his ot2 on ot2.ot_id=ffc.ot_id and ot2.date_str='"+dateStr+"' " \
-                "INNER JOIN fits_file2_his ff on ff.ff_id=ffc.ff_id " \
-                "INNER JOIN ot_observe_record_his oor on oor.ffc_id>0 and oor.ffc_id=ffc.ffc_id " \
+                "INNER JOIN ot_observe_record_his oor on oor.ot_id=ot2.ot_id and oor.ff_number=ot2.first_ff_number " \
                 "INNER JOIN fits_file_cut_ref_his ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
-                "WHERE ot2.first_ff_number=ff.ff_number and ffc.success_cut=true " \
+                "WHERE ot2.first_ff_number=ffc.number and ffc.success_cut=true " \
                 "ORDER BY ot2.name "
             
             cur = self.conn2.cursor()
@@ -215,7 +213,7 @@ class OTRecord:
                     if not os.path.exists(ot2RefP):
                         print("%s not exist"%(ot2RefP))
                     if ot2MagErr<=0:
-                        print("ot2MagErr error: %f "%(ot2MagErr))
+                        print("%s, ot2MagErr error: %f "%(ot2Name, ot2MagErr))
             
             timgs =  np.array(timgs)
             props =  np.array(props)

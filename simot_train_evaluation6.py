@@ -328,7 +328,7 @@ def realDataTest():
     print("work path is %s"%(workPath))
     
     #realOtPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
-    realOtPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_20181001"
+    realOtPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_181011"
     X, ot2prop = getRealData(realOtPath, imgSize=8, transMethod='none')
     ot2list = ot2prop
     
@@ -336,10 +336,24 @@ def realDataTest():
     from keras.models import load_model
     model = load_model("%s/model_128_5_RealFOT_8.h5"%(workPath))
     preY = model.predict(X, batch_size=128)
-
+    
+    for i in range(ot2list.shape[0]):
+        tot2 = ot2list[i]
+        tlabel = tot2[4]
+        ttype = tot2[5]
+        ot2Name = tot2[1][:14]
+        print(ot2Name)
+        if ot2Name=='G181011_C05424':
+                fig, axes = plt.subplots(1, 3, figsize=(3, 1))
+                axes.flat[0].imshow(X[i][0], cmap='gray')
+                axes.flat[1].imshow(X[i][1], cmap='gray')
+                axes.flat[2].imshow(X[i][2], cmap='gray')
+                axes.flat[1].set_title("%d, %s, look=%s, type=%s, pbb=%.2f"%(i, ot2Name, tlabel, ttype, preY[i][1]))
+                plt.show()
+    return
     showNum = 100
     trueThred = 0.5
-    print("minor planet classify")
+    print("minor planet classify") 
     tNum = 0
     tNum2 = 0
     badNum = 0
