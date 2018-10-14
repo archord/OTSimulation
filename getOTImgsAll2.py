@@ -45,7 +45,7 @@ class OTRecord:
         self.conn.close()
         
     def connDb2(self):
-        self.conn2 = psycopg2.connect(**self.connParam2)
+        self.conn2 = psycopg2.connect(**self.connParam3)
         
     def closeDb2(self):
         self.conn2.close()
@@ -156,17 +156,17 @@ class OTRecord:
         props =  np.array([])
         
         try:
-            self.connDb()
+            self.connDb2()
             
             rootPath = '/data/gwac_data' 
             sql = "select ffc.store_path, ffc.file_name ot_sub_img, ffcr.file_name ot_sub_img_ref, " \
                 "ot2.look_back_result, ot2.ot_type, ot2.name, ot2.date_str, oor.mag_aper mag, oor.magerr_aper magerr " \
                 "FROM fits_file_cut_his ffc " \
-                "INNER JOIN ot_level2_his ot2 on ot2.ot_id=ffc.ot_id " \
+                "INNER JOIN ot_level2_his ot2 on ot2.ot_id=ffc.ot_id and ot2.date_str='"+dateStr+"' " \
                 "INNER JOIN fits_file2_his ff on ff.ff_id=ffc.ff_id " \
                 "INNER JOIN ot_observe_record_his oor on oor.ffc_id>0 and oor.ffc_id=ffc.ffc_id " \
                 "INNER JOIN fits_file_cut_ref_his ffcr on ffcr.ot_id=ot2.ot_id and ffcr.success_cut=true " \
-                "WHERE ot2.first_ff_number=ff.ff_number and ffc.success_cut=true and ot2.date_str='"+dateStr+"' " \
+                "WHERE ot2.first_ff_number=ff.ff_number and ffc.success_cut=true " \
                 "ORDER BY ot2.name "
             
             cur = self.conn.cursor()
@@ -237,4 +237,3 @@ if __name__ == '__main__':
     dpath = "/data/work/ot2_img_collection_%s"%(dateStr)
     mr = OTRecord()
     mr.getHisOTImgs(dpath, dateStr)
-    mr.closeDb()
