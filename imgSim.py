@@ -237,7 +237,7 @@ class ImageSimulation(object):
          
         print("simulateImageByAddStar1 done.")
         
-        return outfile, posfile, deltaXY
+        return outfile, posfile, deltaXY, self.otImgs
 
     #仿真图像，用于残差图和观测图像对齐时拟合用
     def simulateImage2(self, objImg, tmpCat, tmpImg, tmpOtNum=1, tempStarMag=10.,
