@@ -5,6 +5,37 @@ import numpy as np
 import scipy.ndimage
 import math
 from astropy.io import fits
+from skimage import morphology,feature, segmentation, measure, filters, io, transform
+import cv2
+
+'''
+尝试通过通用图像处理的方法，提取部分亮星，进行天文位置定标
+'''
+def imagePreProcess(imgPath, imgName):
+    
+    fpath = "%s/%s"%(imgPath, imgName)
+    tdata = fits.getdata(fpath)
+    '''
+    imgAvg = np.average(tdata)
+    imgRms = np.std(tdata)
+    thred1 = imgAvg + 0.5 * imgRms
+    
+    img2 = np.zeros(tdata.shape)
+    img2[tdata<thred1]=0
+    img2[tdata>=thred1]=1
+    kernel = np.ones((3,3))
+    sub1 = cv2.filter2D(img2, -1, kernel)
+    sub1[sub1<6]=0
+    sub1[sub1>0]=255
+    '''
+    sub1 =morphology.opening(tdata, morphology.square(3)) #闭运算
+    
+    timg = getThumbnail_(sub1, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
+    timg = scipy.ndimage.zoom(timg, 4, order=0)
+    import matplotlib.pyplot as plt
+    plt.figure(figsize = (12, 12))
+    plt.imshow(timg, cmap='gray')
+    plt.show()
 
 def genPSFView(psfImgs, innerSpace = 1):
     
@@ -36,8 +67,7 @@ def genPSFView(psfImgs, innerSpace = 1):
     
     conImg = scipy.ndimage.zoom(conImg, 4, order=0)
     return conImg    
-        
-        
+
 '''
 对图像均匀接取grid=width_num*height_num个子窗口图像，每个窗口图像的大小为stampSize=(stampW, stapmH)
 没有考虑grid=(1,1)的情形
@@ -46,6 +76,16 @@ def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace 
     
     fpath = "%s/%s"%(imgPath, imgName)
     tdata = fits.getdata(fpath)
+
+    conImg = getThumbnail_(tdata, stampSize=stampSize, grid=grid, innerSpace = innerSpace, contrast=contrast)
+    return conImg
+                
+'''
+对图像均匀接取grid=width_num*height_num个子窗口图像，每个窗口图像的大小为stampSize=(stampW, stapmH)
+没有考虑grid=(1,1)的情形
+'''
+def getThumbnail_(tdata, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contrast=0.25):
+    
     imgSize = tdata.shape
     imgW = imgSize[1]
     imgH = imgSize[0]
