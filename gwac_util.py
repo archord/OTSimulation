@@ -174,10 +174,12 @@ def getThumbnail_(tdata, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contr
     return conImg
        
     
-def getFullThumbnail(imgPath, imgName, grid=(8, 8), contrast=0.25):
+def getFullThumbnail(imgPath, imgName, grid=(8, 8), zoomFraction=0.25, contrast=0.25):
         
     fpath = "%s/%s"%(imgPath, imgName)
     tdata = fits.getdata(fpath)
+    tdata = scipy.ndimage.zoom(tdata, zoomFraction, order=0)
+    
     imgSize = tdata.shape
     imgW = imgSize[1]
     imgH = imgSize[0]
