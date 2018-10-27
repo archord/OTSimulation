@@ -133,16 +133,13 @@ def realDataClassify():
                     preY = model.predict(timgs2, batch_size=128)
                     #print(timgs2.shape)
                     #print(preY.shape)
+                    #print(preY[:50])
                     
                     tzimgs = getImgStamp(timgs, size=imgSize, padding = 0, transMethod='zscale')
                     for i in range(props.shape[0]): #timgs, props, timgs2, tzimgs数量有可能不一样
     
                         otName = props[i][0]
-                        if preY[i][1]>=0.5:
-                            prb = 1
-                        else:
-                            prb = 0
-                        mr.updateOT2LookBackCNN(otName, prb)
+                        mr.updateOT2LookBackCNN(otName, preY[i][1])
                         
                         saveOT2View(otName, tzimgs[i])
                 time.sleep(60)

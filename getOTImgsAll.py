@@ -115,7 +115,7 @@ class OTRecord:
                 if i%500 == 0:
                     print("process %d images"%(i))
             
-                if i%10000 == 0:
+                if i%1000000 == 0:
                     timgs =  np.array(timgs)
                     props =  np.array(props)
                     binFile = "%s/GWAC_OT_ALL_%07d.npz"%(dpath,i)
@@ -137,7 +137,7 @@ class OTRecord:
 if __name__ == '__main__':
     
     dateStr = '180906'
-    dpath = "/data/work/ot2_img_collection_20181001"
+    dpath = "/data/work/ot2_img_collection_20181027"
     mr = OTRecord()
     mr.getOTImgs(dpath)
     mr.closeDb()

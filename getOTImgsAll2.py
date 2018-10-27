@@ -67,7 +67,7 @@ class OTRecord:
         
         try:
             
-            sql = "update ot_level2 set look_back_cnn=%d where name='%s'"%(rst, ot2Name)
+            sql = "update ot_level2 set look_back_cnn=%f where name='%s'"%(rst, ot2Name)
             #print(sql)
             conn = psycopg2.connect(**self.connParam2)
             cur = conn.cursor()

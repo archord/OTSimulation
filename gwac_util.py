@@ -68,17 +68,27 @@ def genPSFView(psfImgs, innerSpace = 1):
     conImg = scipy.ndimage.zoom(conImg, 4, order=0)
     return conImg    
 
+def getFullAndSubThumbnail(imgPath, imgName):
+
+    fpath = "%s/%s"%(imgPath, imgName)
+    tdata = fits.getdata(fpath)
+    
+    subImg = getThumbnail_(tdata, stampSize=(100,100), grid=(5, 5), innerSpace = 5, border=100)
+    fullImg = getFullThumbnail_(tdata,zoomFraction=0.25)
+    
+    return fullImg, subImg
+    
 '''
 对图像均匀接取grid=width_num*height_num个子窗口图像，每个窗口图像的大小为stampSize=(stampW, stapmH)
 grid可以等于(1,1)
 innerSpace可以等于0
 '''
-def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contrast=0.25):
+def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contrast=0.25, border=0):
     
     fpath = "%s/%s"%(imgPath, imgName)
     tdata = fits.getdata(fpath)
 
-    conImg = getThumbnail_(tdata, stampSize=stampSize, grid=grid, innerSpace = innerSpace, contrast=contrast)
+    conImg = getThumbnail_(tdata, stampSize=stampSize, grid=grid, innerSpace = innerSpace, contrast=contrast, border=border)
     return conImg
                 
 '''
@@ -86,7 +96,7 @@ def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace 
 grid可以等于(1,1)
 innerSpace可以等于0
 '''
-def getThumbnail_(tdata, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contrast=0.25):
+def getThumbnail_(tdata, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contrast=0.25, border=0):
     
     imgSize = tdata.shape
     imgW = imgSize[1]
@@ -95,10 +105,10 @@ def getThumbnail_(tdata, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contr
     halfStampH = int(stampSize[1]/2)
 
     if grid[0]>1 and grid[1]>1:
-        startX = halfStampW
-        endX = imgW - halfStampW
-        startY = halfStampH
-        endY = imgH - halfStampH
+        startX = halfStampW + border
+        endX = imgW - halfStampW - border
+        startY = halfStampH + border
+        endY = imgH - halfStampH - border
         XInterval = int((endX-startX)/(grid[0]-1))
         YInterval = int((endY-startY)/(grid[1]-1))
         
@@ -174,10 +184,15 @@ def getThumbnail_(tdata, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contr
     return conImg
        
     
-def getFullThumbnail(imgPath, imgName, grid=(8, 8), zoomFraction=0.25, contrast=0.25):
+def getFullThumbnail(imgPath, imgName, grid=(4, 4), zoomFraction=0.5, contrast=0.25):
         
     fpath = "%s/%s"%(imgPath, imgName)
     tdata = fits.getdata(fpath)
+    conImg = getFullThumbnail_(tdata, grid, zoomFraction, contrast)
+    return conImg
+    
+def getFullThumbnail_(tdata, grid=(4, 4), zoomFraction=0.5, contrast=0.25):
+        
     tdata = scipy.ndimage.zoom(tdata, zoomFraction, order=0)
     
     imgSize = tdata.shape
@@ -232,7 +247,7 @@ def getFullThumbnail(imgPath, imgName, grid=(8, 8), zoomFraction=0.25, contrast=
         else:
             conImg = np.concatenate((conImg, rowImg), axis=0)
 
-    return conImg     
+    return conImg    
 
 def zscale_image(input_img, contrast=0.25):
 
