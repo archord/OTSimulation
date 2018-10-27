@@ -73,7 +73,7 @@ def getFullAndSubThumbnail(imgPath, imgName):
     fpath = "%s/%s"%(imgPath, imgName)
     tdata = fits.getdata(fpath)
     
-    subImg = getThumbnail_(tdata, stampSize=(100,100), grid=(5, 5), innerSpace = 5, border=100)
+    subImg = getThumbnail_(tdata, stampSize=(100,100), grid=(5, 5), innerSpace = 1, border=100)
     fullImg = getFullThumbnail_(tdata,zoomFraction=0.25)
     
     return fullImg, subImg
