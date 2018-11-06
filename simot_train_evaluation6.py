@@ -56,7 +56,8 @@ def train():
     tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
     tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0929"
     
-    dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
+    #dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
+    dateStr = '20181001'
     workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
     if not os.path.exists(workPath):
         os.system("mkdir %s"%(workPath))
