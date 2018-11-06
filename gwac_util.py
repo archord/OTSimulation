@@ -6,7 +6,7 @@ import scipy.ndimage
 import math
 from astropy.io import fits
 from skimage import morphology,feature, segmentation, measure, filters, io, transform
-import cv2
+#import cv2
 
 '''
 尝试通过通用图像处理的方法，提取部分亮星，进行天文位置定标
@@ -74,7 +74,8 @@ def getFullAndSubThumbnail(imgPath, imgName):
     tdata = fits.getdata(fpath)
     
     subImg = getThumbnail_(tdata, stampSize=(100,100), grid=(5, 5), innerSpace = 1, border=100)
-    fullImg = getFullThumbnail_(tdata,zoomFraction=0.25)
+    #fullImg = getFullThumbnail_(tdata,zoomFraction=0.5)
+    fullImg = np.array([])
     
     return fullImg, subImg
     
@@ -135,6 +136,9 @@ def getThumbnail_(tdata, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contr
         stampImgs = []
         for treg in subRegions:
             timg = tdata[treg[0]:treg[1], treg[2]:treg[3]]
+            
+            tbkg = getBkg(timg)
+            timg = timg-tbkg
             timgz = zscale_image(timg, contrast=0.25)
             if timgz.shape[0] == 0:
                 timgz = timg
@@ -249,6 +253,15 @@ def getFullThumbnail_(tdata, grid=(4, 4), zoomFraction=0.5, contrast=0.25):
 
     return conImg    
 
+def getBkg(imgData):
+    
+    samples = imgData.flatten()
+    samples.sort()
+    chop_size = int(0.1*len(samples))
+    bkgSubset = samples[:-chop_size]
+    bkg = np.median(bkgSubset)
+    return bkg
+
 def zscale_image(input_img, contrast=0.25):
 
     """This emulates ds9's zscale feature. Returns the suggested minimum and
@@ -287,7 +300,6 @@ def zscale_image(input_img, contrast=0.25):
     zimg=(((zimg-zmin)/(zmax-zmin))*255).astype(np.uint8)
     
     return zimg
-
 
 def selectTempOTs(fname, tpath):
 #   1 NUMBER                 Running object number                                     
