@@ -279,10 +279,15 @@ class ImageDiff(object):
             tIdx = 10
             objImg = imgs[tIdx]
             print("process %d: %s"%(tIdx, objImg))
+            timg = getThumbnail(self.srcDir, objImg, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
+            timg = scipy.ndimage.zoom(timg, 4, order=0)
+            plt.figure(figsize = (12, 12))
+            plt.imshow(timg, cmap='gray')
+            plt.show()
         
-            #timg = self.diff(objImg, templateImg)
-            timgPath = self.runHotpants(objImg, templateImg)
-            timg = getThumbnail(self.tmpDir, timgPath, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
+            timg = self.diff(objImg, templateImg)
+            #timgPath = self.runHotpants(objImg, templateImg)
+            #timg = getThumbnail(self.tmpDir, timgPath, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
             timg = scipy.ndimage.zoom(timg, 4, order=0)
 
             plt.figure(figsize = (12, 12))
