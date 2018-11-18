@@ -287,17 +287,15 @@ class FwhmTest(object):
         
     def test(self):
         
-        timg1 = "/home/xy/Downloads/myresource/deep_data2/mini_gwac/M2_03_171118_1_010020_1000.fits"
-        timg2 = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0/G044_mon_objt_180416T14044944.fit" #jfov
-        timg3 = "/home/xy/Downloads/myresource/deep_data2/chaodata/CombZ_101.fit"
-        timg4 = "/home/xy/Downloads/myresource/deep_data2/G181108/G035_mon_objt_181108T15443856.fit.fz" #ffov
+        timg1 = "/home/xy/Downloads/myresource/deep_data2/mini_gwac/M2_03_171118_1_010020_1000.fits" #3056 3056
+        timg2 = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0/G044_mon_objt_180416T14044944.fit" #jfov 4196 4136
+        timg3 = "/home/xy/Downloads/myresource/deep_data2/chaodata/CombZ_101.fit" #4096 4136
+        timg4 = "/home/xy/Downloads/myresource/deep_data2/G181108/G035_mon_objt_181108T15443856.fit.fz" #ffov  3056 3056
         
         self.fwhm(timg2)
             
 if __name__ == "__main__":
     
-    otsim = FittingTest()
-    otsim.batchSim()
-    #otsim.test()
-    #otsim.simFOT2('obj', 'tmp')
+    otsim = FwhmTest()
+    otsim.test()
     

@@ -17,11 +17,11 @@ import subprocess
 
 
 
-def fwhmrGridStatistic(catfile, gridNum=100):
+def fwhmrGridStatistic(catfile, size, gridNum=40):
     
     catData = np.loadtxt(catfile)
-    imgW = 3056 #jfov:3056
-    imgH = 3056
+    imgW = size[0]
+    imgH = size[1]
     
     tintervalW = imgW/gridNum
     tintervalH = imgH/gridNum
@@ -35,18 +35,20 @@ def fwhmrGridStatistic(catfile, gridNum=100):
     for row in catData:
         tx = row[3]
         ty = row[4]
-        xIdx = math.floor(tx%tintervalW)
-        yIdx = math.floor(ty%tintervalW)
+        xIdx = math.floor(tx/tintervalW)
+        yIdx = math.floor(ty/tintervalW)
+        if xIdx>= gridNum:
+            xIdx = gridNum-1;
+        if yIdx>= gridNum:
+            yIdx = gridNum-1;
+        #print("yIdx=%d,xIdx=%d"%(yIdx, xIdx))
         tIdx = yIdx * gridNum + xIdx
-        tbuff[tIdx].append(row[19])
+        tbuff[tIdx].append(row[15])
     
     fwhmMed = np.zeros((gridNum,gridNum), dtype=float)
     fwhmMin = np.zeros((gridNum,gridNum), dtype=float)
     fwhmMax = np.zeros((gridNum,gridNum), dtype=float)
-    
-    x = []
-    y = []
-    z = []
+        
     for i in range(gridNum):
         for j in range(gridNum):
             tIdx = i * gridNum + j
@@ -59,21 +61,55 @@ def fwhmrGridStatistic(catfile, gridNum=100):
             fwhmMed[i][j] = tmed
             fwhmMin[i][j] = tmin
             fwhmMax[i][j] = tmax
-            x.append(j)
-            y.append(i)
-            z.append(tmed)
+
+    x = np.arange(gridNum)
+    y = np.arange(gridNum)
+    X,Y = np.meshgrid(x,y)
+    
+    from scipy.signal import medfilt
+    filterSize = 5
+    Z = medfilt(fwhmMed,filterSize)
+    if filterSize==5:
+        Z[0][0]=Z[1][1]
+        Z[0][1]=Z[1][1]
+        Z[1][0]=Z[1][1]
+        
+        Z[0][-1]=Z[1][-2]
+        Z[0][-2]=Z[1][-2]
+        Z[-2][0]=Z[1][-2]
+        
+        Z[-1][-1]=Z[-2][-2]
+        Z[-1][-2]=Z[-2][-2]
+        Z[-2][-1]=Z[-2][-2]
+        
+        Z[-1][0]=Z[-2][1]
+        Z[-1][1]=Z[-2][1]
+        Z[1][-1]=Z[-2][1]
+    elif filterSize==3:
+        Z[0][0]=Z[1][1]
+        Z[0][-1]=Z[1][-2]
+        Z[-1][-1]=Z[-2][-2]
+        Z[-1][0]=Z[-2][1]
     
     from mpl_toolkits.mplot3d import Axes3D
+    '''
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     ax.plot_trisurf(x, y, z, linewidth=0.2, antialiased=True)
+    plt.show()
+    '''
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(X,Y, Z)
     plt.show()
 
     
 def test2():
     
-    osn16 = r"E:\fwhm\jfov\oi_sn16.cat"
-    fwhmrGridStatistic(osn16, gridNum=100)
+    size=(4096,4136)
+    #size=(3056,3056)
+    osn16 = r"E:\fwhm\jfov\oi.cat" # jfov 
+    fwhmrGridStatistic(osn16, size, gridNum=40)
         
         
             
