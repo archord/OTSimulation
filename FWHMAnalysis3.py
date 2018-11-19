@@ -162,7 +162,8 @@ def test2():
     parms3 = [3056,3056, r"E:\fwhm\ffov\oi.cat"]
     parms4 = [3056,3056, r"E:\fwhm\mini-gwac\oi.cat"]
     parms5 = [4096,4136, r"E:\fwhm\G031\oi.cat"]
-    fwhmrGridStatistic(parms1, gridNum=40)
+    parms6 = [4096,4136, r"E:\fwhm\data3\oi.cat"]
+    fwhmrGridStatistic(parms6, gridNum=40)
     #fwhmrGridStatistic(parms2, gridNum=40)
     #fwhmrGridStatistic(parms3, gridNum=40)
     #fwhmrGridStatistic(parms4, gridNum=40)

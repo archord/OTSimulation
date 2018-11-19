@@ -273,8 +273,8 @@ class FwhmTest(object):
         mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r16)
         self.osn16 = nmhFile
         
-        tarray = self.numberGridStatistic(self.objectImg, self.osn16, gridNum=4)
-        print(tarray)
+        #tarray = self.numberGridStatistic(self.objectImg, self.osn16, gridNum=4)
+        #print(tarray)
     
     def test2(self):
         
@@ -288,7 +288,8 @@ class FwhmTest(object):
     def test(self):
         
         timg1 = "/home/xy/Downloads/myresource/deep_data2/mini_gwac/M2_03_171118_1_010020_1000.fits" #3056 3056
-        timg2 = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0/G044_mon_objt_180416T14044944.fit" #jfov 4196 4136
+        #G044_mon_objt_180416T14044944.fit  G044_mon_objt_180416T12280443.fit  G044_mon_objt_180416T16063444.fit
+        timg2 = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0/G044_mon_objt_180416T12280443.fit" #jfov 4196 4136
         timg3 = "/home/xy/Downloads/myresource/deep_data2/chaodata/CombZ_101.fit" #4096 4136
         timg4 = "/home/xy/Downloads/myresource/deep_data2/G181108/G035_mon_objt_181108T15443856.fit.fz" #ffov  3056 3056
         
