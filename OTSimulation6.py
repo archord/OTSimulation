@@ -17,7 +17,7 @@ import subprocess
 from gwac_util import zscale_image, selectTempOTs, filtOTs, filtByEllipticity, genFinalOTDs9Reg, genPSFView, getThumbnail
 from imgSim import ImageSimulation
 
-
+#同时输出真OT和假OT样本
 class OTSimulation(object):
     def __init__(self):
         

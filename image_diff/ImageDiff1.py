@@ -149,12 +149,13 @@ class ImageDiff(object):
         outFile = "%s.cat"%(outpre)
         outFPath = "%s/%s"%(self.tmpDir, outFile)
         cnfPath = "%s/config/OTsearch.sex"%(self.varDir)
+        outParmPath = "%s/config/sex_diff_fot.par"%(self.varDir) #sex_diff.par  OTsearch.par  sex_diff_fot.par
         
         #DETECT_MINAREA   5              # minimum number of pixels above threshold
         #DETECT_THRESH    3.0             #  <sigmas>  or  <threshold>,<ZP>  in  mag.arcsec-2  
         #ANALYSIS_THRESH  3.0
         # run sextractor from the unix command line
-        cmd = ['sex', fullPath, '-c', cnfPath, '-CATALOG_NAME', outFPath]
+        cmd = ['sex', fullPath, '-c', cnfPath, '-CATALOG_NAME', outFPath, '-PARAMETERS_NAME', outParmPath]
         cmd = cmd + sexConf
         self.log.debug(cmd)
            
@@ -253,8 +254,8 @@ class ImageDiff(object):
                 xEnd = (j+1)*tintervalW
                 tnum = 0
                 for row in catData:
-                    tx = row[3]
-                    ty = row[4]
+                    tx = row[0]
+                    ty = row[1]
                     if tx>=xStart and tx<xEnd and ty>=yStart and ty<yEnd:
                         tnum = tnum + 1
                     
@@ -329,8 +330,8 @@ class ImageDiff(object):
         print("osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
         
         tIdx1 = tIdx1 - 1
-        pos1 = tdata1[tIdx1[:,0]][:,3:5]
-        pos2 = tdata2[tIdx1[:,1]][:,3:5]
+        pos1 = tdata1[tIdx1[:,0]][:,0:2]
+        pos2 = tdata2[tIdx1[:,1]][:,0:2]
         
         dataOi = pos1
         dataTi = pos2
@@ -422,6 +423,11 @@ class ImageDiff(object):
         plt.figure(figsize = (12, 12))
         plt.imshow(timg, cmap='gray')
         plt.show()
+        
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        resultCat = self.runSextractor(timgPath, sexConf)
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, resultCat))
+        print("resi image star %d"%(tdata.shape[0]))
     
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds

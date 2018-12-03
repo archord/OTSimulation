@@ -15,7 +15,7 @@ import subprocess
 from gwac_util import zscale_image, selectTempOTs, filtOTs, filtByEllipticity, genFinalOTDs9Reg
 from imgSim import ImageSimulation
 
-
+#只输出真OT样本，去掉背景
 class OTSimulation(object):
     def __init__(self):
         

@@ -37,7 +37,7 @@ def imagePreProcess(imgPath, imgName):
     plt.imshow(timg, cmap='gray')
     plt.show()
 
-def genPSFView(psfImgs, innerSpace = 1):
+def genPSFView(psfImgs, innerSpace = 1, zoomScale=1):
     
     imgNum = len(psfImgs)
     gridNum = math.floor(math.sqrt(imgNum))
@@ -65,7 +65,7 @@ def genPSFView(psfImgs, innerSpace = 1):
             yspace = np.ones((innerSpace,rowImg.shape[1]), np.uint8)*255
             conImg = np.concatenate((conImg, yspace, rowImg), axis=0)
     
-    conImg = scipy.ndimage.zoom(conImg, 4, order=0)
+    conImg = scipy.ndimage.zoom(conImg, zoomScale, order=0)
     return conImg    
 
 def getFullAndSubThumbnail(imgPath, imgName):
