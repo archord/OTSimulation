@@ -1,33 +1,33 @@
 # -*- coding: utf-8 -*-
 import scipy as S
+import scipy.ndimage
 import numpy as np
-import matplotlib.pyplot as plt
 from astropy.io import fits
-from random import randint, random
-import pandas as pd
-import sys
-import math
 import os
 import time
 import logging
-import shutil
 import subprocess
-from gwac_util import zscale_image, selectTempOTs, filtOTs, filtByEllipticity, genFinalOTDs9Reg, getThumbnail_,getThumbnail
-import scipy.ndimage
-
+import datetime
+import matplotlib.pyplot as plt
+from gwac_util import getThumbnail
 
 class ImageDiff(object):
-    def __init__(self):
+    def __init__(self): 
         
         self.verbose = True
         
         self.varDir = "/home/xy/Downloads/myresource/deep_data2/simulate_tools"
-        self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0" # ls CombZ_*fit
+        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/mini_gwac" # ls CombZ_*fit
+        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
+        self.srcDir = "/home/xy"
+        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/chaodata" # ls CombZ_*fit
         self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0_bad"
         self.tmpDir="/run/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0929"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1026"
+        self.preViewDir="/home/xy/Downloads/myresource/deep_data2/simot/preview_1026"
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
-        self.imgDiffProgram="/home/xy/program/C/hotpants/hotpants"
+        self.imgDiffProgram="/home/xy/Downloads/myresource/deep_data2/hotpants/hotpants"
+        self.geomapProgram="/home/xy/program/netbeans/C/GWACProject/dist/Debug/GNU-Linux/gwacproject"
                 
         if not os.path.exists(self.tmpDir):
             os.system("mkdir %s"%(self.tmpDir))
@@ -35,15 +35,14 @@ class ImageDiff(object):
             os.system("mkdir %s"%(self.destDir))
         if not os.path.exists(self.srcDirBad):
             os.system("mkdir %s"%(self.srcDirBad))
+        if not os.path.exists(self.preViewDir):
+            os.system("mkdir %s"%(self.preViewDir))
             
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
-        self.objectImgSim = 'oi_simaddstar1.fit'
+        self.objectImgSim = 'ois.fit'
         self.objTmpResi = 'otr.fit'
         self.simTmpResi = 'str.fit'
-        self.objectImgSubBkg = 'oi_subkg.fit'
-        self.templateImgSubBkg = 'ti_subkg.fit'
-        self.objectImgSimSubBkg = 'oi_simaddstar1_subkg.fit'
         
         self.objectImgSimAdd = 'oisa.cat'
         self.objectImgCat = 'oi.cat'
@@ -52,8 +51,8 @@ class ImageDiff(object):
         self.objTmpResiCat = 'otr.cat'
         self.simTmpResiCat = 'str.cat'
         
+        self.imgShape = []
         self.subImgSize = 21
-        self.r1 = 1
         self.r5 = 5
         self.r10 = 10
         self.r16 = 16
@@ -143,18 +142,19 @@ class ImageDiff(object):
     #source extract
     def runSextractor(self, fname, sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']):
         
+        starttime = datetime.datetime.now()
+        
         outpre= fname.split(".")[0]
         fullPath = "%s/%s"%(self.tmpDir, fname)
         outFile = "%s.cat"%(outpre)
         outFPath = "%s/%s"%(self.tmpDir, outFile)
-        outCheckPath = "%s/%s_subkg.fit"%(self.tmpDir, outpre)
         cnfPath = "%s/config/OTsearch.sex"%(self.varDir)
         
         #DETECT_MINAREA   5              # minimum number of pixels above threshold
         #DETECT_THRESH    3.0             #  <sigmas>  or  <threshold>,<ZP>  in  mag.arcsec-2  
         #ANALYSIS_THRESH  3.0
         # run sextractor from the unix command line
-        cmd = ['sex', fullPath, '-c', cnfPath, '-CATALOG_NAME', outFPath, '-CHECKIMAGE_TYPE', '-BACKGROUND', '-CHECKIMAGE_NAME', outCheckPath]
+        cmd = ['sex', fullPath, '-c', cnfPath, '-CATALOG_NAME', outFPath]
         cmd = cmd + sexConf
         self.log.debug(cmd)
            
@@ -170,23 +170,29 @@ class ImageDiff(object):
             self.log.debug("generate catalog %s"%(outFPath))
         else:
             self.log.error("sextractor failed.")
+        
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("run sextractor use %d seconds"%(runTime))
             
         return outFile
-        
-    #hotpants
+    
+        #hotpants
     def runHotpants(self, objImg, tmpImg):
+        
+        starttime = datetime.datetime.now()
         
         objpre= objImg.split(".")[0]
         tmppre= tmpImg.split(".")[0]
-        objFPath = "%s/%s"%(self.srcDir, objImg)
-        tmpFPath = "%s/%s"%(self.srcDir, tmpImg)
+        objFPath = "%s/%s"%(self.tmpDir, objImg)
+        tmpFPath = "%s/%s"%(self.tmpDir, tmpImg)
         outFile = "%s_%s_resi.fit"%(objpre,tmppre)
         outFPath = "%s/%s"%(self.tmpDir, outFile)
         
         # run sextractor from the unix command line
         #/home/xy/program/C/hotpants/hotpants -inim oi.fit -tmplim ti.fit -outim oi_ti_resi.fit -v 0 -nrx 4 -nry 4
         cmd = [self.imgDiffProgram, '-inim', objFPath, '-tmplim', tmpFPath, '-outim', 
-                 outFPath, '-v', '0', '-nrx', '4', '-nry', '4']
+                 outFPath, '-v', '0', '-nrx', '4', '-nry', '4', '-nsx', '6', '-nsy', '6', '-r', '6']
         self.log.debug(cmd)
            
         # run command
@@ -201,6 +207,10 @@ class ImageDiff(object):
             self.log.debug("generate diff residual image %s"%(outFPath))
         else:
             self.log.error("hotpants failed.")
+            
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("run hotpants use %d seconds"%(runTime))
             
         return outFile
         
@@ -220,83 +230,239 @@ class ImageDiff(object):
             for kw in keyword:
                 hdr.remove(kw,ignore_missing=True)
             hdul.flush()
-            hdul.close()     
+            hdul.close()
+
+    def gridStatistic(self, catfile, gridNum=4):
         
-    def diff(self, objImg, tempImg):
+        catData = np.loadtxt("%s/%s"%(self.tmpDir, catfile))
         
-        objPath = "%s/%s"%(self.srcDir, objImg)
-        tmpPath = "%s/%s"%(self.srcDir, tempImg)
-        objData = fits.getdata(objPath)
-        #print("**min=%f,max=%f"%(np.min(objData), np.max(objData)))
-        tempData = fits.getdata(tmpPath)
-        #print("**min=%f,max=%f"%(np.min(tempData), np.max(tempData)))
-        diffData = objData.astype(np.float) - tempData.astype(np.float) 
-        #print("**min=%f,max=%f"%(np.min(diffData), np.max(diffData)))
-        #diffData = tempData - objData
-        diffData[diffData<0] = 0
+        tpath = "%s/%s"%(self.tmpDir, self.objectImg)
+        tdata = fits.getdata(tpath)
+        imgW = tdata.shape[1]
+        imgH = tdata.shape[0]
         
-        timg = getThumbnail_(diffData, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
-        return timg
-    
-    def test(self):
+        tintervalW = imgW/gridNum
+        tintervalH = imgH/gridNum
+        
+        tarray = []
+        for i in range(gridNum):
+            yStart = i*tintervalH
+            yEnd = (i+1)*tintervalH
+            for j in range(gridNum):
+                xStart = j*tintervalW
+                xEnd = (j+1)*tintervalW
+                tnum = 0
+                for row in catData:
+                    tx = row[3]
+                    ty = row[4]
+                    if tx>=xStart and tx<xEnd and ty>=yStart and ty<yEnd:
+                        tnum = tnum + 1
                     
-        oImg = 'CombZ_0.fit'
-        tImg = 'CombZ_temp.fit'
+                tarray.append((i,j,tnum))
+        tnum2 = 0
+        for trow in tarray:
+            tnum2 = tnum2+ trow[2]
+        print("%s total %d:%d"%(catfile, catData.shape[0], tnum2))
+        print(tarray)
+                
+    def posFitting(self, oiX,oiY, tiX, tiY, iterNum=4, rejSigma=2.5):
         
+        starttime = datetime.datetime.now()
+        
+        import warnings
+        from astropy.modeling import models, fitting
+        #https://en.wikipedia.org/wiki/Legendre_polynomials
+        #https://en.wikipedia.org/wiki/Hermite_polynomials
+        # Fit the data using astropy.modeling
+        p_init = models.Polynomial2D(degree=4)
+        fit_p = fitting.LevMarLSQFitter()
+        
+        with warnings.catch_warnings():
+            # Ignore model linearity warning from the fitter
+            warnings.simplefilter('ignore')
+            
+            for i in range(iterNum):
+                pX = fit_p(p_init, tiX, tiY, oiX)
+                pY = fit_p(p_init, tiX, tiY, oiY)
+                x1 = pX(tiX, tiY)
+                y1 = pY(tiX, tiY)
+                
+                diffX = np.abs(oiX - x1)
+                diffY = np.abs(oiY - y1)
+                
+                diffXMax = np.max(diffX)
+                diffXMin = np.min(diffX)
+                diffXMean = np.mean(diffX)
+                diffXRms = np.std(diffX)
+                
+                diffYMean = np.mean(diffY)
+                diffYRms = np.std(diffY)
+                diffYMax = np.max(diffY)
+                diffYMin = np.min(diffY)
+                
+                xIdx = diffX<(diffXMean+rejSigma*diffXRms)
+                yIdx = diffY<(diffYMean+rejSigma*diffYRms)
+                
+                shape1 = oiX.shape[0]
+                oiX = oiX[xIdx & yIdx]
+                oiY = oiY[xIdx & yIdx]
+                tiX = tiX[xIdx & yIdx]
+                tiY = tiY[xIdx & yIdx]
+                shape2 = oiX.shape[0]
+                print("%d iteration, remove %d from %d, remain %d"%(i,shape1-shape2, shape1, shape2))
+                print("Xmax %.5f, Xmin %.5f, Xmean %.5f, Xrms %.5f"%(diffXMax, diffXMin, diffXMean, diffXRms))
+                print("ymax %.5f, ymin %.5f, Ymean %.5f, Yrms %.5f"%(diffYMax, diffYMin, diffYMean, diffYRms))
+                
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("posFitting use %d seconds"%(runTime))
+        
+        return pX, pY
+
+    def getMatchPos(self, oiFile, tiFile, mchPair, rmsTimes=2):
+
+        
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, oiFile))
+        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, tiFile))
+        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair)).astype(np.int)
+        
+        print("osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
+        
+        tIdx1 = tIdx1 - 1
+        pos1 = tdata1[tIdx1[:,0]][:,3:5]
+        pos2 = tdata2[tIdx1[:,1]][:,3:5]
+        
+        dataOi = pos1
+        dataTi = pos2
+
+        oiX = dataOi[:,0]
+        oiY = dataOi[:,1]
+        tiX = dataTi[:,0]
+        tiY = dataTi[:,1]
+        pX, pY = self.posFitting(oiX, oiY, tiX, tiY, rejSigma=rmsTimes)
+        
+        tpath = "%s/%s"%(self.tmpDir, self.objectImg)
+        hdul = fits.open(tpath)  # open a FITS file
+        theader = hdul[0].header  # the primary HDU header
+        tData = hdul[0].data
+        imgW = theader['naxis1']
+        imgH = theader['naxis2']
+        outshape = [imgH, imgW]
+        print(tData.shape)
+        print(outshape)
+        
+        starttime = datetime.datetime.now()
+        y1, x1 = np.indices(outshape)
+        x11 = pX(x1,y1)
+        y11 = pY(x1,y1)
+        grid = np.array([y11.reshape(outshape), x11.reshape(outshape)])
+        newimage = S.ndimage.map_coordinates(tData, grid)
+        
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("remap sci image use %d seconds"%(runTime))
+        
+        return newimage
+        
+    def simImage(self, oImg, tImg):
+        
+        starttime = datetime.datetime.now()
+        
+        self.objectImgOrig = oImg
+        self.templateImgOrig = tImg
+    
         os.system("rm -rf %s/*"%(self.tmpDir))
                 
         os.system("cp %s/%s %s/%s"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
-        #os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
+        os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
         
         self.removeHeader(self.objectImg)
         self.removeHeader(self.templateImg)
         
-        self.objectImgCat = self.runSextractor(self.objectImg)
-        #self.templateImgCat = self.runSextractor(self.templateImg)
+        sexConf=['-DETECT_MINAREA','7','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
+        self.objectImgCat = self.runSextractor(self.objectImg, sexConf)
+        self.templateImgCat = self.runSextractor(self.templateImg, sexConf)
+        
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgCat))
+        print("objImg extract star %d"%(tdata.shape[0]))
+        if len(tdata.shape)<2 or tdata.shape[0]<5000:
+            print("%s has too little stars, break this run"%(oImg))
+            return
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, self.templateImgCat))
+        print("tempImg extract star %d"%(tdata.shape[0]))
+        if len(tdata.shape)<2 or tdata.shape[0]<5000:
+            print("%s has too little stars, break this run"%(tImg))
+            return
+                
+        mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r16)
+        self.osn16 = nmhFile
+        mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r16)
+        self.tsn16 = nmhFile
+        
+        mchFile, nmhFile, mchPair = self.runCrossMatch(self.osn16, self.tsn16, 10)
+        osn16_tsn16_cm5 = mchFile
+        osn16_tsn16_cm5_pair = mchPair
+        
+        self.gridStatistic(osn16_tsn16_cm5, gridNum=4)
+        
+        newimage = self.getMatchPos(self.osn16, self.tsn16, osn16_tsn16_cm5_pair, rmsTimes=1)
+                
+        newName = "new.fit"
+        newPath = "%s/%s"%(self.tmpDir, newName)
+        if os.path.exists(newPath):
+            os.remove(newPath)
+        hdu = fits.PrimaryHDU(newimage)
+        hdul = fits.HDUList([hdu])
+        hdul.writeto(newPath)
+        
+        timgPath = self.runHotpants(newName, self.templateImg)
+        timg = getThumbnail(self.tmpDir, timgPath, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
+        timg = scipy.ndimage.zoom(timg, 4, order=0)
 
-    def batchDiff(self):
+        plt.figure(figsize = (12, 12))
+        plt.imshow(timg, cmap='gray')
+        plt.show()
+    
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("image diff total use %d seconds"%(runTime))
+        
+    def test2(self):
+        
+        osn16 = "oi_sn16.cat"
+        tsn16 = "ti_sn16.cat"
+        osn16_tsn16_cm5_pair= "oi_sn16_ti_sn16_cm10.pair"
+        #self.getMatchPos(osn16, tsn16, osn16_tsn16_cm5_pair, rmsTimes=0.5)
+        self.getMatchPos(osn16, tsn16, osn16_tsn16_cm5_pair, rmsTimes=1)
+        
+    def test(self):
+        
+        #objectImg = 'CombZ_0.fit'
+        #templateImg = 'CombZ_101.fit'
+        objectImg = 'G044_mon_objt_181121T18300131.fit'
+        templateImg = 'G044_mon_objt_181121T16100132.fit'
+        self.simImage(objectImg, templateImg)
+        
+        
+    def batchSim(self):
         
         flist = os.listdir(self.srcDir)
         flist.sort()
         
         imgs = []
         for tfilename in flist:
-            if tfilename.find("fit")>-1 and tfilename.find("temp")==-1:
+            if tfilename.find("fit")>-1:
                 imgs.append(tfilename)
         
-        templateImg = imgs[0]
-        print("template is %s"%(templateImg))
-        
-        timg = getThumbnail(self.srcDir, templateImg, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
-        timg = scipy.ndimage.zoom(timg, 4, order=0)
-        plt.figure(figsize = (12, 12))
-        plt.imshow(timg, cmap='gray')
-        plt.show()
-        
-        for i in range(1):
-            os.system("rm -rf %s/*"%(self.tmpDir))
-            #tIdx = 5 + i*10
-            tIdx = 10
-            objImg = imgs[tIdx]
-            print("process %d: %s"%(tIdx, objImg))
-            timg = getThumbnail(self.srcDir, objImg, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
-            timg = scipy.ndimage.zoom(timg, 4, order=0)
-            plt.figure(figsize = (12, 12))
-            plt.imshow(timg, cmap='gray')
-            plt.show()
-        
-            timg = self.diff(objImg, templateImg)
-            #timgPath = self.runHotpants(objImg, templateImg)
-            #timg = getThumbnail(self.tmpDir, timgPath, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
-            timg = scipy.ndimage.zoom(timg, 4, order=0)
-
-            plt.figure(figsize = (12, 12))
-            plt.imshow(timg, cmap='gray')
-            plt.show()
-    
+        print("total image %d"%(len(imgs)))
+        objectImg = imgs[500]
+        templateImg = imgs[50]
+        self.simImage(objectImg, templateImg)
             
 if __name__ == "__main__":
     
-    imgDiff = ImageDiff()
-    imgDiff.batchDiff()
+    otsim = ImageDiff()
+    otsim.batchSim()
+    #otsim.test()
+    #otsim.simFOT2('obj', 'tmp')
     
