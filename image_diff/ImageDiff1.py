@@ -140,7 +140,7 @@ class ImageDiff(object):
         return mchFile, nmhFile, mchPair
     
     #source extract
-    def runSextractor(self, fname, sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']):
+    def runSextractor(self, fname, fpar='OTsearch.par', sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']):
         
         starttime = datetime.datetime.now()
         
@@ -149,7 +149,7 @@ class ImageDiff(object):
         outFile = "%s.cat"%(outpre)
         outFPath = "%s/%s"%(self.tmpDir, outFile)
         cnfPath = "%s/config/OTsearch.sex"%(self.varDir)
-        outParmPath = "%s/config/sex_diff_fot.par"%(self.varDir) #sex_diff.par  OTsearch.par  sex_diff_fot.par
+        outParmPath = "%s/config/%s"%(self.varDir, fpar) #sex_diff.par  OTsearch.par  sex_diff_fot.par
         
         #DETECT_MINAREA   5              # minimum number of pixels above threshold
         #DETECT_THRESH    3.0             #  <sigmas>  or  <threshold>,<ZP>  in  mag.arcsec-2  
@@ -381,8 +381,9 @@ class ImageDiff(object):
         self.removeHeader(self.templateImg)
         
         sexConf=['-DETECT_MINAREA','7','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
-        self.objectImgCat = self.runSextractor(self.objectImg, sexConf)
-        self.templateImgCat = self.runSextractor(self.templateImg, sexConf)
+        fpar='sex_diff_fot.par'
+        self.objectImgCat = self.runSextractor(self.objectImg, fpar, sexConf)
+        self.templateImgCat = self.runSextractor(self.templateImg, fpar, sexConf)
         
         tdata = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgCat))
         print("objImg extract star %d"%(tdata.shape[0]))
@@ -424,8 +425,9 @@ class ImageDiff(object):
         plt.imshow(timg, cmap='gray')
         plt.show()
         
+        fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
-        resultCat = self.runSextractor(timgPath, sexConf)
+        resultCat = self.runSextractor(timgPath, fpar, sexConf)
         tdata = np.loadtxt("%s/%s"%(self.tmpDir, resultCat))
         print("resi image star %d"%(tdata.shape[0]))
     
