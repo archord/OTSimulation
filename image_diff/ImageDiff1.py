@@ -5,11 +5,13 @@ import numpy as np
 from astropy.io import fits
 import os
 import time
+import math
 import logging
 import subprocess
 import datetime
 import matplotlib.pyplot as plt
-from gwac_util import getThumbnail
+from PIL import Image
+from gwac_util import getThumbnail, getThumbnail_, zscale_image
 
 class ImageDiff(object):
     def __init__(self): 
@@ -18,8 +20,8 @@ class ImageDiff(object):
         
         self.varDir = "/home/xy/Downloads/myresource/deep_data2/simulate_tools"
         #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/mini_gwac" # ls CombZ_*fit
-        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
-        self.srcDir = "/home/xy"
+        self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
+        #self.srcDir = "/home/xy"
         #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/chaodata" # ls CombZ_*fit
         self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0_bad"
         self.tmpDir="/run/shm/gwacsim"
@@ -150,12 +152,14 @@ class ImageDiff(object):
         outFPath = "%s/%s"%(self.tmpDir, outFile)
         cnfPath = "%s/config/OTsearch.sex"%(self.varDir)
         outParmPath = "%s/config/%s"%(self.varDir, fpar) #sex_diff.par  OTsearch.par  sex_diff_fot.par
+        outCheckPath = "%s/%s_bkg.fit"%(self.tmpDir, outpre)
         
         #DETECT_MINAREA   5              # minimum number of pixels above threshold
         #DETECT_THRESH    3.0             #  <sigmas>  or  <threshold>,<ZP>  in  mag.arcsec-2  
         #ANALYSIS_THRESH  3.0
         # run sextractor from the unix command line
-        cmd = ['sex', fullPath, '-c', cnfPath, '-CATALOG_NAME', outFPath, '-PARAMETERS_NAME', outParmPath]
+        cmd = ['sex', fullPath, '-c', cnfPath, '-CATALOG_NAME', outFPath, '-PARAMETERS_NAME', outParmPath,
+               '-CHECKIMAGE_TYPE', 'BACKGROUND', '-CHECKIMAGE_NAME', outCheckPath]
         cmd = cmd + sexConf
         self.log.debug(cmd)
            
@@ -265,8 +269,9 @@ class ImageDiff(object):
             tnum2 = tnum2+ trow[2]
         print("%s total %d:%d"%(catfile, catData.shape[0], tnum2))
         print(tarray)
-                
-    def posFitting(self, oiX,oiY, tiX, tiY, iterNum=4, rejSigma=2.5):
+    
+    #3sigma=0.9974, 2sigma=0.9544, 1sigma=0.6526
+    def posFitting(self, oiX,oiY, tiX, tiY, iterNum=4, rejSigma=2, fitdegree=2):
         
         starttime = datetime.datetime.now()
         
@@ -275,7 +280,7 @@ class ImageDiff(object):
         #https://en.wikipedia.org/wiki/Legendre_polynomials
         #https://en.wikipedia.org/wiki/Hermite_polynomials
         # Fit the data using astropy.modeling
-        p_init = models.Polynomial2D(degree=4)
+        p_init = models.Polynomial2D(degree=fitdegree)
         fit_p = fitting.LevMarLSQFitter()
         
         with warnings.catch_warnings():
@@ -287,6 +292,12 @@ class ImageDiff(object):
                 pY = fit_p(p_init, tiX, tiY, oiY)
                 x1 = pX(tiX, tiY)
                 y1 = pY(tiX, tiY)
+                
+                diffX1 = np.abs(oiX - tiX)
+                diffY1 = np.abs(oiY - tiY)
+                diffX1mean = np.mean(diffX1)
+                diffY1mean = np.mean(diffY1)
+                diff1Dist = math.sqrt(diffX1mean*diffX1mean+diffY1mean*diffY1mean)
                 
                 diffX = np.abs(oiX - x1)
                 diffY = np.abs(oiY - y1)
@@ -310,9 +321,12 @@ class ImageDiff(object):
                 tiX = tiX[xIdx & yIdx]
                 tiY = tiY[xIdx & yIdx]
                 shape2 = oiX.shape[0]
-                print("%d iteration, remove %d from %d, remain %d"%(i,shape1-shape2, shape1, shape2))
+                print("coordiante translation X %.5f, Y %.5f, dist %.5f"%(diffX1mean, diffY1mean, diff1Dist))
                 print("Xmax %.5f, Xmin %.5f, Xmean %.5f, Xrms %.5f"%(diffXMax, diffXMin, diffXMean, diffXRms))
                 print("ymax %.5f, ymin %.5f, Ymean %.5f, Yrms %.5f"%(diffYMax, diffYMin, diffYMean, diffYRms))
+                print("%d iteration, remove %d from %d, remain %d"%(i,shape1-shape2, shape1, shape2))
+                if shape2<1000:
+                    break
                 
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
@@ -339,7 +353,8 @@ class ImageDiff(object):
         oiX = dataOi[:,0]
         oiY = dataOi[:,1]
         tiX = dataTi[:,0]
-        tiY = dataTi[:,1]
+        tiY = dataTi[:,1]    
+        
         pX, pY = self.posFitting(oiX, oiY, tiX, tiY, rejSigma=rmsTimes)
         
         tpath = "%s/%s"%(self.tmpDir, self.objectImg)
@@ -356,12 +371,17 @@ class ImageDiff(object):
         y1, x1 = np.indices(outshape)
         x11 = pX(x1,y1)
         y11 = pY(x1,y1)
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("trans sci image use %.2f seconds"%(runTime))
+        
+        starttime = datetime.datetime.now()
         grid = np.array([y11.reshape(outshape), x11.reshape(outshape)])
         newimage = S.ndimage.map_coordinates(tData, grid)
         
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
-        self.log.debug("remap sci image use %d seconds"%(runTime))
+        self.log.debug("remap sci image use %.2f seconds"%(runTime))
         
         return newimage
         
@@ -407,7 +427,7 @@ class ImageDiff(object):
         
         self.gridStatistic(osn16_tsn16_cm5, gridNum=4)
         
-        newimage = self.getMatchPos(self.osn16, self.tsn16, osn16_tsn16_cm5_pair, rmsTimes=1)
+        newimage = self.getMatchPos(self.osn16, self.tsn16, osn16_tsn16_cm5_pair)
                 
         newName = "new.fit"
         newPath = "%s/%s"%(self.tmpDir, newName)
@@ -450,7 +470,32 @@ class ImageDiff(object):
         objectImg = 'G044_mon_objt_181121T18300131.fit'
         templateImg = 'G044_mon_objt_181121T16100132.fit'
         self.simImage(objectImg, templateImg)
+    
+    def test3(self):
         
+        objectImg = 'ti.fit'
+        templateImg = 'ti_bkg.fit'
+        
+        tpath1 = "%s/%s"%(self.tmpDir, objectImg)
+        tpath2 = "%s/%s"%(self.tmpDir, templateImg)
+        
+        tdata1 = fits.getdata(tpath1)
+        tdata2 = fits.getdata(tpath2)
+        
+        tIdx = tdata1>tdata2
+        tdata1[tIdx] = tdata2[tIdx]
+        
+        zimg = zscale_image(tdata1)
+        Image.fromarray(zimg).save("abc.jpg")
+        '''
+        newName = "test11.fit"
+        newPath = "%s/%s"%(self.tmpDir, newName)
+        if os.path.exists(newPath):
+            os.remove(newPath)
+        hdu = fits.PrimaryHDU(tdata1)
+        hdul = fits.HDUList([hdu])
+        hdul.writeto(newPath)
+        '''
         
     def batchSim(self):
         
