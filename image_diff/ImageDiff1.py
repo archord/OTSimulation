@@ -11,6 +11,8 @@ import subprocess
 import datetime
 import matplotlib.pyplot as plt
 from PIL import Image
+from skimage.morphology import square
+from skimage.filters.rank import mean
 from gwac_util import getThumbnail, getThumbnail_, zscale_image
 
 class ImageDiff(object):
@@ -82,7 +84,7 @@ class ImageDiff(object):
         fullPath = "%s/%s"%(self.tmpDir, fname)
         
         # run sextractor from the unix command line
-        cmd = [self.matchProgram, fullPath, str(mchRadius), '4', '5', '39']
+        cmd = [self.matchProgram, fullPath, str(mchRadius), '2', '3', '13']
         self.log.debug(cmd)
            
         # run command
@@ -115,7 +117,7 @@ class ImageDiff(object):
         outFPath = "%s/%s_%s.out"%(self.tmpDir, objpre,tmppre)
         
         # run sextractor from the unix command line
-        cmd = [self.matchProgram, tmpFPath, objFPath, outFPath, str(mchRadius), '4', '5', '39']
+        cmd = [self.matchProgram, tmpFPath, objFPath, outFPath, str(mchRadius), '2', '3', '13']
         self.log.debug(cmd)
            
         # run command
@@ -142,7 +144,7 @@ class ImageDiff(object):
         return mchFile, nmhFile, mchPair
     
     #source extract
-    def runSextractor(self, fname, fpar='OTsearch.par', sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']):
+    def runSextractor(self, fname, fpar='OTsearch.par', sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3'], fconf='OTsearch.sex'):
         
         starttime = datetime.datetime.now()
         
@@ -150,7 +152,7 @@ class ImageDiff(object):
         fullPath = "%s/%s"%(self.tmpDir, fname)
         outFile = "%s.cat"%(outpre)
         outFPath = "%s/%s"%(self.tmpDir, outFile)
-        cnfPath = "%s/config/OTsearch.sex"%(self.varDir)
+        cnfPath = "%s/config/%s"%(self.varDir, fconf)
         outParmPath = "%s/config/%s"%(self.varDir, fpar) #sex_diff.par  OTsearch.par  sex_diff_fot.par
         outCheckPath = "%s/%s_bkg.fit"%(self.tmpDir, outpre)
         
@@ -218,9 +220,12 @@ class ImageDiff(object):
         self.log.debug("run hotpants use %d seconds"%(runTime))
             
         return outFile
+                
+    def removeHeaderAndOverScan(self, fname):
         
-    def removeHeader(self, fname):
-        
+        imgSize = (4136, 4196)
+        overscanLeft = 20
+        overscanRight = 80
         fullPath = "%s/%s"%(self.tmpDir, fname)
         
         fname='G022_mon_objt_180226T17492514_2.fits'
@@ -231,9 +236,12 @@ class ImageDiff(object):
                  'WAT2_001','WAT2_002','WAT2_003','WAT2_004','WAT2_005','WAT2_006','WAT2_007','WAT2_008']
     
         with fits.open(fullPath, mode='update') as hdul:
-            hdr = hdul[0].header
+            hdu1 = hdul[0]
+            hdr = hdu1.header
             for kw in keyword:
                 hdr.remove(kw,ignore_missing=True)
+            data = hdu1.data
+            hdu1.data = data[:,overscanLeft:-overscanRight]
             hdul.flush()
             hdul.close()
 
@@ -241,10 +249,17 @@ class ImageDiff(object):
         
         catData = np.loadtxt("%s/%s"%(self.tmpDir, catfile))
         
+        '''
         tpath = "%s/%s"%(self.tmpDir, self.objectImg)
         tdata = fits.getdata(tpath)
         imgW = tdata.shape[1]
         imgH = tdata.shape[0]
+        '''
+        
+        #imgSize = (4136, 4196)
+        imgSize = (4136, 4096)
+        imgW = imgSize[1]
+        imgH = imgSize[0]
         
         tintervalW = imgW/gridNum
         tintervalH = imgH/gridNum
@@ -384,6 +399,104 @@ class ImageDiff(object):
         self.log.debug("remap sci image use %.2f seconds"%(runTime))
         
         return newimage
+    
+    def bkgProcess(self, tdata, gridNum=4):
+        
+        ''' ''' 
+        from skimage.morphology import square
+        from skimage.filters.rank import median, mean
+        tdata = tdata.astype(np.uint16)
+        tdata = mean(tdata, square(3))
+        '''
+        imgW = tdata.shape[1]
+        imgH = tdata.shape[0]
+        
+        tintervalW = imgW/gridNum
+        tintervalH = imgH/gridNum
+        
+        for i in range(gridNum):
+            yStart = int(i*tintervalH)
+            yEnd = int((i+1)*tintervalH)
+            for j in range(gridNum):
+                xStart = int(j*tintervalW)
+                xEnd = int((j+1)*tintervalW)
+                subRegion = tdata[yStart:yEnd, xStart:xEnd]
+                tmean = np.mean(subRegion)
+                subRegion[subRegion<tmean] = tmean
+        '''            
+        return tdata
+        
+    def processBadPix(self):
+        
+        starttime = datetime.datetime.now()
+        
+        objName = 'ti.fit'
+        bkgName = 'ti_bkg.fit'
+        
+        objPath = "%s/%s"%(self.tmpDir, objName)
+        bkgPath = "%s/%s"%(self.tmpDir, bkgName)
+        
+        objData = fits.getdata(objPath)
+        bkgData = fits.getdata(bkgPath)
+        
+        tIdx = objData<bkgData
+        bkgData[tIdx] = objData[tIdx]
+        bkgMax = np.max(bkgData)
+        
+        bkgData = 1 + bkgMax -bkgData
+        '''
+        newName = "badpix1.fit"
+        newPath = "%s/%s"%(self.tmpDir, newName)
+        if os.path.exists(newPath):
+            os.remove(newPath)
+        hdu = fits.PrimaryHDU(bkgData)
+        hdul = fits.HDUList([hdu])
+        hdul.writeto(newPath)
+        '''
+        bkgData = bkgData.astype(np.uint16)
+        bkgData = mean(bkgData, square(3))
+        
+        newName = "badpix.fit"
+        newPath = "%s/%s"%(self.tmpDir, newName)
+        if os.path.exists(newPath):
+            os.remove(newPath)
+        hdu = fits.PrimaryHDU(bkgData)
+        hdul = fits.HDUList([hdu])
+        hdul.writeto(newPath)
+        '''
+        fpar='sex_diff.par'
+        fconf='BadpixSearch.sex'
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        resultCat = self.runSextractor(newName, fpar, sexConf, fconf)
+        '''
+        fpar='sex_diff.par'
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        resultCat = self.runSextractor(newName, fpar, sexConf)
+        
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, resultCat))
+        print("badpix star %d"%(tdata.shape[0]))
+        
+        #maxFlux>bkg-20
+        tdata = tdata[tdata[:,5]>tdata[:,9]-20]
+        print("badpix flux_max>background star %d"%(tdata.shape[0]))
+        ds9RegionName = "%s/%s_ds9.reg"%(self.tmpDir, resultCat[:resultCat.index(".")])
+        with open(ds9RegionName, 'w') as fp1:
+            for tobj in tdata:
+               fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%ld-%.2f} font=\"times 10\"\n"%
+               (tobj[1], tobj[2], 4.0, tobj[5], tobj[9]))
+        
+        selposName = "%s_sel.cat"%(resultCat[:resultCat.index(".")])
+        selposPath = "%s/%s"%(self.tmpDir, selposName)
+        with open(selposPath, 'w') as fp1:
+            for tobj in tdata:
+               fp1.write("%.3f %.3f %.3f\n"%
+               (tobj[1], tobj[2], tobj[12]))
+        
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("process badpix use %d seconds"%(runTime))
+        
+        return selposName
         
     def simImage(self, oImg, tImg):
         
@@ -397,9 +510,9 @@ class ImageDiff(object):
         os.system("cp %s/%s %s/%s"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
         os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
         
-        self.removeHeader(self.objectImg)
-        self.removeHeader(self.templateImg)
-        
+        self.removeHeaderAndOverScan(self.objectImg)
+        self.removeHeaderAndOverScan(self.templateImg)
+
         sexConf=['-DETECT_MINAREA','7','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
         fpar='sex_diff_fot.par'
         self.objectImgCat = self.runSextractor(self.objectImg, fpar, sexConf)
@@ -415,7 +528,10 @@ class ImageDiff(object):
         if len(tdata.shape)<2 or tdata.shape[0]<5000:
             print("%s has too little stars, break this run"%(tImg))
             return
-                
+        
+        badPixCat = self.processBadPix()
+        
+        '''  
         mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r16)
         self.osn16 = nmhFile
         mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r16)
@@ -437,8 +553,8 @@ class ImageDiff(object):
         hdul = fits.HDUList([hdu])
         hdul.writeto(newPath)
         
-        timgPath = self.runHotpants(newName, self.templateImg)
-        timg = getThumbnail(self.tmpDir, timgPath, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
+        resImg = self.runHotpants(newName, self.templateImg)
+        timg = getThumbnail(self.tmpDir, resImg, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
         timg = scipy.ndimage.zoom(timg, 4, order=0)
 
         plt.figure(figsize = (12, 12))
@@ -447,13 +563,25 @@ class ImageDiff(object):
         
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
-        resultCat = self.runSextractor(timgPath, fpar, sexConf)
-        tdata = np.loadtxt("%s/%s"%(self.tmpDir, resultCat))
+        resiCat = self.runSextractor(resImg, fpar, sexConf)
+        
+        mchFile, nmhFile, mchPair = self.runCrossMatch(resiCat, badPixCat, 5)
+        
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
         print("resi image star %d"%(tdata.shape[0]))
-    
+        '''
+        
+        '''
+        ds9RegionName = "%s/%s_ds9.reg"%(self.tmpDir, nmhFile[:nmhFile.index(".")])
+        with open(ds9RegionName, 'w') as fp1:
+            for tobj in tdata:
+               fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%ld-%.2f} font=\"times 10\"\n"%
+               (tobj[1], tobj[2], 4.0, tobj[5], tobj[9]))
+        '''
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("image diff total use %d seconds"%(runTime))
+        
         
     def test2(self):
         
@@ -473,29 +601,39 @@ class ImageDiff(object):
     
     def test3(self):
         
-        objectImg = 'ti.fit'
-        templateImg = 'ti_bkg.fit'
+        objName = 'ti.fit'
+        bkgName = 'ti_bkg.fit'
         
-        tpath1 = "%s/%s"%(self.tmpDir, objectImg)
-        tpath2 = "%s/%s"%(self.tmpDir, templateImg)
+        objPath = "%s/%s"%(self.tmpDir, objName)
+        bkgPath = "%s/%s"%(self.tmpDir, bkgName)
         
-        tdata1 = fits.getdata(tpath1)
-        tdata2 = fits.getdata(tpath2)
+        objData = fits.getdata(objPath)
+        bkgData = fits.getdata(bkgPath)
         
-        tIdx = tdata1>tdata2
-        tdata1[tIdx] = tdata2[tIdx]
+        tIdx = objData<bkgData
+        bkgData[tIdx] = objData[tIdx]
+        bkgMax = np.max(bkgData)
+        bkgMin = np.min(bkgData)
         
-        zimg = zscale_image(tdata1)
+        bkgData = 50 + bkgMax -bkgData 
+        '''
+        from skimage.morphology import square
+        from skimage.filters.rank import median
+        bkgData = bkgData.astype(np.uint16)
+        bkgData = median(bkgData, square(2))
+        '''
+        ''' 
+        zimg = zscale_image(bkgData)
         Image.fromarray(zimg).save("abc.jpg")
         '''
-        newName = "test11.fit"
+        newName = "mask.fit"
         newPath = "%s/%s"%(self.tmpDir, newName)
         if os.path.exists(newPath):
             os.remove(newPath)
-        hdu = fits.PrimaryHDU(tdata1)
+        hdu = fits.PrimaryHDU(mask)
         hdul = fits.HDUList([hdu])
         hdul.writeto(newPath)
-        '''
+        
         
     def batchSim(self):
         
