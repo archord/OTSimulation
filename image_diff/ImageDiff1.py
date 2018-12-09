@@ -11,6 +11,7 @@ import subprocess
 import datetime
 import matplotlib.pyplot as plt
 from PIL import Image
+import cv2
 from skimage.morphology import square
 from skimage.filters.rank import mean
 from gwac_util import getThumbnail, getThumbnail_, zscale_image
@@ -351,6 +352,103 @@ class ImageDiff(object):
 
     def getMatchPos(self, oiFile, tiFile, mchPair, rmsTimes=2):
 
+        starttime = datetime.datetime.now()
+        
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, oiFile))
+        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, tiFile))
+        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair)).astype(np.int)
+        
+        print("osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
+        
+        tIdx1 = tIdx1 - 1
+        pos1 = tdata1[tIdx1[:,0]][:,0:2]
+        pos2 = tdata2[tIdx1[:,1]][:,0:2]
+        
+        dataOi = pos1
+        dataTi = pos2
+        
+        tpath = "%s/%s"%(self.tmpDir, self.objectImg)
+        tData = fits.getdata(tpath)
+        
+        # Calculate Homography
+        #如果参数被设置为0，那么这个函数使用所有的点和一个简单的最小二乘算法来计算最初的单应性估计，
+        #但是，如果不是所有的点对都完全符合透视变换，那么这个初始的估计会很差，在这种情况下，你可以使用两个robust算法中的一个。 
+        #RANSAC 和LMeDS , 使用坐标点对生成了很多不同的随机组合子集（每四对一组），使用这些子集和一个简单的最小二乘法来估计变换矩阵，
+        #然后计算出单应性的质量，最好的子集被用来产生初始单应性的估计和掩码。 
+        #RANSAC方法几乎可以处理任何异常，但是需要一个阈值， LMeDS 方法不需要任何阈值，但是只有在inliers大于50%时才能计算正确，
+        #最后，如果没有outliers和噪音非常小，则可以使用默认的方法
+        h, status = cv2.findHomography(dataOi, dataTi, cv2.RANSAC, 0.1) #0, RANSAC , LMEDS
+        newimage = cv2.warpPerspective(tData, h, (tData.shape[1],tData.shape[0]))
+        
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("opencv remap sci image use %.2f seconds"%(runTime))
+        
+        return newimage
+
+    def getMatchPos3(self, oiFile, tiFile, mchPair, rmsTimes=2):
+
+        
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, oiFile))
+        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, tiFile))
+        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair)).astype(np.int)
+        
+        print("osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
+        
+        tIdx1 = tIdx1 - 1
+        pos1 = tdata1[tIdx1[:,0]][:,0:2]
+        pos2 = tdata2[tIdx1[:,1]][:,0:2]
+        
+        dataOi = pos1
+        dataTi = pos2
+
+        oiX = dataOi[:,0]
+        oiY = dataOi[:,1]
+        tiX = dataTi[:,0]
+        tiY = dataTi[:,1]    
+        
+        pX, pY = self.posFitting(oiX, oiY, tiX, tiY, rejSigma=rmsTimes)
+        
+        tpath = "%s/%s"%(self.tmpDir, self.objectImg)
+        hdul = fits.open(tpath)  # open a FITS file
+        theader = hdul[0].header  # the primary HDU header
+        tData = hdul[0].data
+        imgW = theader['naxis1']
+        imgH = theader['naxis2']
+        outshape = [imgH, imgW]
+        print(tData.shape)
+        print(outshape)
+        
+        starttime = datetime.datetime.now()
+        y1, x1 = np.indices(outshape)
+        x11 = pX(x1,y1)
+        y11 = pY(x1,y1)
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("trans sci image use %.2f seconds"%(runTime))
+        
+        starttime = datetime.datetime.now()
+        #grid = np.array([y11.reshape(outshape), x11.reshape(outshape)])
+        #newimage = S.ndimage.map_coordinates(tData, grid)
+        #tData = tData.astype(np.float32)
+        x11 = x11.astype(np.float32)
+        y11 = y11.astype(np.float32)
+        #双三次插值法(Bicubic interpolation)相对前两种算法计算过程更为复杂，考虑了待求像素坐标反变换后得到的浮点坐标周围的16个邻近像素。
+        #双线性插值法(Bilinear interpolation)是利用待求象素反变换到原图像对应的浮点坐标，邻近的四个象素在两个方向上作线性内插。四邻近像素值的加权平均即为待测点像素值，计算权重反比于浮点在双线性方向上的映射距离。
+        #newimage = cv2.remap(tData,x11, y11, 
+        #                     borderMode=cv2.BORDER_REFLECT_101, #BORDER_REFLECT_101
+        #                     interpolation=cv2.INTER_CUBIC) #INTER_LINEAR INTER_LINEAR
+        newimage = cv2.remap(tData,x11, y11, interpolation=cv2.INTER_CUBIC)
+        
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("remap sci image use %.2f seconds"%(runTime))
+        
+        return newimage
+        
+
+    def getMatchPos2(self, oiFile, tiFile, mchPair, rmsTimes=2):
+
         
         tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, oiFile))
         tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, tiFile))
@@ -399,32 +497,6 @@ class ImageDiff(object):
         self.log.debug("remap sci image use %.2f seconds"%(runTime))
         
         return newimage
-    
-    def bkgProcess(self, tdata, gridNum=4):
-        
-        ''' ''' 
-        from skimage.morphology import square
-        from skimage.filters.rank import median, mean
-        tdata = tdata.astype(np.uint16)
-        tdata = mean(tdata, square(3))
-        '''
-        imgW = tdata.shape[1]
-        imgH = tdata.shape[0]
-        
-        tintervalW = imgW/gridNum
-        tintervalH = imgH/gridNum
-        
-        for i in range(gridNum):
-            yStart = int(i*tintervalH)
-            yEnd = int((i+1)*tintervalH)
-            for j in range(gridNum):
-                xStart = int(j*tintervalW)
-                xEnd = int((j+1)*tintervalW)
-                subRegion = tdata[yStart:yEnd, xStart:xEnd]
-                tmean = np.mean(subRegion)
-                subRegion[subRegion<tmean] = tmean
-        '''            
-        return tdata
         
     def processBadPix(self):
         
@@ -453,8 +525,18 @@ class ImageDiff(object):
         hdul = fits.HDUList([hdu])
         hdul.writeto(newPath)
         '''
+        
+        starttime1 = datetime.datetime.now()
         bkgData = bkgData.astype(np.uint16)
-        bkgData = mean(bkgData, square(3))
+        #bkgData = mean(bkgData, square(3))
+        #kernel = np.ones((3,3),np.float32)/25
+        #dst = cv2.filter2D(bkgData,-1,kernel)
+        bkgData = cv2.blur(bkgData,(3,3)) #faster than mean
+        bkgData = bkgData.astype(np.uint16)
+        
+        endtime1 = datetime.datetime.now()
+        runTime1 = (endtime1 - starttime1).seconds
+        self.log.debug("process badpix meanfilter use %d seconds"%(runTime1))
         
         newName = "badpix.fit"
         newPath = "%s/%s"%(self.tmpDir, newName)
@@ -463,21 +545,22 @@ class ImageDiff(object):
         hdu = fits.PrimaryHDU(bkgData)
         hdul = fits.HDUList([hdu])
         hdul.writeto(newPath)
-        '''
-        fpar='sex_diff.par'
-        fconf='BadpixSearch.sex'
-        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
-        resultCat = self.runSextractor(newName, fpar, sexConf, fconf)
-        '''
+
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         resultCat = self.runSextractor(newName, fpar, sexConf)
         
         tdata = np.loadtxt("%s/%s"%(self.tmpDir, resultCat))
-        print("badpix star %d"%(tdata.shape[0]))
         
-        #maxFlux>bkg-20
-        tdata = tdata[tdata[:,5]>tdata[:,9]-20]
+        fluxMax = tdata[:,5]
+        fluxMaxMean = np.mean(fluxMax)
+        fluxMaxStd = np.std(fluxMax)
+        fluxMaxThd = fluxMaxMean+2*fluxMaxStd #(μ—2σ,μ+2σ) 0.9544
+        tidx = fluxMax>fluxMaxThd 
+        print("badpix star %d, fluxMaxMean=%.2f, fluxMaxStd=%.2f, fluxMaxThd=%.2f"%(tdata.shape[0], fluxMaxMean, fluxMaxStd, fluxMaxThd))
+        
+        tdata = tdata[tidx]
+        
         print("badpix flux_max>background star %d"%(tdata.shape[0]))
         ds9RegionName = "%s/%s_ds9.reg"%(self.tmpDir, resultCat[:resultCat.index(".")])
         with open(ds9RegionName, 'w') as fp1:
@@ -489,8 +572,7 @@ class ImageDiff(object):
         selposPath = "%s/%s"%(self.tmpDir, selposName)
         with open(selposPath, 'w') as fp1:
             for tobj in tdata:
-               fp1.write("%.3f %.3f %.3f\n"%
-               (tobj[1], tobj[2], tobj[12]))
+               fp1.write("%.3f %.3f %.3f\n"%(tobj[1], tobj[2], tobj[12]))
         
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
@@ -531,7 +613,7 @@ class ImageDiff(object):
         
         badPixCat = self.processBadPix()
         
-        '''  
+        '''  '''
         mchFile, nmhFile = self.runSelfMatch(self.objectImgCat, self.r16)
         self.osn16 = nmhFile
         mchFile, nmhFile = self.runSelfMatch(self.templateImgCat, self.r16)
@@ -543,7 +625,7 @@ class ImageDiff(object):
         
         self.gridStatistic(osn16_tsn16_cm5, gridNum=4)
         
-        newimage = self.getMatchPos(self.osn16, self.tsn16, osn16_tsn16_cm5_pair)
+        newimage = self.getMatchPos3(self.osn16, self.tsn16, osn16_tsn16_cm5_pair)
                 
         newName = "new.fit"
         newPath = "%s/%s"%(self.tmpDir, newName)
@@ -569,15 +651,8 @@ class ImageDiff(object):
         
         tdata = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
         print("resi image star %d"%(tdata.shape[0]))
-        '''
         
-        '''
-        ds9RegionName = "%s/%s_ds9.reg"%(self.tmpDir, nmhFile[:nmhFile.index(".")])
-        with open(ds9RegionName, 'w') as fp1:
-            for tobj in tdata:
-               fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%ld-%.2f} font=\"times 10\"\n"%
-               (tobj[1], tobj[2], 4.0, tobj[5], tobj[9]))
-        '''
+
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("image diff total use %d seconds"%(runTime))
