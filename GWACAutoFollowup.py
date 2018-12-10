@@ -29,6 +29,14 @@ class GWACAutoFollowup:
         "password": "gdb%980"
         }
     
+    QSciObj = "SELECT so_id, name, point_ra, point_dec, mag, status, trigger_status, found_usno_r2, found_usno_r2 " \
+        "from science_object where auto_observation=true and status>=2"
+    QFupObj = "SELECT fuo_id, fuo_name, fuo_type_id" \
+        "from follow_up_object where ot_id="
+    QFupRec = "SELECT * from follow_up_record where fuo_id=" \
+        "inner join follow_up_observation fupObs on fupObs.fo_id=fupObj.fo_id and fupObs.filter='R' " 
+    QOT2 = "SELECT * from ot_level2 where name="
+    
     def __init__(self):
         
         self.conn = False
@@ -42,95 +50,40 @@ class GWACAutoFollowup:
     def closeDb(self):
         self.conn.close()
     
-    def queryParms(self, parms, ccdId, startTime, endTime, history=False):
-        
-        tableName = 'image_status_parameter'
-        if history:
-            tableName = 'image_status_parameter_his'
-        
-        sql = "select %s " \
-            "from %s isp " \
-            "inner join camera cam on cam.camera_id=isp.dpm_id and cam.name='%s' " \
-            "where time_obs_ut>='%s' and time_obs_ut<'%s' " \
-            "order by time_obs_ut asc"%(parms, tableName, ccdId, startTime, endTime)
+    def getDataFromDB(self, sql):
+                
+        tsql = sql
         
         try:
             self.connDb()
     
             cur = self.conn.cursor()
-            cur.execute(sql)
+            cur.execute(tsql)
             rows = cur.fetchall()
             cur.close()
             self.closeDb()
         except Exception as err:
             rows = []
-            print(" query OT2 image error ")
+            print(" query science_object error ")
             print(err)
             
         return rows
             
-    def getFWHM(self):
+    def autoFollowUp(self):
         
-        parms = 'time_obs_ut, fwhm'
-        ccdId = '021'
-        startTime = '2018-02-04 10:54:42'
-        endTime = '2018-02-04 23:54:42'
-        
-        tdatas = self.queryParms(parms, ccdId, startTime, endTime, history=True)
-        print(tdatas[:3])
-        
-        tdatas=np.array(tdatas)
-        print(tdatas[:3])
-        
-        dates = tdatas[:,0]
-        fwhms = tdatas[:,1]
-        print(dates[:3])
-        print(fwhms[:3])
-        
-        plt.figure(figsize = (12, 12))
-        plt.plot(dates, fwhms)
-        plt.show()
-        
-        tIdx = (fwhms>0.5)&(fwhms<2.5)
-        dates1 = dates[tIdx]
-        fwhms1 = fwhms[tIdx]
-        plt.figure(figsize = (12, 12))
-        plt.plot(dates1, fwhms1)
-        plt.show()
-        
-        dates2 = dates[10:-100]
-        fwhms2 = fwhms[10:-100]
-        plt.figure(figsize = (12, 12))
-        plt.plot(dates2, fwhms2)
-        plt.show()
-
-    def getAllParm(self):
-        
-        parms = '*'
-        ccdId = '021'
-        startTime = '2018-02-04 10:54:42'
-        endTime = '2018-02-04 23:54:42'
-        
-        tdatas = self.queryParms(parms, ccdId, startTime, endTime, history=True)
-        print(tdatas[0])
-        
-        tdatas=np.array(tdatas)
-        print(tdatas[0])
-        
-        dates = tdatas[:,1]
-        backgrounds = tdatas[:,3]
-        print(dates[:3])
-        print(backgrounds[:3])
-        
-        plt.figure(figsize = (12, 12))
-        plt.plot(dates, backgrounds)
-        plt.title("backgrounds")
-        plt.show()
-
+        sciObjs = self.getDataFromDB(self.QSciObj)
+        for sciObj in sciObjs:
+            tsql = "%s'%s'"%(self.QOT2,sciObj[1])
+            ot2 = self.getDataFromDB(tsql)
+            
+            tsql = "%s%d"%(self.QFupObj,ot2[4])
+            fupObjs = self.getDataFromDB(tsql)
+            for fupObj in fupObjs:
+                tsql = "%s%d"%(self.QFupRec,sciObj[0])
+                fupRecords = self.getDataFromDB(tsql)
 
 if __name__ == '__main__':
     
-    query = ImageParmQuery()
-    #query.getFWHM()
-    query.getAllParm()
+    gfup = GWACAutoFollowup()
+    gfup.autoFollowUp()
     
