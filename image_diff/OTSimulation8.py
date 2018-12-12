@@ -15,6 +15,7 @@ import cv2
 from skimage.morphology import square
 from skimage.filters.rank import mean
 from gwac_util import getThumbnail, getThumbnail_, zscale_image, genPSFView
+from QueryData import QueryData
 
 class OTSimulation(object):
     def __init__(self): 
@@ -25,23 +26,18 @@ class OTSimulation(object):
         self.matchProgram="tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="tools/hotpants/hotpants"
         
-        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/mini_gwac" # ls CombZ_*fit
-        self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
-        #self.srcDir = "/home/xy"
-        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G181029"
-        self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0_bad"
         self.tmpDir="/dev/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1212"
-        self.preViewDir="/home/xy/Downloads/myresource/deep_data2/simot/preview_1212"
+        self.srcDir0 = "/data/gwac_data/gwac_orig_fits"
+        self.srcDir = "/data/gwac_data/gwac_orig_fits/181209"
+        self.destDir="/data/simot/data_1212/sample"
+        self.preViewDir="/data/simot/data_1212/preview"
                 
         if not os.path.exists(self.tmpDir):
-            os.system("mkdir %s"%(self.tmpDir))
+            os.system("mkdirs %s"%(self.tmpDir))
         if not os.path.exists(self.destDir):
-            os.system("mkdir %s"%(self.destDir))
-        if not os.path.exists(self.srcDirBad):
-            os.system("mkdir %s"%(self.srcDirBad))
+            os.system("mkdirs %s"%(self.destDir))
         if not os.path.exists(self.preViewDir):
-            os.system("mkdir %s"%(self.preViewDir))
+            os.system("mkdirs %s"%(self.preViewDir))
             
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
@@ -623,22 +619,27 @@ class OTSimulation(object):
             
     def batchSim(self):
         
-        flist = os.listdir(self.srcDir)
-        flist.sort()
+        query = QueryData()
+        filesNum = query.queryFilesNum()
         
-        imgs = []
-        for tfilename in flist:
-            if tfilename.find("fit")>-1:
-                imgs.append(tfilename)
-        
-        print("total image %d"%(len(imgs)))
-        imgNum = 500
-        for i in range(len(imgs)):
-            objectImg = imgs[i+imgNum]
-            templateImg = imgs[i]
-            print("process %04d image %s"%(i+1, objectImg))
-            self.simImage(objectImg, templateImg)
-            #break
+        for tnum in filesNum:
+            
+            if tnum[3]>1000 and tnum[2]%5>0:
+                files = query.getFileList(tnum[1], tnum[2], tnum[0])
+                total = len(files)
+                for i in range(total):
+                    tidx = i + 500
+                    if tidx<total:
+                        objectImg = files[tidx][0]
+                        templateImg = files[i][0]
+                        ccd = files[1]
+                        #G004_041
+                        tpath1 = "G0%s_%s"%(ccd[:2], ccd)
+                        self.srcDir="%s/%s/%s"%(self.srcDir0,tnum[0], tpath1)
+                        print("process %04d image %s"%(i+1, objectImg))
+                        self.simImage(objectImg, templateImg)
+                        break
+                        
             
 if __name__ == "__main__":
     
