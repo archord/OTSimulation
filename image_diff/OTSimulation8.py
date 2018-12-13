@@ -22,22 +22,28 @@ class OTSimulation(object):
         
         self.verbose = True
         
-        self.varDir = "tools/simulate_tools"
-        self.matchProgram="tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
-        self.imgDiffProgram="tools/hotpants/hotpants"
+        self.varDir = "%s/tools/simulate_tools"%(os.getcwd())
+        self.matchProgram="%s/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(os.getcwd())
+        self.imgDiffProgram="%s/tools/hotpants/hotpants"%(os.getcwd())
+        self.funpackProgram="%s/tools/cfitsio/funpack"%(os.getcwd())
         
         self.tmpDir="/dev/shm/gwacsim"
         self.srcDir0 = "/data/gwac_data/gwac_orig_fits"
         self.srcDir = "/data/gwac_data/gwac_orig_fits/181209"
-        self.destDir="/data/simot/data_1212/sample"
-        self.preViewDir="/data/simot/data_1212/preview"
+        self.destDir="/data/gwac_data/gwac_simot/data_1213/sample"
+        self.preViewDir="/data/gwac_data/gwac_simot/data_1213/preview"
+        self.origPreViewDir="/data/gwac_data/gwac_simot/data_1213/orig_preview"
+        
+        os.environ['VER_DIR'] = self.varDir
                 
         if not os.path.exists(self.tmpDir):
-            os.system("mkdirs %s"%(self.tmpDir))
+            os.system("mkdir -p %s"%(self.tmpDir))
         if not os.path.exists(self.destDir):
-            os.system("mkdirs %s"%(self.destDir))
+            os.system("mkdir -p %s"%(self.destDir))
         if not os.path.exists(self.preViewDir):
-            os.system("mkdirs %s"%(self.preViewDir))
+            os.system("mkdir -p %s"%(self.preViewDir))
+        if not os.path.exists(self.origPreViewDir):
+            os.system("mkdir -p %s"%(self.origPreViewDir))
             
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
@@ -267,22 +273,22 @@ class OTSimulation(object):
         overscanRight = 80
         fullPath = "%s/%s"%(self.tmpDir, fname)
         
-        fname='G022_mon_objt_180226T17492514_2.fits'
         keyword=['WCSASTRM','WCSDIM','CTYPE1','CTYPE2',
                  'CRVAL1','CRVAL2','CRPIX1','CRPIX2',
                  'CD1_1','CD1_2','CD2_1','CD2_2','WAT0_001',
                  'WAT1_001','WAT1_002','WAT1_003','WAT1_004','WAT1_005','WAT1_006','WAT1_007','WAT1_008',
                  'WAT2_001','WAT2_002','WAT2_003','WAT2_004','WAT2_005','WAT2_006','WAT2_007','WAT2_008']
     
-        with fits.open(fullPath, mode='update') as hdul:
-            hdu1 = hdul[0]
-            hdr = hdu1.header
-            for kw in keyword:
-                hdr.remove(kw,ignore_missing=True)
-            data = hdu1.data
-            hdu1.data = data[:,overscanLeft:-overscanRight]
-            hdul.flush()
-            hdul.close()
+        hdul = fits.open(fullPath, mode='update', memmap=False)
+        hdu1 = hdul[0]
+        hdr = hdu1.header
+        print("%s sky %s"%(fname, hdr['FIELD_ID']))
+        for kw in keyword:
+            hdr.remove(kw,ignore_missing=True)
+        data = hdu1.data
+        hdu1.data = data[:,overscanLeft:-overscanRight]
+        hdul.flush()
+        hdul.close()
 
     def gridStatistic(self, catfile, gridNum=4):
         
@@ -486,9 +492,18 @@ class OTSimulation(object):
         self.templateImgOrig = tImg
     
         os.system("rm -rf %s/*"%(self.tmpDir))
+        
+        oImgfz = "%s/%s.fz"%(self.srcDir,oImg)
+        tImgfz = "%s/%s.fz"%(self.srcDir,tImg)
+        
+        if (not os.path.exists(oImgfz)) or (not os.path.exists(tImgfz)):
+            print("%s or %s not exist"%(oImgfz, tImgfz))
+            return
                 
-        os.system("cp %s/%s %s/%s"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
-        os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
+        os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
+        os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
+        os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpDir, self.objectImg))
+        os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpDir, self.templateImg))
         
         self.removeHeaderAndOverScan(self.objectImg)
         self.removeHeaderAndOverScan(self.templateImg)
@@ -546,14 +561,22 @@ class OTSimulation(object):
         '''
         self.objTmpResi = self.runHotpants(newName, self.templateImg)
         
-        '''
-        timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
-        timg = scipy.ndimage.zoom(timg, 4, order=0)
-
-        plt.figure(figsize = (12, 12))
-        plt.imshow(timg, cmap='gray')
-        plt.show()
-        '''
+        tgrid = 4
+        tsize = 1000
+        tzoom = 1
+        oImgPre = oImg[:oImg.index(".")]
+        timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+        preViewPath = "%s/%s_resi.jpg"%(self.origPreViewDir, oImgPre)
+        Image.fromarray(timg).save(preViewPath)
+        timg = getThumbnail(self.tmpDir, self.objectImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+        preViewPath = "%s/%s_obj.jpg"%(self.origPreViewDir, oImgPre)
+        Image.fromarray(timg).save(preViewPath)
+        timg = getThumbnail(self.tmpDir, self.templateImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+        preViewPath = "%s/%s_tmp.jpg"%(self.origPreViewDir, oImgPre)
+        Image.fromarray(timg).save(preViewPath)
         
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
@@ -590,9 +613,9 @@ class OTSimulation(object):
             resiImgs.append(timg[2])
 
         preViewPath = "%s/%s_psf.jpg"%(self.preViewDir, oImgPre)
-        if not os.path.exists(preViewPath):
-            psfView = genPSFView(resiImgs)
-            Image.fromarray(psfView).save(preViewPath)
+        #if not os.path.exists(preViewPath):
+        psfView = genPSFView(resiImgs)
+        Image.fromarray(psfView).save(preViewPath)
                         
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
@@ -627,18 +650,23 @@ class OTSimulation(object):
             if tnum[3]>1000 and tnum[2]%5>0:
                 files = query.getFileList(tnum[1], tnum[2], tnum[0])
                 total = len(files)
+                self.log.info(tnum)
+                
+                ccd = files[0][1]
+                #G004_041
+                tpath1 = "G0%s_%s"%(ccd[:2], ccd)
+                
                 for i in range(total):
                     tidx = i + 500
                     if tidx<total:
                         objectImg = files[tidx][0]
                         templateImg = files[i][0]
-                        ccd = files[1]
-                        #G004_041
-                        tpath1 = "G0%s_%s"%(ccd[:2], ccd)
                         self.srcDir="%s/%s/%s"%(self.srcDir0,tnum[0], tpath1)
-                        print("process %04d image %s"%(i+1, objectImg))
+                        self.log.info("\n\n***************")
+                        self.log.info("process %04d obj_image: %s, tmp_image: %s"%(i+1, objectImg, templateImg))
                         self.simImage(objectImg, templateImg)
                         break
+            break
                         
             
 if __name__ == "__main__":
