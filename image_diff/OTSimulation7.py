@@ -27,14 +27,14 @@ class OTSimulation(object):
         self.funpackProgram="%s/../image_diff/tools/cfitsio/funpack"%(os.getcwd())
         
         #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/mini_gwac" # ls CombZ_*fit
-        self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
+        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
         #self.srcDir = "/home/xy"
-        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G181029"
+        self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G181029"
         self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0_bad"
         self.tmpDir="/dev/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1213"
-        self.preViewDir="/home/xy/Downloads/myresource/deep_data2/simot/preview_1213"
-        self.origPreViewDir="/home/xy/Downloads/myresource/deep_data2/simot/origpreview_1212"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1216"
+        self.preViewDir="/home/xy/Downloads/myresource/deep_data2/simot/preview_1216"
+        self.origPreViewDir="/home/xy/Downloads/myresource/deep_data2/simot/origpreview_1216"
                 
         if not os.path.exists(self.tmpDir):
             os.system("mkdir %s"%(self.tmpDir))
@@ -490,13 +490,18 @@ class OTSimulation(object):
         
         starttime = datetime.datetime.now()
         
+        oImg = oImg[:-3]
+        tImg = tImg[:-3]
+        
         self.objectImgOrig = oImg
         self.templateImgOrig = tImg
     
         os.system("rm -rf %s/*"%(self.tmpDir))
                         
-        os.system("cp %s/%s %s/%s"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
-        os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
+        os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
+        os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
+        os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpDir, self.objectImg))
+        os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpDir, self.templateImg))
         
         self.removeHeaderAndOverScan(self.objectImg)
         self.removeHeaderAndOverScan(self.templateImg)
@@ -649,7 +654,7 @@ class OTSimulation(object):
         
         print("total image %d"%(len(imgs)))
         totalImg = len(imgs)
-        imgNum = 300
+        imgNum = 50
         for i in range(totalImg):
             tidx = i+imgNum
             if tidx<totalImg:
@@ -658,7 +663,7 @@ class OTSimulation(object):
                 self.log.info("\n\n***************")
                 self.log.info("process %04d obj_image: %s, tmp_image: %s"%(i+1, objectImg, templateImg))
                 self.simImage(objectImg, templateImg)
-                #break
+                break
             
 if __name__ == "__main__":
     
