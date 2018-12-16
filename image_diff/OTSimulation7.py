@@ -21,9 +21,10 @@ class OTSimulation(object):
         
         self.verbose = True
         
-        self.varDir = "tools/simulate_tools"
-        self.matchProgram="tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
-        self.imgDiffProgram="tools/hotpants/hotpants"
+        self.varDir = "%s/../image_diff/tools/simulate_tools"%(os.getcwd())
+        self.matchProgram="%s/../image_diff/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(os.getcwd())
+        self.imgDiffProgram="%s/../image_diff/tools/hotpants/hotpants"%(os.getcwd())
+        self.funpackProgram="%s/../image_diff/tools/cfitsio/funpack"%(os.getcwd())
         
         #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/mini_gwac" # ls CombZ_*fit
         self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
@@ -31,8 +32,9 @@ class OTSimulation(object):
         #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G181029"
         self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0_bad"
         self.tmpDir="/dev/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1212"
-        self.preViewDir="/home/xy/Downloads/myresource/deep_data2/simot/preview_1212"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1213"
+        self.preViewDir="/home/xy/Downloads/myresource/deep_data2/simot/preview_1213"
+        self.origPreViewDir="/home/xy/Downloads/myresource/deep_data2/simot/origpreview_1212"
                 
         if not os.path.exists(self.tmpDir):
             os.system("mkdir %s"%(self.tmpDir))
@@ -42,6 +44,8 @@ class OTSimulation(object):
             os.system("mkdir %s"%(self.srcDirBad))
         if not os.path.exists(self.preViewDir):
             os.system("mkdir %s"%(self.preViewDir))
+        if not os.path.exists(self.origPreViewDir):
+            os.system("mkdir %s"%(self.origPreViewDir))
             
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
@@ -490,7 +494,7 @@ class OTSimulation(object):
         self.templateImgOrig = tImg
     
         os.system("rm -rf %s/*"%(self.tmpDir))
-                
+                        
         os.system("cp %s/%s %s/%s"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
         os.system("cp %s/%s %s/%s"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
         
@@ -528,6 +532,8 @@ class OTSimulation(object):
         self.gridStatistic(osn16_tsn16_cm5, gridNum=4)
         
         newimage, h = self.getMatchPos(self.osn16, self.tsn16, osn16_tsn16_cm5_pair)
+        print("astrometry pos transform")
+        print(h)
                 
         newName = "new.fit"
         newPath = "%s/%s"%(self.tmpDir, newName)
@@ -551,12 +557,22 @@ class OTSimulation(object):
         self.objTmpResi = self.runHotpants(newName, self.templateImg)
         
         '''
-        timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
-        timg = scipy.ndimage.zoom(timg, 4, order=0)
-
-        plt.figure(figsize = (12, 12))
-        plt.imshow(timg, cmap='gray')
-        plt.show()
+        tgrid = 4
+        tsize = 1000
+        tzoom = 1
+        oImgPre = oImg[:oImg.index(".")]
+        timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+        preViewPath = "%s/%s_resi.jpg"%(self.origPreViewDir, oImgPre)
+        Image.fromarray(timg).save(preViewPath)
+        timg = getThumbnail(self.tmpDir, self.objectImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+        preViewPath = "%s/%s_obj.jpg"%(self.origPreViewDir, oImgPre)
+        Image.fromarray(timg).save(preViewPath)
+        timg = getThumbnail(self.tmpDir, self.templateImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+        preViewPath = "%s/%s_tmp.jpg"%(self.origPreViewDir, oImgPre)
+        Image.fromarray(timg).save(preViewPath)
         '''
         
         fpar='sex_diff.par'
@@ -583,7 +599,7 @@ class OTSimulation(object):
         
         
         oImgPre = oImg[:oImg.index(".")]
-        fotpath = '%s/%s_otimg_fot.npz'%(self.destDir, oImgPre)
+        fotpath = '%s/%s_otimg_fot_%04d.npz'%(self.destDir, oImgPre, fSubImgs.shape[0])
         np.savez_compressed(fotpath, fot=fSubImgs, parms=fparms)
         
         self.log.info("\n******************")
@@ -594,9 +610,9 @@ class OTSimulation(object):
             resiImgs.append(timg[2])
 
         preViewPath = "%s/%s_psf.jpg"%(self.preViewDir, oImgPre)
-        if not os.path.exists(preViewPath):
-            psfView = genPSFView(resiImgs)
-            Image.fromarray(psfView).save(preViewPath)
+        #if not os.path.exists(preViewPath):
+        psfView = genPSFView(resiImgs)
+        Image.fromarray(psfView).save(preViewPath)
                         
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
@@ -632,13 +648,17 @@ class OTSimulation(object):
                 imgs.append(tfilename)
         
         print("total image %d"%(len(imgs)))
-        imgNum = 500
-        for i in range(len(imgs)):
-            objectImg = imgs[i+imgNum]
-            templateImg = imgs[i]
-            print("process %04d image %s"%(i+1, objectImg))
-            self.simImage(objectImg, templateImg)
-            #break
+        totalImg = len(imgs)
+        imgNum = 300
+        for i in range(totalImg):
+            tidx = i+imgNum
+            if tidx<totalImg:
+                objectImg = imgs[tidx]
+                templateImg = imgs[i]
+                self.log.info("\n\n***************")
+                self.log.info("process %04d obj_image: %s, tmp_image: %s"%(i+1, objectImg, templateImg))
+                self.simImage(objectImg, templateImg)
+                #break
             
 if __name__ == "__main__":
     
