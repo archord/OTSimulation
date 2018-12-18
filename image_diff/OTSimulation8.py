@@ -350,7 +350,7 @@ class OTSimulation(object):
         tpath = "%s/%s"%(self.tmpDir, self.objectImg)
         tData = fits.getdata(tpath)
         
-        h, status = cv2.findHomography(dataOi, dataTi, cv2.RANSAC, 0.1) #0, RANSAC , LMEDS
+        h, tmask = cv2.findHomography(dataOi, dataTi, cv2.RANSAC, 0.1) #0, RANSAC , LMEDS
         newimage = cv2.warpPerspective(tData, h, (tData.shape[1],tData.shape[0]))
         
         endtime = datetime.datetime.now()

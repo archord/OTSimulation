@@ -15,37 +15,39 @@ import cv2
 from skimage.morphology import square
 from skimage.filters.rank import mean
 from gwac_util import getThumbnail, getThumbnail_, zscale_image, genPSFView
+from QueryData import QueryData
 
-class OTSimulation(object):
+class ImageDiff(object):
     def __init__(self): 
         
         self.verbose = True
         
-        self.varDir = "%s/../image_diff/tools/simulate_tools"%(os.getcwd())
-        self.matchProgram="%s/../image_diff/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(os.getcwd())
-        self.imgDiffProgram="%s/../image_diff/tools/hotpants/hotpants"%(os.getcwd())
-        self.funpackProgram="%s/../image_diff/tools/cfitsio/funpack"%(os.getcwd())
+        self.varDir = "%s/tools/simulate_tools"%(os.getcwd())
+        self.matchProgram="%s/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(os.getcwd())
+        self.imgDiffProgram="%s/tools/hotpants/hotpants"%(os.getcwd())
+        self.funpackProgram="%s/tools/cfitsio/funpack"%(os.getcwd())
         
-        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/mini_gwac" # ls CombZ_*fit
-        #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
-        #self.srcDir = "/home/xy"
-        self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G181029"
-        self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0_bad"
-        self.tmpDir="/dev/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1218"
-        self.preViewDir="/home/xy/Downloads/myresource/deep_data2/simot/preview_1218"
-        self.origPreViewDir="/home/xy/Downloads/myresource/deep_data2/simot/origpreview_1218"
+        self.tmpRoot="/dev/shm/gwacsim"
+        self.tmpDir="%s/temp"
+        self.tmpCat="%s/cat"
+        self.srcDir0 = "/data/gwac_data/gwac_orig_fits"
+        self.srcDir = "/data/gwac_data/gwac_orig_fits/181209"
+        self.destDir="/data/gwac_data/gwac_simot/data_1213/sample"
+        self.preViewDir="/data/gwac_data/gwac_simot/data_1213/preview"
+        self.origPreViewDir="/data/gwac_data/gwac_simot/data_1213/orig_preview"
+        
+        os.environ['VER_DIR'] = self.varDir
                 
         if not os.path.exists(self.tmpDir):
-            os.system("mkdir %s"%(self.tmpDir))
+            os.system("mkdir -p %s"%(self.tmpDir))
+        if not os.path.exists(self.tmpCat):
+            os.system("mkdir -p %s"%(self.tmpCat))
         if not os.path.exists(self.destDir):
-            os.system("mkdir %s"%(self.destDir))
-        if not os.path.exists(self.srcDirBad):
-            os.system("mkdir %s"%(self.srcDirBad))
+            os.system("mkdir -p %s"%(self.destDir))
         if not os.path.exists(self.preViewDir):
-            os.system("mkdir %s"%(self.preViewDir))
+            os.system("mkdir -p %s"%(self.preViewDir))
         if not os.path.exists(self.origPreViewDir):
-            os.system("mkdir %s"%(self.origPreViewDir))
+            os.system("mkdir -p %s"%(self.origPreViewDir))
             
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
@@ -275,22 +277,22 @@ class OTSimulation(object):
         overscanRight = 80
         fullPath = "%s/%s"%(self.tmpDir, fname)
         
-        fname='G022_mon_objt_180226T17492514_2.fits'
         keyword=['WCSASTRM','WCSDIM','CTYPE1','CTYPE2',
                  'CRVAL1','CRVAL2','CRPIX1','CRPIX2',
                  'CD1_1','CD1_2','CD2_1','CD2_2','WAT0_001',
                  'WAT1_001','WAT1_002','WAT1_003','WAT1_004','WAT1_005','WAT1_006','WAT1_007','WAT1_008',
                  'WAT2_001','WAT2_002','WAT2_003','WAT2_004','WAT2_005','WAT2_006','WAT2_007','WAT2_008']
     
-        with fits.open(fullPath, mode='update') as hdul:
-            hdu1 = hdul[0]
-            hdr = hdu1.header
-            for kw in keyword:
-                hdr.remove(kw,ignore_missing=True)
-            data = hdu1.data
-            hdu1.data = data[:,overscanLeft:-overscanRight]
-            hdul.flush()
-            hdul.close()
+        hdul = fits.open(fullPath, mode='update', memmap=False)
+        hdu1 = hdul[0]
+        hdr = hdu1.header
+        print("%s sky %s"%(fname, hdr['FIELD_ID']))
+        for kw in keyword:
+            hdr.remove(kw,ignore_missing=True)
+        data = hdu1.data
+        hdu1.data = data[:,overscanLeft:-overscanRight]
+        hdul.flush()
+        hdul.close()
 
     def gridStatistic(self, catfile, gridNum=4):
         
@@ -331,7 +333,7 @@ class OTSimulation(object):
             tnum2 = tnum2+ trow[2]
         print("%s total %d:%d"%(catfile, catData.shape[0], tnum2))
         print(tarray)
-        
+    
     def evaluatePos(self, pos1, pos2):
         
         posDiff = pos1 - pos2
@@ -340,7 +342,7 @@ class OTSimulation(object):
         tmin = np.min(posDiff, axis=0)
         trms = np.std(posDiff, axis=0)
         return tmean, trms, tmax, tmin
-    
+        
     def getMatchPos(self, oiFile, tiFile, mchPair, rmsTimes=2):
 
         starttime = datetime.datetime.now()
@@ -368,37 +370,7 @@ class OTSimulation(object):
         dataTi2 = dataTi2[0]
         
         tmean2, trms2, tmax2, tmin2 = self.evaluatePos(dataOi, dataTi)
-        '''
-        tmean1, trms1, tmax1, tmin1 = self.evaluatePos(dataTi2, dataTi)
-        print("before filter, total %d points"%(dataOi.shape[0]))
-        print("image difference: Xmax %.5f, Xmin %.5f, Xmean %.5f, Xrms %.5f"%(tmax2[0], tmin2[0], tmean2[0], trms2[0]))
-        print("image difference: Ymax %.5f, Ymin %.5f, Ymean %.5f, Yrms %.5f"%(tmax2[1], tmin2[1], tmean2[1], trms2[1]))
-        
-        print("fitting: Xmax %.5f, Xmin %.5f, Xmean %.5f, Xrms %.5f"%(tmax1[0], tmin1[0], tmean1[0], trms1[0]))
-        print("fitting: Ymax %.5f, Ymin %.5f, Ymean %.5f, Yrms %.5f"%(tmax1[1], tmin1[1], tmean1[1], trms1[1]))
-        
-        times = 2
-        for i in range(1):
-            posDiff = dataTi2 - dataTi
-            tabs = np.fabs(posDiff)
-            tmean = np.mean(tabs, axis=0)
-            trms = np.std(tabs, axis=0)
-            tIdx = (tabs[:,0]<(tmean[0]+times*trms[0]))&(tabs[:,1]<(tmean[1]+times*trms[1]))
-            dataTi2 = dataTi2[tIdx]
-            dataTi = dataTi[tIdx]
-            dataOi = dataOi[tIdx]
-            print("filter%d, total %d points"%(i+1, dataTi.shape[0]))
-                
-        tmean1, trms1, tmax1, tmin1 = self.evaluatePos(dataTi2, dataTi)
-        tmean2, trms2, tmax2, tmin2 = self.evaluatePos(dataOi, dataTi)
-        
-        print("after filter, total %d points"%(dataOi.shape[0]))
-        print("image difference: Xmax %.5f, Xmin %.5f, Xmean %.5f, Xrms %.5f"%(tmax2[0], tmin2[0], tmean2[0], trms2[0]))
-        print("image difference: Ymax %.5f, Ymin %.5f, Ymean %.5f, Yrms %.5f"%(tmax2[1], tmin2[1], tmean2[1], trms2[1]))
-        
-        print("fitting: Xmax %.5f, Xmin %.5f, Xmean %.5f, Xrms %.5f"%(tmax1[0], tmin1[0], tmean1[0], trms1[0]))
-        print("fitting: Ymax %.5f, Ymin %.5f, Ymean %.5f, Yrms %.5f"%(tmax1[1], tmin1[1], tmean1[1], trms1[1]))
-        '''
+
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("opencv remap sci image use %.2f seconds"%(runTime))
@@ -462,7 +434,7 @@ class OTSimulation(object):
         
         tdata = np.loadtxt("%s/%s"%(self.tmpDir, resultCat))
         
-        fluxMax = tdata[:,4]
+        fluxMax = tdata[:,5]
         fluxMaxMean = np.mean(fluxMax)
         fluxMaxStd = np.std(fluxMax)
         fluxMaxThd = fluxMaxMean+1.0*fluxMaxStd #2σ:0.9544, 1.5σ:0.866, 1σ:0.682
@@ -537,14 +509,18 @@ class OTSimulation(object):
         
         starttime = datetime.datetime.now()
         
-        oImg = oImg[:-3]
-        tImg = tImg[:-3]
-        
         self.objectImgOrig = oImg
         self.templateImgOrig = tImg
     
         os.system("rm -rf %s/*"%(self.tmpDir))
-                        
+        
+        oImgfz = "%s/%s.fz"%(self.srcDir,oImg)
+        tImgfz = "%s/%s.fz"%(self.srcDir,tImg)
+        
+        if (not os.path.exists(oImgfz)) or (not os.path.exists(tImgfz)):
+            print("%s or %s not exist"%(oImgfz, tImgfz))
+            return
+                
         os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, oImg, self.tmpDir, self.objectImg))
         os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, tImg, self.tmpDir, self.templateImg))
         os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpDir, self.objectImg))
@@ -554,8 +530,7 @@ class OTSimulation(object):
         self.removeHeaderAndOverScan(self.templateImg)
 
         sexConf=['-DETECT_MINAREA','7','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
-        #fpar='sex_diff_fot.par'
-        fpar='sex_diff.par'
+        fpar='sex_diff_fot.par'
         self.objectImgCat = self.runSextractor(self.objectImg, fpar, sexConf)
         self.templateImgCat = self.runSextractor(self.templateImg, fpar, sexConf)
         
@@ -608,7 +583,6 @@ class OTSimulation(object):
         '''
         self.objTmpResi = self.runHotpants(newName, self.templateImg)
         
-        '''
         tgrid = 4
         tsize = 1000
         tzoom = 1
@@ -625,7 +599,6 @@ class OTSimulation(object):
         timg = scipy.ndimage.zoom(timg, tzoom, order=0)
         preViewPath = "%s/%s_tmp.jpg"%(self.origPreViewDir, oImgPre)
         Image.fromarray(timg).save(preViewPath)
-        '''
         
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
@@ -651,7 +624,7 @@ class OTSimulation(object):
         
         
         oImgPre = oImg[:oImg.index(".")]
-        fotpath = '%s/%s_otimg_fot_%04d.npz'%(self.destDir, oImgPre, fSubImgs.shape[0])
+        fotpath = '%s/%s_otimg_fot.npz'%(self.destDir, oImgPre)
         np.savez_compressed(fotpath, fot=fSubImgs, parms=fparms)
         
         self.log.info("\n******************")
@@ -691,26 +664,32 @@ class OTSimulation(object):
             
     def batchSim(self):
         
-        flist = os.listdir(self.srcDir)
-        flist.sort()
+        query = QueryData()
+        filesNum = query.queryFilesNum()
         
-        imgs = []
-        for tfilename in flist:
-            if tfilename.find("fit")>-1:
-                imgs.append(tfilename)
-        
-        print("total image %d"%(len(imgs)))
-        totalImg = len(imgs)
-        imgNum = 150
-        for i in range(totalImg):
-            tidx = i+imgNum
-            if tidx<totalImg:
-                objectImg = imgs[tidx]
-                templateImg = imgs[i]
-                self.log.info("\n\n***************")
-                self.log.info("process %04d obj_image: %s, tmp_image: %s"%(i+1, objectImg, templateImg))
-                self.simImage(objectImg, templateImg)
-                break
+        for tnum in filesNum:
+            
+            if tnum[3]>1000 and tnum[2]%5>0:
+                files = query.getFileList(tnum[1], tnum[2], tnum[0])
+                total = len(files)
+                self.log.info(tnum)
+                
+                ccd = files[0][1]
+                #G004_041
+                tpath1 = "G0%s_%s"%(ccd[:2], ccd)
+                
+                for i in range(total):
+                    tidx = i + 500
+                    if tidx<total:
+                        objectImg = files[tidx][0]
+                        templateImg = files[i][0]
+                        self.srcDir="%s/%s/%s"%(self.srcDir0,tnum[0], tpath1)
+                        self.log.info("\n\n***************")
+                        self.log.info("process %04d obj_image: %s, tmp_image: %s"%(i+1, objectImg, templateImg))
+                        self.simImage(objectImg, templateImg)
+                        break
+            break
+                        
             
 if __name__ == "__main__":
     
