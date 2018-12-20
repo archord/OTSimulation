@@ -263,7 +263,8 @@ class GWACAutoFollowup:
         #found_usno_r2, found_usno_b2, discovery_time_utc, auto_loop_slow, type
         sciObjs = self.getDataFromDB(self.QSciObj)
         self.log.debug("found %d sciObjs"%(len(sciObjs)))
-        
+        print(np.array(sciObjs))
+        return
         for sciObj in sciObjs:
 
             status = sciObj[5] #status=1
@@ -494,7 +495,7 @@ class GWACAutoFollowup:
             #print("\n*************%05d run, sleep %d seconds...\n"%(idx, sleepTime))
             time.sleep(sleepTime)
             idx = idx + 1
-            if idx >6:
+            if idx >1:
                 break
                 
 

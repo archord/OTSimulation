@@ -40,7 +40,7 @@ class FollowUp:
         self.userName = userName
         self.followName = followName
         self.otName = otName
-        self.ra = ra/15.0
+        self.ra = ra
         self.dec = dec
         self.expTime = expTime
         self.frameCount = frameCount
