@@ -15,7 +15,7 @@ from astrotools import AstroTools
 class BatchImageDiff(object):
     def __init__(self, dataRoot, dataDest): 
         
-        self.verbose = True
+        self.verbose = False
                 
         self.toolPath = os.getcwd()
         self.funpackProgram="%s/tools/cfitsio/funpack"%(self.toolPath)
@@ -88,7 +88,7 @@ class BatchImageDiff(object):
     
         self.tools = AstroTools(self.toolPath, self.log)
 
-    def register(self, imgName, regIdx):
+    def register(self, imgName, regIdx, imgIdx):
         
         starttime = datetime.datetime.now()
         
@@ -145,7 +145,7 @@ class BatchImageDiff(object):
             os.system("cp %s/%s %s/%s"%(self.tmpCat, tImgCat, self.tmpDir, self.templateImgCat))
             self.log.info("%d,%s regist to %d,%s"%(tImgNum, imgName, regIdx, tImgCat))
             
-            if tImgNum==492:
+            if imgIdx==492:
                 xshift0 = 1.10
                 yshift0 = 12.80
             
@@ -172,13 +172,17 @@ class BatchImageDiff(object):
                 if xrms<1 and yrms<1:
                     break
                 else:
-                    self.log.error("astrometry error, shift scale %.1f, retry"%(tsf))
+                    if math.fabs(xshift0)>0.000001 and math.fabs(yshift0)>0.000001:
+                        self.log.error("astrometry error, shift scale %.1f, retry"%(tsf))
+                    else:
+                        break
             
             if xrms<1 and yrms<1:
                 tinfo = (regCatName, regIdx, xshift, yshift, xrms, yrms, fwhmMean)
                 self.imglist.append(tinfo)
                 self.log.info(tinfo)
             else:
+                self.imglist.append((regCatName, regIdx, 0, 0, 0, 0, 99))
                 regSuccess = False
                 self.log.error("******%s astrometry failing"%(imgName))
         
@@ -359,12 +363,12 @@ class BatchImageDiff(object):
             
             objectImg = imgs[i]
             if i<self.selTemplateNum:
-                self.register(objectImg, i-1)
+                self.register(objectImg, i-1, i)
             if i>=self.selTemplateNum:
                 if self.tmplImgIdx==0:
                     self.makeTemplate()
                 if i>500 and i%10==1:
-                    self.register(objectImg, self.tmplImgIdx)
+                    self.register(objectImg, self.tmplImgIdx, i)
                     self.diffImage()
                 if i>502:
                     break
