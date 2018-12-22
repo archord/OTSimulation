@@ -150,7 +150,7 @@ class BatchImageDiff(object):
                 yshift0 = 12.80
             
             xshift0Orig = xshift0
-            yshift0Orig = xshift0
+            yshift0Orig = yshift0
             tryShifts = [1.0,0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,-0.1,-0.3,-0.5,-0.7,-0.9,-1.1,-1.3,-1.5,-1.7,-1.9]
             for tsf in tryShifts:
                 if math.fabs(xshift0)>0.000001 and math.fabs(yshift0)>0.000001:
