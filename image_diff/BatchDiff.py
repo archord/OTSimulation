@@ -296,7 +296,7 @@ class BatchImageDiff(object):
                 self.srcDir="%s/%s/%s"%(self.srcDir0,tnum[0], tpath1)
                 
                 for i in range(total):
-                    
+                    self.log.debug("\n\n************%d"%(i))
                     objectImg = files[i][0]
                     if i<self.selTemplateNum:
                         self.register(objectImg, i-1)
