@@ -6,6 +6,8 @@ import subprocess
 import datetime
 import cv2
 from astropy.io import fits
+import warnings
+from astropy.modeling import models, fitting
 
 
 class AstroTools(object):
@@ -326,13 +328,13 @@ class AstroTools(object):
         trms = np.std(posDiff, axis=0)
         return tmean, trms, tmax, tmin
         
-    def getMatchPos(self, srcDir, oiFile, tiFile, mchPair):
+    def getMatchPosHmg(self, srcDir, oiFile, tiFile, mchPair):
         
         tdata1 = np.loadtxt("%s/%s"%(srcDir, oiFile))
         tdata2 = np.loadtxt("%s/%s"%(srcDir, tiFile))
         tIdx1 = np.loadtxt("%s/%s"%(srcDir, mchPair)).astype(np.int)
         
-        self.log.debug("osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
+        self.log.debug("getMatchPosHmg: osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
         
         tIdx1 = tIdx1 - 1
         pos1 = tdata1[tIdx1[:,0]][:,0:2]
@@ -346,7 +348,7 @@ class AstroTools(object):
         dataTi2 = cv2.perspectiveTransform(np.array([dataOi]), h)
         dataTi2 = dataTi2[0]
         
-        tmean2, trms2, tmax2, tmin2 = self.evaluatePos(dataOi, dataTi)
+        tmean2, trms2, tmax2, tmin2 = self.evaluatePos(dataOi, dataTi2)
         
         xshift = tmean2[0]
         yshift = tmean2[1]
@@ -392,6 +394,128 @@ class AstroTools(object):
         self.log.debug("opencv remap sci image use %.2f seconds"%(runTime))
         
         return newName
+        
+    #3sigma=0.9974, 2sigma=0.9544, 1sigma=0.6526
+    def posFitting(self, oiX,oiY, tiX, tiY, iterNum=4, rejSigma=2, fitdegree=2):
+        
+        starttime = datetime.datetime.now()
+        
+        #https://en.wikipedia.org/wiki/Legendre_polynomials
+        #https://en.wikipedia.org/wiki/Hermite_polynomials
+        # Fit the data using astropy.modeling
+        p_init = models.Polynomial2D(degree=fitdegree)
+        fit_p = fitting.LevMarLSQFitter()
+        
+        with warnings.catch_warnings():
+            # Ignore model linearity warning from the fitter
+            warnings.simplefilter('ignore')
+            
+            for i in range(iterNum):
+                pX = fit_p(p_init, tiX, tiY, oiX)
+                pY = fit_p(p_init, tiX, tiY, oiY)
+                x1 = pX(tiX, tiY)
+                y1 = pY(tiX, tiY)
+                
+                diffX1 = np.abs(oiX - tiX)
+                diffY1 = np.abs(oiY - tiY)
+                diffX1mean = np.mean(diffX1)
+                diffY1mean = np.mean(diffY1)
+                diff1Dist = math.sqrt(diffX1mean*diffX1mean+diffY1mean*diffY1mean)
+                
+                diffX = np.abs(oiX - x1)
+                diffY = np.abs(oiY - y1)
+                
+                diffXMax = np.max(diffX)
+                diffXMin = np.min(diffX)
+                diffXMean = np.mean(diffX)
+                diffXRms = np.std(diffX)
+                
+                diffYMean = np.mean(diffY)
+                diffYRms = np.std(diffY)
+                diffYMax = np.max(diffY)
+                diffYMin = np.min(diffY)
+                
+                xIdx = diffX<(diffXMean+rejSigma*diffXRms)
+                yIdx = diffY<(diffYMean+rejSigma*diffYRms)
+                
+                shape1 = oiX.shape[0]
+                oiX = oiX[xIdx & yIdx]
+                oiY = oiY[xIdx & yIdx]
+                tiX = tiX[xIdx & yIdx]
+                tiY = tiY[xIdx & yIdx]
+                shape2 = oiX.shape[0]
+                print("coordiante translation X %.5f, Y %.5f, dist %.5f"%(diffX1mean, diffY1mean, diff1Dist))
+                print("Xmax %.5f, Xmin %.5f, Xmean %.5f, Xrms %.5f"%(diffXMax, diffXMin, diffXMean, diffXRms))
+                print("ymax %.5f, ymin %.5f, Ymean %.5f, Yrms %.5f"%(diffYMax, diffYMin, diffYMean, diffYRms))
+                print("%d iteration, remove %d from %d, remain %d"%(i,shape1-shape2, shape1, shape2))
+                if shape2<1000:
+                    break
+                
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("posFitting use %d seconds"%(runTime))
+        
+        return pX, pY
+
+    def getMatchPosFitting(self, srcDir, oiFile, tiFile, mchPair, rmsTimes=2):
+
+        
+        tdata1 = np.loadtxt("%s/%s"%(srcDir, oiFile))
+        tdata2 = np.loadtxt("%s/%s"%(srcDir, tiFile))
+        tIdx1 = np.loadtxt("%s/%s"%(srcDir, mchPair)).astype(np.int)
+        
+        print("getMatchPosFitting: osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
+        
+        tIdx1 = tIdx1 - 1
+        pos1 = tdata1[tIdx1[:,0]][:,0:2]
+        pos2 = tdata2[tIdx1[:,1]][:,0:2]
+        
+        dataOi = pos1
+        dataTi = pos2
+
+        oiX = dataOi[:,0]
+        oiY = dataOi[:,1]
+        tiX = dataTi[:,0]
+        tiY = dataTi[:,1]    
+        
+        pX, pY = self.posFitting(oiX, oiY, tiX, tiY, rejSigma=rmsTimes)
+        
+        tpath = "%s/%s"%(srcDir, self.objectImg)
+        hdul = fits.open(tpath)  # open a FITS file
+        theader = hdul[0].header  # the primary HDU header
+        tData = hdul[0].data
+        imgW = theader['naxis1']
+        imgH = theader['naxis2']
+        outshape = [imgH, imgW]
+        print(tData.shape)
+        print(outshape)
+        
+        starttime = datetime.datetime.now()
+        y1, x1 = np.indices(outshape)
+        x11 = pX(x1,y1)
+        y11 = pY(x1,y1)
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("trans sci image use %.2f seconds"%(runTime))
+        
+        starttime = datetime.datetime.now()
+        #grid = np.array([y11.reshape(outshape), x11.reshape(outshape)])
+        #newimage = S.ndimage.map_coordinates(tData, grid)
+        #tData = tData.astype(np.float32)
+        x11 = x11.astype(np.float32)
+        y11 = y11.astype(np.float32)
+        #双三次插值法(Bicubic interpolation)相对前两种算法计算过程更为复杂，考虑了待求像素坐标反变换后得到的浮点坐标周围的16个邻近像素。
+        #双线性插值法(Bilinear interpolation)是利用待求象素反变换到原图像对应的浮点坐标，邻近的四个象素在两个方向上作线性内插。四邻近像素值的加权平均即为待测点像素值，计算权重反比于浮点在双线性方向上的映射距离。
+        #newimage = cv2.remap(tData,x11, y11, 
+        #                     borderMode=cv2.BORDER_REFLECT_101, #BORDER_REFLECT_101
+        #                     interpolation=cv2.INTER_CUBIC) #INTER_LINEAR INTER_LINEAR
+        newimage = cv2.remap(tData,x11, y11, interpolation=cv2.INTER_CUBIC)
+        
+        endtime = datetime.datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.debug("remap sci image use %.2f seconds"%(runTime))
+        
+        return newimage
         
     def catShift(self, srcDir, fileName, xshift0, yshift0):
     

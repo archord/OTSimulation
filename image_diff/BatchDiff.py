@@ -55,6 +55,7 @@ class BatchImageDiff(object):
         self.objectImgSim = 'ois.fit'
         self.objTmpResi = 'otr.fit'
         self.simTmpResi = 'str.fit'
+        self.newImageName = "new.fit"
         
         self.badPixCat = 'badpix.cat'
         self.objectImgSimAdd = 'oisa.cat'
@@ -167,9 +168,12 @@ class BatchImageDiff(object):
                 tNumMean, tNumMin, tNumRms = self.tools.gridStatistic(self.tmpDir, osn16_tsn16_cm, self.imgSize, gridNum=4)
                 fwhmMean, fwhmRms = self.tools.fwhmEvaluate(self.tmpDir, osn16_tsn16_cm)
                 
-                self.transHG, xshift, yshift, xrms, yrms = self.tools.getMatchPos(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
+                self.transHG, xshift, yshift, xrms, yrms = self.tools.getMatchPosHmg(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
                 self.log.info("astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
                 self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+                
+                if imgIdx>=self.selTemplateNum and xrms<1 and yrms<1:
+                    self.newImageName = self.tools.imageAlign(self.tmpDir, self.objectImg, self.transHG)
                 
                 if xrms<1 and yrms<1:
                     break
@@ -248,8 +252,9 @@ class BatchImageDiff(object):
         os.system("cp %s/%s %s/%s"%(self.templateDir, self.badPixCat, self.tmpDir, self.badPixCat))
         os.system("cp %s/%s %s/%s"%(self.templateDir, self.templateImgCat, self.tmpDir, self.templateImgCat))
         
-        newImageName = self.tools.imageAlign(self.tmpDir, self.objectImg, self.transHG)
-        self.objTmpResi = self.tools.runHotpants(newImageName, self.templateImg, self.tmpDir)
+        #self.newImageName = self.tools.imageAlign(self.tmpDir, self.objectImg, self.transHG)
+                
+        self.objTmpResi = self.tools.runHotpants(self.newImageName, self.templateImg, self.tmpDir)
         '''
         tgrid = 4
         tsize = 500
