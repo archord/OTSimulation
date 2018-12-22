@@ -462,7 +462,7 @@ class AstroTools(object):
         tdata2 = np.loadtxt("%s/%s"%(srcDir, tiFile))
         tIdx1 = np.loadtxt("%s/%s"%(srcDir, mchPair)).astype(np.int)
         
-        print("getMatchPosFitting: osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
+        self.log.debug("getMatchPosFitting: osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
         
         tIdx1 = tIdx1 - 1
         pos1 = tdata1[tIdx1[:,0]][:,0:2]
