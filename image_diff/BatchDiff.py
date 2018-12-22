@@ -68,7 +68,7 @@ class BatchImageDiff(object):
         self.subImgSize = 21
         self.imgShape = []  
              
-        self.selTemplateNum = 3 # 10 3
+        self.selTemplateNum = 20 # 10 3
         self.imglist = []
         self.origTmplImgName = ""
         self.tmplImgIdx = 0
@@ -92,6 +92,7 @@ class BatchImageDiff(object):
         
         starttime = datetime.datetime.now()
         
+        regSuccess = True
         imgpre= imgName.split(".")[0]
         regCatName = "%s.cat"%(imgpre)
         self.origObjectImg = imgName
@@ -118,6 +119,8 @@ class BatchImageDiff(object):
         tobjImgCat = nmhFile16
         os.system("cp %s/%s %s/%s"%(self.tmpDir, tobjImgCat, self.tmpCat, regCatName))
         
+        xrms=0
+        yrms=0
         tImgNum = len(self.imglist)
         if tImgNum ==0:
             self.imglist.append((regCatName, 0, 0, 0, 0, 0, 99))
@@ -142,27 +145,48 @@ class BatchImageDiff(object):
             os.system("cp %s/%s %s/%s"%(self.tmpCat, tImgCat, self.tmpDir, self.templateImgCat))
             self.log.info("%d,%s regist to %d,%s"%(tImgNum, imgName, regIdx, tImgCat))
             
-            if math.fabs(xshift0)>0.000001 and math.fabs(yshift0)>0.000001:
-                tobjImgCatShift = self.tools.catShift(self.tmpDir, tobjImgCat, xshift0, yshift0)
+            if tImgNum==492:
+                xshift0 = 1.10
+                yshift0 = 12.80
+            
+            tryShifts = [1.0,0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,-0.1,-0.3,-0.5,-0.7,-0.9,-1.1,-1.3,-1.5,-1.7,-1.9]
+            for tsf in tryShifts:
+                if math.fabs(xshift0)>0.000001 and math.fabs(yshift0)>0.000001:
+                    xshift0 = tsf*xshift0
+                    yshift0 = tsf*yshift0
+                    tobjImgCatShift = self.tools.catShift(self.tmpDir, tobjImgCat, xshift0, yshift0)
+                else:
+                    tobjImgCatShift = tobjImgCat
+                
+                mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, tobjImgCatShift, self.templateImgCat, 10)
+                osn16_tsn16_cm = mchFile
+                osn16_tsn16_cm_pair = mchPair
+                
+                tNumMean, tNumMin, tNumRms = self.tools.gridStatistic(self.tmpDir, osn16_tsn16_cm, self.imgSize, gridNum=4)
+                fwhmMean, fwhmRms = self.tools.fwhmEvaluate(self.tmpDir, osn16_tsn16_cm)
+                
+                self.transHG, xshift, yshift, xrms, yrms = self.tools.getMatchPos(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
+                self.log.info("astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
+                self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+                
+                if xrms<1 and yrms<1:
+                    break
+                else:
+                    self.log.error("astrometry error, shift scale %.1f, retry"%(tsf))
+            
+            if xrms<1 and yrms<1:
+                tinfo = (regCatName, regIdx, xshift, yshift, xrms, yrms, fwhmMean)
+                self.imglist.append(tinfo)
+                self.log.info(tinfo)
             else:
-                tobjImgCatShift = tobjImgCat
-            
-            mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, tobjImgCatShift, self.templateImgCat, 10)
-            osn16_tsn16_cm = mchFile
-            osn16_tsn16_cm_pair = mchPair
-            
-            tNumMean, tNumMin, tNumRms = self.tools.gridStatistic(self.tmpDir, osn16_tsn16_cm, self.imgSize, gridNum=4)
-            fwhmMean, fwhmRms = self.tools.fwhmEvaluate(self.tmpDir, osn16_tsn16_cm)
-            
-            self.transHG, xshift, yshift, xrms, yrms = self.tools.getMatchPos(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
-            self.log.info("astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
-            self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
-            
-            self.imglist.append((regCatName, regIdx, xshift, yshift, xrms, yrms, fwhmMean))
+                regSuccess = False
+                self.log.error("******%s astrometry failing"%(imgName))
         
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.info("********** regist %s use %d seconds"%(imgName, runTime))
+    
+        return regSuccess
     
     def makeTemplate(self):
         
@@ -295,6 +319,8 @@ class BatchImageDiff(object):
                 tpath1 = "G0%s_%s"%(ccd[:2], ccd)
                 self.srcDir="%s/%s/%s"%(self.srcDir0,tnum[0], tpath1)
                 
+                regFalseNum = 0
+                self.imglist = []
                 for i in range(total):
                     self.log.debug("\n\n************%d"%(i))
                     objectImg = files[i][0]
@@ -303,10 +329,16 @@ class BatchImageDiff(object):
                     if i>=self.selTemplateNum:
                         if self.tmplImgIdx==0:
                             self.makeTemplate()
-                        self.register(objectImg, self.tmplImgIdx)
-                        self.diffImage()
-                    if i>5:
+                        if i>=492:
+                            regSuccess = self.register(objectImg, self.tmplImgIdx)
+                            if regSuccess:
+                                self.diffImage()
+                            else:
+                                regFalseNum = regFalseNum +1
+                    if regFalseNum>5:
                         break
+                    #if i>5:
+                    #    break
                     
             break
         
