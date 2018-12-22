@@ -169,11 +169,17 @@ class BatchImageDiff(object):
                 fwhmMean, fwhmRms = self.tools.fwhmEvaluate(self.tmpDir, osn16_tsn16_cm)
                 
                 self.transHG, xshift, yshift, xrms, yrms = self.tools.getMatchPosHmg(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
-                self.log.info("astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
+                if xrms<1 and yrms<1 and imgIdx>=self.selTemplateNum:
+                    self.newImageName = self.tools.imageAlignHmg(self.tmpDir, self.objectImg, self.transHG)
+                self.log.info("homography astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
                 self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
-                
-                if imgIdx>=self.selTemplateNum and xrms<1 and yrms<1:
-                    self.newImageName = self.tools.imageAlign(self.tmpDir, self.objectImg, self.transHG)
+                                
+                if xrms>1 or yrms>1:
+                    pX, pY, xshift, yshift, xrms, yrms = self.tools.getMatchPosFitting(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
+                    if xrms<1 and yrms<1 and imgIdx>=self.selTemplateNum:
+                        self.newImageName = self.tools.imageAlignFitting(self.tmpDir, self.objectImg, pX, pY)
+                    self.log.info("fitting astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
+                    self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
                 
                 if xrms<1 and yrms<1:
                     break
