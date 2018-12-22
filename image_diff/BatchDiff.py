@@ -97,7 +97,6 @@ class BatchImageDiff(object):
         self.origObjectImg = imgName
         os.system("rm -rf %s/*"%(self.tmpDir))
         
-        '''
         oImgfz = "%s/%s.fz"%(self.srcDir,imgName)
         if not os.path.exists(oImgfz):
             self.log.warning("%s not exist"%(oImgfz))
@@ -107,6 +106,7 @@ class BatchImageDiff(object):
         os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpDir, self.objectImg))
         '''
         os.system("cp %s/%s %s/%s"%(self.srcDir, imgName, self.tmpDir, self.objectImg))
+        '''
         
         self.tools.removeHeaderAndOverScan(self.tmpDir,self.objectImg)
 
@@ -187,12 +187,12 @@ class BatchImageDiff(object):
         self.log.info("select %dth image %s as template, it has min fwhm %.2f"%(self.tmplImgIdx, self.origTmplImgName, tfwhms[minIdx]))
         
         os.system("rm -rf %s/*"%(self.templateDir))
-        '''
+        
         os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, self.origTmplImgName, self.templateDir, self.templateImg))
         os.system("%s %s/%s.fz"%(self.funpackProgram, self.templateDir, self.templateImg))
         '''
         os.system("cp %s/%s %s/%s"%(self.srcDir, self.origTmplImgName, self.templateDir, self.templateImg))
-        
+        '''
         self.tools.removeHeaderAndOverScan(self.templateDir, self.templateImg)
         sexConf=['-DETECT_MINAREA','7','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
         fpar='sex_diff.par'
@@ -305,6 +305,8 @@ class BatchImageDiff(object):
                             self.makeTemplate()
                         self.register(objectImg, self.tmplImgIdx)
                         self.diffImage()
+                    if i>5:
+                        break
                     
             break
         
@@ -342,7 +344,7 @@ class BatchImageDiff(object):
 def run1():
     
     dataRoot = "/data/gwac_data/gwac_orig_fits"
-    dataDest = "/data/gwac_data/gwac_simot/data_1221"
+    dataDest = "/data/gwac_data/gwac_simot/data_1222"
     
     tdiff = BatchImageDiff(dataRoot, dataDest)
     tdiff.batchSim()
