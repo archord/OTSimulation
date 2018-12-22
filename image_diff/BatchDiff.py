@@ -288,20 +288,23 @@ class BatchImageDiff(object):
         tdata = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
         self.log.info("resi star not match template and remove badpix %d"%(tdata.shape[0]))
         
-        size = self.subImgSize
-        fSubImgs, fparms = self.tools.getWindowImgs(self.tmpDir, newImageName, self.templateImg, self.objTmpResi, tdata, size)
-        
-        fotpath = '%s/%s_otimg_fot.npz'%(self.destDir, oImgPre)
-        np.savez_compressed(fotpath, fot=fSubImgs, parms=fparms)
-                
-        resiImgs = []
-        for timg in fSubImgs:
-            resiImgs.append(timg[2])
-
-        preViewPath = "%s/%s_psf.jpg"%(self.preViewDir, oImgPre)
-        #if not os.path.exists(preViewPath):
-        psfView = genPSFView(resiImgs)
-        Image.fromarray(psfView).save(preViewPath)
+        if tdata.shape[0]<5000:
+            size = self.subImgSize
+            fSubImgs, fparms = self.tools.getWindowImgs(self.tmpDir, newImageName, self.templateImg, self.objTmpResi, tdata, size)
+            
+            fotpath = '%s/%s_otimg_fot.npz'%(self.destDir, oImgPre)
+            np.savez_compressed(fotpath, fot=fSubImgs, parms=fparms)
+                    
+            resiImgs = []
+            for timg in fSubImgs:
+                resiImgs.append(timg[2])
+    
+            preViewPath = "%s/%s_psf.jpg"%(self.preViewDir, oImgPre)
+            #if not os.path.exists(preViewPath):
+            psfView = genPSFView(resiImgs)
+            Image.fromarray(psfView).save(preViewPath)
+        else:
+            self.log.error("resi image has too many objects, maybe wrong")
                         
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
