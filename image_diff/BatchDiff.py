@@ -149,11 +149,13 @@ class BatchImageDiff(object):
                 xshift0 = 1.10
                 yshift0 = 12.80
             
+            xshift0Orig = xshift0
+            yshift0Orig = xshift0
             tryShifts = [1.0,0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,-0.1,-0.3,-0.5,-0.7,-0.9,-1.1,-1.3,-1.5,-1.7,-1.9]
             for tsf in tryShifts:
                 if math.fabs(xshift0)>0.000001 and math.fabs(yshift0)>0.000001:
-                    xshift0 = tsf*xshift0
-                    yshift0 = tsf*yshift0
+                    xshift0 = tsf*xshift0Orig
+                    yshift0 = tsf*yshift0Orig
                     tobjImgCatShift = self.tools.catShift(self.tmpDir, tobjImgCat, xshift0, yshift0)
                 else:
                     tobjImgCatShift = tobjImgCat
