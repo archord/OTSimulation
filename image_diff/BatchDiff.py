@@ -329,12 +329,12 @@ class BatchImageDiff(object):
                     self.log.debug("\n\n************%d"%(i))
                     objectImg = files[i][0]
                     if i<self.selTemplateNum:
-                        self.register(objectImg, i-1)
+                        self.register(objectImg, i-1, i)
                     if i>=self.selTemplateNum:
                         if self.tmplImgIdx==0:
                             self.makeTemplate()
                         if i>=492:
-                            regSuccess = self.register(objectImg, self.tmplImgIdx)
+                            regSuccess = self.register(objectImg, self.tmplImgIdx, i)
                             if regSuccess:
                                 self.diffImage()
                             else:
