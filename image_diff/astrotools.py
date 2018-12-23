@@ -402,7 +402,7 @@ class AstroTools(object):
         return newName
         
     #3sigma=0.9974, 2sigma=0.9544, 1sigma=0.6526
-    def posFitting(self, oiX,oiY, tiX, tiY, iterNum=4, rejSigma=5, fitdegree=2):
+    def posFitting(self, oiX,oiY, tiX, tiY, iterNum=4, rejSigma=5, fitdegree=5):
         
         starttime = datetime.datetime.now()
         
