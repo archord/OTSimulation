@@ -319,9 +319,12 @@ class AstroTools(object):
         
         return tmean, trms
         
-    def evaluatePos(self, pos1, pos2):
+    def evaluatePos(self, pos1, pos2, isAbs=False):
         
-        posDiff = pos1 - pos2
+        if isAbs:
+            posDiff = np.fabs(pos1 - pos2)
+        else:
+            posDiff = pos1 - pos2
         tmean = np.mean(posDiff, axis=0)
         tmax = np.max(posDiff, axis=0)
         tmin = np.min(posDiff, axis=0)
@@ -352,16 +355,21 @@ class AstroTools(object):
             dataTi2 = cv2.perspectiveTransform(np.array([dataOi]), h)
             dataTi2 = dataTi2[0]
             
-            tmean2, trms2, tmax2, tmin2 = self.evaluatePos(dataOi, dataTi2)
+            tmean, trms, tmax, tmin = self.evaluatePos(dataOi, dataTi2)
+            tmean2, trms2, tmax2, tmin2 = self.evaluatePos(dataTi, dataTi2, True)
             
-            xshift = tmean2[0]
-            yshift = tmean2[1]
-            xrms = trms2[0]
-            yrms = trms2[1]
+            xshift = tmean[0]
+            yshift = tmean[1]
+            xrms = trms[0]
+            yrms = trms[1]
+            xshift2 = tmean2[0]
+            yshift2 = tmean2[1]
+            xrms2 = trms2[0]
+            yrms2 = trms2[1]
         else:
-            h, xshift, yshift, xrms, yrms = [], 0, 0, 99, 99
+            h, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = [], 0, 0, 99, 99, 0, 0, 99, 99
         
-        return h, xshift, yshift, xrms, yrms
+        return h, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2
     
     def imageAlign2(self, srcDir, oiFile, tiFile, mchPair):
     
@@ -459,7 +467,7 @@ class AstroTools(object):
         runTime = (endtime - starttime).seconds
         self.log.debug("posFitting use %d seconds"%(runTime))
         
-        return pX, pY, diffXMean2, diffYMean2, diffXRms2, diffYRms2
+        return pX, pY, diffXMean2, diffYMean2, diffXRms2, diffYRms2, diffXMean, diffYMean, diffXRms, diffYRms
 
     def getMatchPosFitting(self, srcDir, oiFile, tiFile, mchPair, rmsTimes=5):
 
@@ -487,12 +495,12 @@ class AstroTools(object):
             tiX = dataTi[:,0]
             tiY = dataTi[:,1]    
             
-            pX, pY, xshift, yshift, xrms, yrms = self.posFitting(oiX, oiY, tiX, tiY, rejSigma=rmsTimes)
+            pX, pY, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = self.posFitting(oiX, oiY, tiX, tiY, rejSigma=rmsTimes)
         
         else:
-            pX, pY, xshift, yshift, xrms, yrms = [], [], 0, 0, 99, 99
+            pX, pY, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = [], [], 0, 0, 99, 99, 0, 0, 99, 99
             
-        return pX, pY, xshift, yshift, xrms, yrms
+        return pX, pY, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2
         
     def imageAlignFitting(self, srcDir, oiImg, pX, pY):
     

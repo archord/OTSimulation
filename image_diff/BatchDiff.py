@@ -168,18 +168,20 @@ class BatchImageDiff(object):
                 tNumMean, tNumMin, tNumRms = self.tools.gridStatistic(self.tmpDir, osn16_tsn16_cm, self.imgSize, gridNum=4)
                 fwhmMean, fwhmRms = self.tools.fwhmEvaluate(self.tmpDir, osn16_tsn16_cm)
                 
-                self.transHG, xshift, yshift, xrms, yrms = self.tools.getMatchPosHmg(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
+                self.transHG, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = self.tools.getMatchPosHmg(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
                 if xrms<1 and yrms<1 and imgIdx>=self.selTemplateNum:
                     self.newImageName = self.tools.imageAlignHmg(self.tmpDir, self.objectImg, self.transHG)
                 self.log.info("homography astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
                 self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+                self.log.info("xshift2=%.2f, yshift2=%.2f, xrms2=%.5f, yrms2=%.5f"%(xshift2,yshift2, xrms2, yrms2))
                                 
                 if xrms>1 or yrms>1:
-                    pX, pY, xshift, yshift, xrms, yrms = self.tools.getMatchPosFitting(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
+                    pX, pY, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = self.tools.getMatchPosFitting(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
                     if xrms<1 and yrms<1 and imgIdx>=self.selTemplateNum:
                         self.newImageName = self.tools.imageAlignFitting(self.tmpDir, self.objectImg, pX, pY)
                     self.log.info("fitting astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
                     self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+                    self.log.info("xshift2=%.2f, yshift2=%.2f, xrms2=%.5f, yrms2=%.5f"%(xshift2,yshift2, xrms2, yrms2))
                 
                 if xrms<1 and yrms<1:
                     break
