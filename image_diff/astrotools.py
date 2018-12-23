@@ -331,6 +331,7 @@ class AstroTools(object):
         trms = np.std(posDiff, axis=0)
         return tmean, trms, tmax, tmin
         
+    #http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?geomap
     def getMatchPosHmg(self, srcDir, oiFile, tiFile, mchPair):
         
         tdata1 = np.loadtxt("%s/%s"%(srcDir, oiFile))
