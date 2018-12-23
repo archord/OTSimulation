@@ -360,16 +360,12 @@ class AstroTools(object):
             
             xshift = tmean[0]
             yshift = tmean[1]
-            xrms = trms[0]
-            yrms = trms[1]
-            xshift2 = tmean2[0]
-            yshift2 = tmean2[1]
-            xrms2 = trms2[0]
-            yrms2 = trms2[1]
+            xrms = trms2[0]
+            yrms = trms2[1]
         else:
-            h, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = [], 0, 0, 99, 99, 0, 0, 99, 99
+            h, xshift, yshift, xrms, yrms = [], 0, 0, 99, 99
         
-        return h, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2
+        return h, xshift, yshift, xrms, yrms
     
     def imageAlign2(self, srcDir, oiFile, tiFile, mchPair):
     
@@ -409,138 +405,18 @@ class AstroTools(object):
         
         return newName
         
-    #3sigma=0.9974, 2sigma=0.9544, 1sigma=0.6526
-    def posFitting(self, oiX,oiY, tiX, tiY, iterNum=4, rejSigma=5, fitdegree=5):
-        
-        starttime = datetime.datetime.now()
-        
-        #https://en.wikipedia.org/wiki/Legendre_polynomials
-        #https://en.wikipedia.org/wiki/Hermite_polynomials
-        # Fit the data using astropy.modeling
-        p_init = models.Polynomial2D(degree=fitdegree)
-        fit_p = fitting.LevMarLSQFitter()
-        
-        with warnings.catch_warnings():
-            # Ignore model linearity warning from the fitter
-            warnings.simplefilter('ignore')
-            
-            for i in range(iterNum):
-                pX = fit_p(p_init, tiX, tiY, oiX)
-                pY = fit_p(p_init, tiX, tiY, oiY)
-                x1 = pX(tiX, tiY)
-                y1 = pY(tiX, tiY)
-                                
-                diffX2 = x1 - tiX
-                diffY2 = y1 - tiY
-                diffXMean2 = np.mean(diffX2)
-                diffXRms2 = np.std(diffX2)
-                diffYMean2 = np.mean(diffY2)
-                diffYRms2 = np.std(diffY2)
-                if diffXRms2<1 and diffYRms2<1 and i>1:
-                    break
-                else:
-                    diffX = np.abs(oiX - x1)
-                    diffY = np.abs(oiY - y1)
-                    
-                    diffXMean = np.mean(diffX)
-                    diffXRms = np.std(diffX)
-                    diffYMean = np.mean(diffY)
-                    diffYRms = np.std(diffY)
-                    
-                    xIdx = diffX<(diffXMean+rejSigma*diffXRms)
-                    yIdx = diffY<(diffYMean+rejSigma*diffYRms)
-                    
-                    oiX = oiX[xIdx & yIdx]
-                    oiY = oiY[xIdx & yIdx]
-                    tiX = tiX[xIdx & yIdx]
-                    tiY = tiY[xIdx & yIdx]
-                    
-                    x1 = x1[xIdx & yIdx]
-                    y1 = y1[xIdx & yIdx]
-                
-                
-                shape2 = oiX.shape[0]
-                if shape2<1000:
-                    break
-                
-        endtime = datetime.datetime.now()
-        runTime = (endtime - starttime).seconds
-        self.log.debug("posFitting use %d seconds"%(runTime))
-        
-        return pX, pY, diffXMean2, diffYMean2, diffXRms2, diffYRms2, diffXMean, diffYMean, diffXRms, diffYRms
-
-    def getMatchPosFitting(self, srcDir, oiFile, tiFile, mchPair, rmsTimes=5):
-
-        
-        tdata1 = np.loadtxt("%s/%s"%(srcDir, oiFile))
-        tdata2 = np.loadtxt("%s/%s"%(srcDir, tiFile))
-        tIdx1 = np.loadtxt("%s/%s"%(srcDir, mchPair)).astype(np.int)
-        
-        tMin = np.min([tdata1.shape[0], tdata2.shape[0]])
-        percentage = tIdx1.shape[0]*1.0/tMin
-        
-        self.log.debug("getMatchPosHmg: osn16:%d tsn16:%d osn16_tsn16_cm5:%d, pect:%.3f"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0],percentage))
-        
-        if percentage>0.8:
-        
-            tIdx1 = tIdx1 - 1
-            pos1 = tdata1[tIdx1[:,0]][:,0:2]
-            pos2 = tdata2[tIdx1[:,1]][:,0:2]
-            
-            dataOi = pos1
-            dataTi = pos2
-    
-            oiX = dataOi[:,0]
-            oiY = dataOi[:,1]
-            tiX = dataTi[:,0]
-            tiY = dataTi[:,1]    
-            
-            pX, pY, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = self.posFitting(oiX, oiY, tiX, tiY, rejSigma=rmsTimes)
-        
-        else:
-            pX, pY, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = [], [], 0, 0, 99, 99, 0, 0, 99, 99
-            
-        return pX, pY, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2
-        
-    def imageAlignFitting(self, srcDir, oiImg, pX, pY):
-    
-        starttime = datetime.datetime.now()
-                
-        tpath = "%s/%s"%(srcDir, oiImg)
-        tData = fits.getdata(tpath)
-        
-        outshape = [tData.shape[0], tData.shape[1]]
-        y1, x1 = np.indices(outshape)
-        x11 = pX(x1,y1)
-        y11 = pY(x1,y1)
-        x11 = x11.astype(np.float32)
-        y11 = y11.astype(np.float32)
-        #双三次插值法(Bicubic interpolation)相对前两种算法计算过程更为复杂，考虑了待求像素坐标反变换后得到的浮点坐标周围的16个邻近像素。
-        #双线性插值法(Bilinear interpolation)是利用待求象素反变换到原图像对应的浮点坐标，邻近的四个象素在两个方向上作线性内插。四邻近像素值的加权平均即为待测点像素值，计算权重反比于浮点在双线性方向上的映射距离。
-        #newimage = cv2.remap(tData,x11, y11, 
-        #                     borderMode=cv2.BORDER_REFLECT_101, #BORDER_REFLECT_101
-        #                     interpolation=cv2.INTER_CUBIC) #INTER_LINEAR INTER_LINEAR
-        newimage = cv2.remap(tData,x11, y11, interpolation=cv2.INTER_CUBIC)
-        
-        newName = "new.fit"
-        newPath = "%s/%s"%(srcDir, newName)
-        if os.path.exists(newPath):
-            os.remove(newPath)
-        hdu = fits.PrimaryHDU(newimage)
-        hdul = fits.HDUList([hdu])
-        hdul.writeto(newPath)
-        
-        endtime = datetime.datetime.now()
-        runTime = (endtime - starttime).seconds
-        self.log.debug("opencv remap sci image use %.2f seconds"%(runTime))
-        
-        return newName
-        
-    def catShift(self, srcDir, fileName, xshift0, yshift0):
+    def catShift(self, srcDir, fileName, xshift0, yshift0, transHG):
     
         tdata = np.loadtxt("%s/%s"%(srcDir, fileName))
-        tdata[:,0] = tdata[:,0] - xshift0
-        tdata[:,1] = tdata[:,1] - yshift0
+        if len(transHG)>0:
+            txy = tdata[:,0:2]
+            txy = cv2.perspectiveTransform(np.array([txy]), transHG)
+            txy = txy[0]
+            tdata[:,0] = txy[:,0]
+            tdata[:,1] = txy[:,1]
+        else:
+            tdata[:,0] = tdata[:,0] - xshift0
+            tdata[:,1] = tdata[:,1] - yshift0
         
         tpre= fileName.split(".")[0]
         saveName = "%s_s.cat"%(tpre)

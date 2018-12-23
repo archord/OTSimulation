@@ -71,6 +71,7 @@ class BatchImageDiff(object):
              
         self.selTemplateNum = 20 # 10 3
         self.imglist = []
+        self.transHGs = []
         self.origTmplImgName = ""
         self.tmplImgIdx = 0
         
@@ -125,11 +126,13 @@ class BatchImageDiff(object):
         tImgNum = len(self.imglist)
         if tImgNum ==0:
             self.imglist.append((regCatName, 0, 0, 0, 0, 0, 99))
+            self.transHGs.append([])
         else:
             if tImgNum==1:
                 xshift0, yshift0 = 0, 0
             else:
                 timgN = self.imglist[-1]
+                transHGN = self.transHGs[-1]
                 if regIdx==tImgNum-1:
                     xshift0, yshift0 = 0, 0
                 elif regIdx==timgN[1]:
@@ -157,7 +160,7 @@ class BatchImageDiff(object):
                 if math.fabs(xshift0)>0.000001 and math.fabs(yshift0)>0.000001:
                     xshift0 = tsf*xshift0Orig
                     yshift0 = tsf*yshift0Orig
-                    tobjImgCatShift = self.tools.catShift(self.tmpDir, tobjImgCat, xshift0, yshift0)
+                    tobjImgCatShift = self.tools.catShift(self.tmpDir, tobjImgCat, xshift0, yshift0, transHGN)
                 else:
                     tobjImgCatShift = tobjImgCat
                 
@@ -168,20 +171,11 @@ class BatchImageDiff(object):
                 tNumMean, tNumMin, tNumRms = self.tools.gridStatistic(self.tmpDir, osn16_tsn16_cm, self.imgSize, gridNum=4)
                 fwhmMean, fwhmRms = self.tools.fwhmEvaluate(self.tmpDir, osn16_tsn16_cm)
                 
-                self.transHG, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = self.tools.getMatchPosHmg(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
+                self.transHG, xshift, yshift, xrms, yrms = self.tools.getMatchPosHmg(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
                 if xrms<1 and yrms<1 and imgIdx>=self.selTemplateNum:
                     self.newImageName = self.tools.imageAlignHmg(self.tmpDir, self.objectImg, self.transHG)
                 self.log.info("homography astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
                 self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
-                self.log.info("xshift2=%.2f, yshift2=%.2f, xrms2=%.5f, yrms2=%.5f"%(xshift2,yshift2, xrms2, yrms2))
-                                
-                if xrms>1 or yrms>1:
-                    pX, pY, xshift, yshift, xrms, yrms, xshift2, yshift2, xrms2, yrms2 = self.tools.getMatchPosFitting(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
-                    if xrms<1 and yrms<1 and imgIdx>=self.selTemplateNum:
-                        self.newImageName = self.tools.imageAlignFitting(self.tmpDir, self.objectImg, pX, pY)
-                    self.log.info("fitting astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
-                    self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
-                    self.log.info("xshift2=%.2f, yshift2=%.2f, xrms2=%.5f, yrms2=%.5f"%(xshift2,yshift2, xrms2, yrms2))
                 
                 if xrms<1 and yrms<1:
                     break
@@ -194,9 +188,11 @@ class BatchImageDiff(object):
             if xrms<1 and yrms<1:
                 tinfo = (regCatName, regIdx, xshift, yshift, xrms, yrms, fwhmMean)
                 self.imglist.append(tinfo)
+                self.transHGs.append(self.transHG)
                 self.log.info(tinfo)
             else:
                 self.imglist.append((regCatName, regIdx, 0, 0, 0, 0, 99))
+                self.transHGs.append([])
                 regSuccess = False
                 self.log.error("******%s astrometry failing"%(imgName))
         
