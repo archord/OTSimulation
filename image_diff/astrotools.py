@@ -334,26 +334,32 @@ class AstroTools(object):
         tdata2 = np.loadtxt("%s/%s"%(srcDir, tiFile))
         tIdx1 = np.loadtxt("%s/%s"%(srcDir, mchPair)).astype(np.int)
         
-        self.log.debug("getMatchPosHmg: osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
+        tMin = np.min([tdata1.shape[0], tdata2.shape[0]])
+        percentage = tIdx1.shape[0]*1.0/tMin
         
-        tIdx1 = tIdx1 - 1
-        pos1 = tdata1[tIdx1[:,0]][:,0:2]
-        pos2 = tdata2[tIdx1[:,1]][:,0:2]
+        self.log.debug("getMatchPosHmg: osn16:%d tsn16:%d osn16_tsn16_cm5:%d, pect:%.3f"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0],percentage))
         
-        dataOi = pos1
-        dataTi = pos2
+        if percentage>0.8:
+            tIdx1 = tIdx1 - 1
+            pos1 = tdata1[tIdx1[:,0]][:,0:2]
+            pos2 = tdata2[tIdx1[:,1]][:,0:2]
             
-        h, tmask = cv2.findHomography(dataOi, dataTi, cv2.RANSAC, 0.1) #0, RANSAC , LMEDS
-        
-        dataTi2 = cv2.perspectiveTransform(np.array([dataOi]), h)
-        dataTi2 = dataTi2[0]
-        
-        tmean2, trms2, tmax2, tmin2 = self.evaluatePos(dataOi, dataTi2)
-        
-        xshift = tmean2[0]
-        yshift = tmean2[1]
-        xrms = trms2[0]
-        yrms = trms2[1]
+            dataOi = pos1
+            dataTi = pos2
+                
+            h, tmask = cv2.findHomography(dataOi, dataTi, cv2.RANSAC, 0.1) #0, RANSAC , LMEDS
+            
+            dataTi2 = cv2.perspectiveTransform(np.array([dataOi]), h)
+            dataTi2 = dataTi2[0]
+            
+            tmean2, trms2, tmax2, tmin2 = self.evaluatePos(dataOi, dataTi2)
+            
+            xshift = tmean2[0]
+            yshift = tmean2[1]
+            xrms = trms2[0]
+            yrms = trms2[1]
+        else:
+            h, xshift, yshift, xrms, yrms = [], 0, 0, 99, 99
         
         return h, xshift, yshift, xrms, yrms
     
@@ -462,22 +468,30 @@ class AstroTools(object):
         tdata2 = np.loadtxt("%s/%s"%(srcDir, tiFile))
         tIdx1 = np.loadtxt("%s/%s"%(srcDir, mchPair)).astype(np.int)
         
-        self.log.debug("getMatchPosFitting: osn16:%d tsn16:%d osn16_tsn16_cm5:%d"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0]))
+        tMin = np.min([tdata1.shape[0], tdata2.shape[0]])
+        percentage = tIdx1.shape[0]*1.0/tMin
         
-        tIdx1 = tIdx1 - 1
-        pos1 = tdata1[tIdx1[:,0]][:,0:2]
-        pos2 = tdata2[tIdx1[:,1]][:,0:2]
+        self.log.debug("getMatchPosHmg: osn16:%d tsn16:%d osn16_tsn16_cm5:%d, pect:%.3f"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0],percentage))
         
-        dataOi = pos1
-        dataTi = pos2
-
-        oiX = dataOi[:,0]
-        oiY = dataOi[:,1]
-        tiX = dataTi[:,0]
-        tiY = dataTi[:,1]    
+        if percentage>0.8:
         
-        pX, pY, xshift, yshift, xrms, yrms = self.posFitting(oiX, oiY, tiX, tiY, rejSigma=rmsTimes)
+            tIdx1 = tIdx1 - 1
+            pos1 = tdata1[tIdx1[:,0]][:,0:2]
+            pos2 = tdata2[tIdx1[:,1]][:,0:2]
+            
+            dataOi = pos1
+            dataTi = pos2
+    
+            oiX = dataOi[:,0]
+            oiY = dataOi[:,1]
+            tiX = dataTi[:,0]
+            tiY = dataTi[:,1]    
+            
+            pX, pY, xshift, yshift, xrms, yrms = self.posFitting(oiX, oiY, tiX, tiY, rejSigma=rmsTimes)
         
+        else:
+            pX, pY, xshift, yshift, xrms, yrms = [], [], 0, 0, 99, 99
+            
         return pX, pY, xshift, yshift, xrms, yrms
         
     def imageAlignFitting(self, srcDir, oiImg, pX, pY):

@@ -355,6 +355,7 @@ class BatchImageDiff(object):
                                 self.diffImage()
                             else:
                                 regFalseNum = regFalseNum +1
+                            break
                     if regFalseNum>5:
                         self.log.error("more than %d image regist failing, stop")
                         break
