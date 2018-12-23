@@ -149,9 +149,9 @@ class BatchImageDiff(object):
             os.system("cp %s/%s %s/%s"%(self.tmpCat, tImgCat, self.tmpDir, self.templateImgCat))
             self.log.info("%d,%s regist to %d,%s"%(tImgNum, imgName, regIdx, tImgCat))
             
-            if imgIdx==492:
-                xshift0 = 1.10
-                yshift0 = 12.80
+            #if imgIdx==492:
+            #    xshift0 = 1.10
+            #    yshift0 = 12.80
             
             xshift0Orig = xshift0
             yshift0Orig = yshift0
@@ -299,7 +299,7 @@ class BatchImageDiff(object):
         
         if tdata.shape[0]<5000:
             size = self.subImgSize
-            fSubImgs, fparms = self.tools.getWindowImgs(self.tmpDir, newImageName, self.templateImg, self.objTmpResi, tdata, size)
+            fSubImgs, fparms = self.tools.getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, tdata, size)
             
             fotpath = '%s/%s_otimg_fot.npz'%(self.destDir, oImgPre)
             np.savez_compressed(fotpath, fot=fSubImgs, parms=fparms)
@@ -353,7 +353,7 @@ class BatchImageDiff(object):
                                 self.diffImage()
                             else:
                                 regFalseNum = regFalseNum +1
-                            break
+                            #break
                     if regFalseNum>5:
                         self.log.error("more than %d image regist failing, stop")
                         break
