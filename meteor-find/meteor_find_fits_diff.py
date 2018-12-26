@@ -203,7 +203,7 @@ class MeteorRecognize:
         #imgDiff[imgDiff<0]=0
         #new_hdu = fits.PrimaryHDU(imgDiff)
         #new_hdu.writeto("f:/aa.fit")
-        
+        '''
         zimg = img.copy().astype(np.int)
         zmin, zmax = zscale_image(zimg)
         zimg[zimg>zmax] = zmax
@@ -213,7 +213,7 @@ class MeteorRecognize:
             return;
         
         zimg=(((zimg-zmin)/(zmax-zmin))*255).astype(np.uint8)
-        
+        '''
         '''
         Image.fromarray(zimg).save("f:/aa.png")
         zimg = imgDiff.copy().astype(np.int)
@@ -227,6 +227,8 @@ class MeteorRecognize:
         
         zimgDiff = imgDiff.copy()
         zimgDiff[zimgDiff<0]=0
+        zimgDiff = cv2.medianBlur(zimgDiff,3) #medianBlur  blur
+        
         tmin = zimgDiff.min()
         tmax = zimgDiff.max()
         
@@ -235,31 +237,11 @@ class MeteorRecognize:
             return;
         
         
-        imgAvg = np.mean(zimgDiff)
-        imgRms = np.std(zimgDiff)
-        thred1 = imgAvg + 0.5 * imgRms
-        self.imgAvg1 = imgAvg
-        self.imgRms1 = imgRms
-        self.thred1 = thred1
-        print("avg1=%f;rms1=%f;tmax=%f;tmin=%f"%(imgAvg,imgRms,tmax, tmin))
-        
-        zimgDiff = cv2.medianBlur(zimgDiff,3) #medianBlur  blur
-        
-        tmin = zimgDiff.min()
-        tmax = zimgDiff.max()
-        imgAvg = np.mean(zimgDiff)
-        imgRms = np.std(zimgDiff)
-        thred1 = imgAvg + 0.5 * imgRms
-        self.imgAvg1 = imgAvg
-        self.imgRms1 = imgRms
-        self.thred1 = thred1
-        print("avg1=%f;rms1=%f;tmax=%f;tmin=%f"%(imgAvg,imgRms,tmax, tmin))
-        
         zimgDiff=(((zimgDiff-tmin)/(tmax-tmin))*255.0).astype(np.uint8)
-        Image.fromarray(zimgDiff).save("f:/a1.png")
+        #Image.fromarray(zimgDiff).save(r"E:\work\program\python\OTSimulation\meteor-find\aa1.png")
         
         self.img = img
-        self.zimg = zimg
+        self.zimg = img
         self.imgDiff = imgDiff
         self.zimgDiff = zimgDiff
                 
@@ -283,14 +265,9 @@ class MeteorRecognize:
         #new_hdu = fits.PrimaryHDU(zimgDiff)
         #new_hdu.writeto("f:/ab.fit")
         
-        zimgDiff[zimgDiff<thred1]=0
-        #Image.fromarray(zimgDiff).save("f:/a2.png")
-        #return
-        
         timg1 = zimgDiff[zimgDiff>thred1]
         if len(timg1) == 0:
             self.lines = np.array([])
-            print(123)
             return
                         
         filtered_data = sigma_clip(timg1, sigma=3, iters=2, copy=False)
@@ -309,7 +286,7 @@ class MeteorRecognize:
         
         #flag,bimg = cv2.threshold(img,0,255,cv2.THRESH_OTSU)
         flag,bimg = cv2.threshold(zimgDiff,thred2,255,cv2.THRESH_BINARY)
-        Image.fromarray(bimg).save("f:/aa1.png")
+        #Image.fromarray(bimg).save("f:/aa1.png")
         
         rho = 1
         theta = np.pi/180
@@ -702,7 +679,7 @@ class MeteorRecognize:
             
             if line["valid"] == True:
                 
-                tPath = "%s/%s_%03d.png" % (savePath, os.path.splitext(self.imgName)[0], i)
+                tPath = "%s/%s_%03d.png" % (savePath, self.imgName.split('.')[0], i)
       
                 #Image.fromarray(line["rotateImgCon"]).save(tPath)
                 Image.fromarray(line["origImgCon"]).save(tPath)
@@ -739,9 +716,15 @@ class MeteorRecognize:
             
             sub1 = self.img[miny:maxy,minx:maxx].astype(np.int32)
             sub1d = self.imgDiff[miny:maxy,minx:maxx].astype(np.int32)
-            sub1z = self.zimg[miny:maxy,minx:maxx].astype(np.uint8)
+            sub1z = self.zimg[miny:maxy,minx:maxx]
             sub1b = self.bimg[miny:maxy,minx:maxx].astype(np.uint8)
             sub1dz = self.zimgDiff[miny:maxy,minx:maxx].astype(np.uint8)
+            
+            zmin, zmax = zscale_image(sub1z)
+            if zmax!=zmin:
+                sub1z[sub1z>zmax] = zmax
+                sub1z[sub1z<zmin] = zmin
+                sub1z=(((sub1z-zmin)/(zmax-zmin))*255).astype(np.uint8)
             
             zmin, zmax = zscale_image(sub1dz)
             if zmax!=zmin:
@@ -866,7 +849,7 @@ def saveSubFits(dpath, mrObj, spath, line):
 if __name__ == '__main__':
     
     spath = r'E:\work\program\python\OTSimulation\meteor-find'
-    dpath = r'E:\work\program\python\OTSimulation\meteor-find'
+    dpath = r'E:\work\program\python\OTSimulation\meteor-find\preview'
 
     imgName = r"G044_mon_objt_180416T12270444.fit"
     imgName0 = r"G044_mon_objt_180416T12271944.fit"
@@ -874,15 +857,15 @@ if __name__ == '__main__':
     mr = MeteorRecognize()
     mr.recognizeLine(spath, imgName, imgName0)
     mr.clusterFilterLine()
-    #mr.cutOrigMeteor()
+    mr.cutOrigMeteor()
     #mr.showMeteor()
     #mr.cutRotateMeteorPlotPng(dpath)
     #mr.cutOrigMeteor()
-    '''
+    
     for idx, line1 in enumerate(mr.validLines):
         img1 = line1["origImgCon"]
         tpath1 = "%s/%d.png"%(dpath, idx)
         tpath2 = "%s/%d.fits"%(dpath, idx)
         Image.fromarray(img1).save(tpath1)
         saveSubFits(tpath2, mr, imgName, line1)
-    '''
+    ''' '''

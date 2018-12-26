@@ -51,23 +51,34 @@ def findMeteors2(spath, dpath, dpathMatch, objTotalMatchNumber):
     if not os.path.exists(dpathMatch):
         os.makedirs(dpathMatch)
             
-    tempFitsName = r"G044_mon_objt_180416T14171944.fit"
+    tempFitsName = r"G022_mon_objt_181214T09591991.fit.fz"
 
     sdirall = os.listdir(spath)
     sdirall.sort()
     sdir = []
     for t in sdirall:
-        if t[-3:]=="fit" and len(t)==len(tempFitsName):
+        if t[-2:]=="fz" and len(t)==len(tempFitsName):
             sdir.append(t)
     
     mrlist = []
     continueFileName = ""
     continueFlag = False
     
-    for idx, fname in enumerate(sdir):
+    logfName0 = "%s_progress.txt" %(dpath)
+    if os.path.exists(logfName0) and os.stat(logfName0).st_size > 0:
+        continueFileName = getLastLine(logfName0)
+        if len(continueFileName)>2:
+            continueFileName=continueFileName.strip()
         
-        if fname!="G044_mon_objt_180416T12271944.fit":
-            continue
+    logfile0 = open(logfName0, 'a')
+    logfile0.write("\n\n")
+    
+    logfName1 = "%s_bad_log1.txt" %(dpath)
+    logfName2 = "%s_good_log2.txt" %(dpath)
+    logfile1 = open(logfName1, 'w')
+    logfile2 = open(logfName2, 'w')
+    
+    for idx, fname in enumerate(sdir):
         
         tfname = fname
         if (not continueFlag) and (len(continueFileName)==len(tempFitsName)):
@@ -76,6 +87,8 @@ def findMeteors2(spath, dpath, dpathMatch, objTotalMatchNumber):
             else:
                 continueFlag = True
                 continue
+        
+        logfile0.write("%s\n"%(tfname))
         
         if fname[15:21]=="000000":
             continue
@@ -91,14 +104,22 @@ def findMeteors2(spath, dpath, dpathMatch, objTotalMatchNumber):
             
             #监测单帧异常帧，如转台的突然抖动，或出现大量假移动目标
             if mr.imgAvg1 > 4:
-                
+                logfile1.write("%d %s %.2f %.2f %.2f %.2f %.2f %.2f\n" % (idx, mr.imgName, mr.imgAvg1, \
+                      mr.imgRms1,mr.thred1,mr.imgAvg2, mr.imgRms2,mr.thred2))
                 if idx>1:
                     timage0 = sdir[idx-2]
                     mr.recognizeLine(spath, tfname, timage0)
                     if mr.lines is None:
                         continue
+                    if mr.imgAvg1 > 5:
+                        logfile1.write("%d %s %.2f %.2f %.2f %.2f %.2f %.2f\n" % (idx, mr.imgName, mr.imgAvg1, \
+                           mr.imgRms1,mr.thred1,mr.imgAvg2, mr.imgRms2,mr.thred2))
+                        continue
                 else:
                     continue
+                
+            logfile2.write("%d %s %.2f %.2f %.2f %.2f %.2f %.2f\n" % (idx, mr.imgName, mr.imgAvg1, \
+                mr.imgRms1,mr.thred1,mr.imgAvg2, mr.imgRms2,mr.thred2))
                             
             mr.clusterFilterLine()
             #mr.cutRotateMeteor()
@@ -132,10 +153,10 @@ def findMeteors2(spath, dpath, dpathMatch, objTotalMatchNumber):
                             img2 = line2["origImgCon"]
                             
                             
-                            tPath1 = "%s/%06d_%s.png" % (dpathMatch, line1["matchNumber"], os.path.splitext(mr1.imgName)[0])
-                            tPath2 = "%s/%06d_%s.png" % (dpathMatch, line2["matchNumber"], os.path.splitext(mr2.imgName)[0])
-                            tPath3 = "%s/%06d_%s.fits" % (dpathMatch, line1["matchNumber"], os.path.splitext(mr1.imgName)[0])
-                            tPath4 = "%s/%06d_%s.fits" % (dpathMatch, line2["matchNumber"], os.path.splitext(mr2.imgName)[0])
+                            tPath1 = "%s/%06d_%s.png" % (dpathMatch, line1["matchNumber"], mr1.imgName.split('.')[0])
+                            tPath2 = "%s/%06d_%s.png" % (dpathMatch, line2["matchNumber"], mr2.imgName.split('.')[0])
+                            tPath3 = "%s/%06d_%s.fits" % (dpathMatch, line1["matchNumber"], mr1.imgName.split('.')[0])
+                            tPath4 = "%s/%06d_%s.fits" % (dpathMatch, line2["matchNumber"], mr2.imgName.split('.')[0])
                   
                             if not os.path.exists(tPath1):
                                 Image.fromarray(img1).save(tPath1)
@@ -155,6 +176,9 @@ def findMeteors2(spath, dpath, dpathMatch, objTotalMatchNumber):
                 #if idx > 5:
                 #    break
             
+    logfile0.close()
+    logfile1.close()
+    logfile2.close()
     print('total process %d image.' % (len(sdir)))
     
 def processAllCCD():
@@ -167,7 +191,31 @@ def processAllCCD():
     
     findMeteors2(spath, dpath, dpathMatch, objTotalMatchNumber)
 
+def processAllCCD2():
+    
+    
+    dataRoot = "/data/gwac_data/gwac_orig_fits"
+    dataDest = "/data/gwac_data/gwac_simot/meteor_181226"
+    
+    dateStrs = ['181213', '181214', '181215']
+    for dateStr in dateStrs:
+        spath0="%s/%s"%(dataRoot,dateStr)
+        dpath0="%s/%s"%(dataDest,dateStr)
+        if not os.path.exists(dpath0):
+            os.system("mkdir %s"%(dpath0))
+        
+        ccds = os.listdir(spath0)
+        for ccd in ccds:
+            spath1="%s/%s"%(spath0,ccd)
+            dpath1="%s/%s"%(dpath0,ccd)
+            if not os.path.exists(dpath1):
+                os.system("mkdir %s"%(dpath1))
+    
+            dpath2="%s/meteor_result"%(dpath1)
+            dpath2m="%s/meteor_result_match"%(dpath1)
+            objTotalMatchNumber = 0
+            findMeteors2(spath1, dpath2, dpath2m, objTotalMatchNumber)
 
 if __name__ == '__main__':
     
-    processAllCCD()
+    processAllCCD2()
