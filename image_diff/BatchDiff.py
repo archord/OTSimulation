@@ -69,14 +69,15 @@ class BatchImageDiff(object):
         self.subImgSize = 21
         self.imgShape = []  
              
-        self.selTemplateNum = 20 # 10 3
+        self.selTemplateNum = 10 # 10 3
+        self.maxFalseNum = 5
         self.imglist = []
         self.transHGs = []
         self.origTmplImgName = ""
         self.tmplImgIdx = 0
         
         self.log = logging.getLogger() #create logger
-        self.log.setLevel(logging.DEBUG) #set level of logger, DEBUG INFO
+        self.log.setLevel(logging.INFO) #set level of logger, DEBUG INFO
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s") #set format of logger
         logging.Formatter.converter = time.gmtime #convert time in logger to UCT
         #filehandler = logging.FileHandler("%s/otSim.log"%(self.destDir), 'w+')
@@ -147,7 +148,9 @@ class BatchImageDiff(object):
                         
             tImgCat = self.imglist[regIdx][0]
             os.system("cp %s/%s %s/%s"%(self.tmpCat, tImgCat, self.tmpDir, self.templateImgCat))
-            self.log.info("%d,%s regist to %d,%s"%(tImgNum, imgName, regIdx, tImgCat))
+            
+            tmsgStr = "%d,%s regist to %d,%s"%(tImgNum, imgName, regIdx, tImgCat)
+            self.log.info(tmsgStr)
             
             #if imgIdx==492:
             #    xshift0 = 1.10
@@ -155,7 +158,7 @@ class BatchImageDiff(object):
             
             xshift0Orig = xshift0
             yshift0Orig = yshift0
-            tryShifts = [1.0,0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,-0.1,-0.3,-0.5,-0.7,-0.9,-1.1,-1.3,-1.5,-1.7,-1.9]
+            tryShifts = [1.0,0.1]
             for tsf in tryShifts:
                 if math.fabs(xshift0)>0.000001 and math.fabs(yshift0)>0.000001:
                     xshift0 = tsf*xshift0Orig
@@ -168,7 +171,7 @@ class BatchImageDiff(object):
                 osn16_tsn16_cm = mchFile
                 osn16_tsn16_cm_pair = mchPair
                 
-                tNumMean, tNumMin, tNumRms = self.tools.gridStatistic(self.tmpDir, osn16_tsn16_cm, self.imgSize, gridNum=4)
+                #tNumMean, tNumMin, tNumRms = self.tools.gridStatistic(self.tmpDir, osn16_tsn16_cm, self.imgSize, gridNum=4)
                 fwhmMean, fwhmRms = self.tools.fwhmEvaluate(self.tmpDir, osn16_tsn16_cm)
                 
                 self.transHG, xshift, yshift, xrms, yrms = self.tools.getMatchPosHmg(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
@@ -181,6 +184,7 @@ class BatchImageDiff(object):
                     break
                 else:
                     if math.fabs(xshift0)>0.000001 and math.fabs(yshift0)>0.000001:
+                        transHGN = []
                         self.log.error("astrometry error, shift scale %.1f, retry"%(tsf))
                     else:
                         break
@@ -194,7 +198,9 @@ class BatchImageDiff(object):
                 self.imglist.append((regCatName, regIdx, 0, 0, 0, 0, 99))
                 self.transHGs.append([])
                 regSuccess = False
-                self.log.error("******%s astrometry failing"%(imgName))
+                tmsgStr = "%s astrometry failing"%(imgName)
+                self.log.error(tmsgStr)
+                self.tools.sendTriggerMsg(tmsgStr)
         
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
@@ -222,7 +228,10 @@ class BatchImageDiff(object):
         imgpre= timgCat.split(".")[0]
         self.origTmplImgName = "%s.fit"%(imgpre)
         self.tmplImgIdx = tImgNum-self.selTemplateNum + minIdx
-        self.log.info("select %dth image %s as template, it has min fwhm %.2f"%(self.tmplImgIdx, self.origTmplImgName, tfwhms[minIdx]))
+        
+        tmsgStr = "select %dth image %s as template, it has min fwhm %.2f"%(self.tmplImgIdx, self.origTmplImgName, tfwhms[minIdx])
+        self.log.info(tmsgStr)
+        self.tools.sendTriggerMsg(tmsgStr)
         
         os.system("rm -rf %s/*"%(self.templateDir))
         
@@ -297,7 +306,7 @@ class BatchImageDiff(object):
         tdata = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
         self.log.info("resi star not match template and remove badpix %d"%(tdata.shape[0]))
         
-        if tdata.shape[0]<5000:
+        if tdata.shape[0]<3000:
             size = self.subImgSize
             fSubImgs, fparms = self.tools.getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, tdata, size)
             
@@ -313,7 +322,9 @@ class BatchImageDiff(object):
             psfView = genPSFView(resiImgs)
             Image.fromarray(psfView).save(preViewPath)
         else:
-            self.log.error("resi image has too many objects, maybe wrong")
+            tmsgStr = "resi image has %d objects, maybe wrong"%(tdata.shape[0])
+            self.log.error(tmsgStr)
+            self.tools.sendTriggerMsg(tmsgStr)
                         
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
@@ -336,31 +347,46 @@ class BatchImageDiff(object):
                 #G004_041
                 tpath1 = "G0%s_%s"%(ccd[:2], ccd)
                 self.srcDir="%s/%s/%s"%(self.srcDir0,tnum[0], tpath1)
+                self.tools.sendTriggerMsg("imageDiff: start %s/%s %d"%(tnum[0], tpath1, tnum[3]))
                 
+                i=0
+                pStart = i
+                self.tmplImgIdx==0
                 regFalseNum = 0
                 self.imglist = []
-                for i in range(total):
+                while i<total:
                     self.log.debug("\n\n************%d"%(i))
                     objectImg = files[i][0]
-                    if i<self.selTemplateNum:
+                    if i<self.selTemplateNum+pStart:
                         self.register(objectImg, i-1, i)
-                    if i>=self.selTemplateNum:
+                    else:
                         if self.tmplImgIdx==0:
                             self.makeTemplate()
-                        if i>=492:
-                            regSuccess = self.register(objectImg, self.tmplImgIdx, i)
-                            if regSuccess:
-                                self.diffImage()
-                            else:
-                                regFalseNum = regFalseNum +1
-                            #break
-                    if regFalseNum>5:
-                        self.log.error("more than %d image regist failing, stop")
-                        break
+                        regSuccess = self.register(objectImg, self.tmplImgIdx, i)
+                        if regSuccess:
+                            self.diffImage()
+                        else:
+                            regFalseNum = regFalseNum +1
+                        #break
+                    i = i +1
+                    if regFalseNum>=self.maxFalseNum:
+                        i = i - self.maxFalseNum+1
+                        if i<0:
+                            i =0
+                        pStart = i
+                        self.tmplImgIdx==0
+                        regFalseNum = 0
+                        self.imglist = []
+                        
+                        tmsgStr = "%d %s, more than %d image regist failing, rebuilt template"%(i,objectImg,regFalseNum)
+                        self.log.error(tmsgStr)
+                        self.tools.sendTriggerMsg(tmsgStr)
+                        #break
                     #if i>5:
                     #    break
                     
             break
+        self.tools.sendTriggerMsg("imageDiff: end")
         
     def batchSim2(self):
         

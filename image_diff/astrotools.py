@@ -7,6 +7,7 @@ import datetime
 import cv2
 from astropy.io import fits
 import warnings
+import requests
 from astropy.modeling import models, fitting
 
 
@@ -365,6 +366,8 @@ class AstroTools(object):
             yrms = trms2[1]
         else:
             h, xshift, yshift, xrms, yrms = [], 0, 0, 99, 99
+            tmsgStr = "pos match error: percentage %.2f%%"%(percentage*100)
+            self.log.error(tmsgStr)
         
         return h, xshift, yshift, xrms, yrms
     
@@ -547,3 +550,15 @@ class AstroTools(object):
                (tobj[0], tobj[1], 4.0, tobj[2]))
                
         return outCatName
+        
+    def sendTriggerMsg(self, tmsg):
+
+        try:
+            msgURL = "http://172.28.8.28:8080/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
+            turl = "%s%s"%(msgURL,tmsg)
+            
+            msgSession = requests.Session()
+            msgSession.get(turl, timeout=10, verify=False)
+        except Exception as e:
+            self.log.error(" send trigger msg error ")
+            self.log.error(str(e))
