@@ -5,8 +5,23 @@ from PIL import Image
 from meteor_find_fits_diff import MeteorRecognize
 import shutil
 from astropy.io import fits
+import traceback
+import requests
 
 
+def sendTriggerMsg(tmsg):
+
+    try:
+        msgURL = "http://172.28.8.8:8080/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
+        turl = "%s%s"%(msgURL,tmsg)
+        
+        msgSession = requests.Session()
+        msgSession.get(turl, timeout=10, verify=False)
+    except Exception as e:
+        print(" send trigger msg error ")
+        print(e)
+        traceback.print_exc()
+        
 def saveSubFits(dpath, mrObj, spath, line):
 
     tp = line["maxLengthLine"]
@@ -88,93 +103,109 @@ def findMeteors2(spath, dpath, dpathMatch, objTotalMatchNumber):
                 continueFlag = True
                 continue
         
+        if idx%100==1:
+            sendTriggerMsg("meteor process %d %s"%(idx, fname))
+            
         logfile0.write("%s\n"%(tfname))
+        logfile0.flush()
         
         if fname[15:21]=="000000":
             continue
         
-        if idx>0:
-            print("%04d start process %s ..." % (idx, tfname))     
-            timage0 = sdir[idx-1]
-            mr = MeteorRecognize()
-            mr.recognizeLine(spath, tfname, timage0)
-            
-            if mr.lines is None:
-                continue
-            
-            #监测单帧异常帧，如转台的突然抖动，或出现大量假移动目标
-            if mr.imgAvg1 > 4:
-                logfile1.write("%d %s %.2f %.2f %.2f %.2f %.2f %.2f\n" % (idx, mr.imgName, mr.imgAvg1, \
-                      mr.imgRms1,mr.thred1,mr.imgAvg2, mr.imgRms2,mr.thred2))
-                if idx>1:
-                    timage0 = sdir[idx-2]
-                    mr.recognizeLine(spath, tfname, timage0)
-                    if mr.lines is None:
-                        continue
-                    if mr.imgAvg1 > 5:
-                        logfile1.write("%d %s %.2f %.2f %.2f %.2f %.2f %.2f\n" % (idx, mr.imgName, mr.imgAvg1, \
-                           mr.imgRms1,mr.thred1,mr.imgAvg2, mr.imgRms2,mr.thred2))
-                        continue
-                else:
+        try:
+            if idx>0:
+                print("%04d start process %s ..." % (idx, tfname))     
+                timage0 = sdir[idx-1]
+                mr = MeteorRecognize()
+                mr.recognizeLine(spath, tfname, timage0)
+                
+                if mr.lines is None:
                     continue
                 
-            logfile2.write("%d %s %.2f %.2f %.2f %.2f %.2f %.2f\n" % (idx, mr.imgName, mr.imgAvg1, \
-                mr.imgRms1,mr.thred1,mr.imgAvg2, mr.imgRms2,mr.thred2))
-                            
-            mr.clusterFilterLine()
-            #mr.cutRotateMeteor()
-            mr.cutOrigMeteor()
-            
-            #初始化匹配目标全局编号
-            for tline in mr.validLines:
-                tline["matchNumber"] = 0
+                #监测单帧异常帧，如转台的突然抖动，或出现大量假移动目标
+                if mr.imgAvg1 > 4:
+                    logfile1.write("%d %s %.2f %.2f %.2f %.2f %.2f %.2f\n" % (idx, mr.imgName, mr.imgAvg1, \
+                          mr.imgRms1,mr.thred1,mr.imgAvg2, mr.imgRms2,mr.thred2))
+                    if idx>1:
+                        timage0 = sdir[idx-2]
+                        mr.recognizeLine(spath, tfname, timage0)
+                        if mr.lines is None:
+                            continue
+                        if mr.imgAvg1 > 5:
+                            logfile1.write("%d %s %.2f %.2f %.2f %.2f %.2f %.2f\n" % (idx, mr.imgName, mr.imgAvg1, \
+                               mr.imgRms1,mr.thred1,mr.imgAvg2, mr.imgRms2,mr.thred2))
+                            continue
+                    else:
+                        continue
+                    
+                logfile2.write("%d %s %.2f %.2f %.2f %.2f %.2f %.2f\n" % (idx, mr.imgName, mr.imgAvg1, \
+                    mr.imgRms1,mr.thred1,mr.imgAvg2, mr.imgRms2,mr.thred2))
+                                
+                mr.clusterFilterLine()
+                #mr.cutRotateMeteor()
+                mr.cutOrigMeteor()
                 
-            mrlist.append(mr)
-            
-            if len(mrlist)>1:
-                mr1 = mrlist[0]
-                mr2 = mrlist[1]
-                i = 1
-                for line1 in mr1.validLines:
-                    slop1 = line1["avgSlope"]
-                    for line2 in mr2.validLines:
-                        slop2 = line2["avgSlope"]
-                        slopdiff = abs(slop1-slop2)
-                        if slopdiff<5:
-                            line1["valid"]=False
-                            line2["valid"]=False
-                            if line1["matchNumber"]==0:
-                                objTotalMatchNumber = objTotalMatchNumber + 1
-                                line1["matchNumber"]=objTotalMatchNumber
-                            if line2["matchNumber"]==0:
-                                line2["matchNumber"]=line1["matchNumber"]
-                            ''' '''
-                            img1 = line1["origImgCon"]
-                            img2 = line2["origImgCon"]
-                            
-                            
-                            tPath1 = "%s/%06d_%s.png" % (dpathMatch, line1["matchNumber"], mr1.imgName.split('.')[0])
-                            tPath2 = "%s/%06d_%s.png" % (dpathMatch, line2["matchNumber"], mr2.imgName.split('.')[0])
-                            tPath3 = "%s/%06d_%s.fits" % (dpathMatch, line1["matchNumber"], mr1.imgName.split('.')[0])
-                            tPath4 = "%s/%06d_%s.fits" % (dpathMatch, line2["matchNumber"], mr2.imgName.split('.')[0])
-                  
-                            if not os.path.exists(tPath1):
-                                Image.fromarray(img1).save(tPath1)
-                            if not os.path.exists(tPath2):
-                                Image.fromarray(img2).save(tPath2)
-                            if not os.path.exists(tPath3):
-                                saveSubFits(tPath3, mr1, spath, line1)
-                            if not os.path.exists(tPath4):
-                                saveSubFits(tPath4, mr2, spath, line2)
-                            
-                            #break
-                    i = i + 1
-                #mr1.saveCutRotateMeteor(dpath)
-                mr1.cutRotateMeteorPlotPng(dpath, spath)
-                mrlist.pop(0)
-            
-                #if idx > 5:
-                #    break
+                #初始化匹配目标全局编号
+                for tline in mr.validLines:
+                    tline["matchNumber"] = 0
+                    
+                mrlist.append(mr)
+                
+                if len(mrlist)>1:
+                    mr1 = mrlist[0]
+                    mr2 = mrlist[1]
+                    i = 1
+                    for line1 in mr1.validLines:
+                        slop1 = line1["avgSlope"]
+                        for line2 in mr2.validLines:
+                            slop2 = line2["avgSlope"]
+                            slopdiff = abs(slop1-slop2)
+                            if slopdiff<5:
+                                line1["valid"]=False
+                                line2["valid"]=False
+                                if line1["matchNumber"]==0:
+                                    objTotalMatchNumber = objTotalMatchNumber + 1
+                                    line1["matchNumber"]=objTotalMatchNumber
+                                if line2["matchNumber"]==0:
+                                    line2["matchNumber"]=line1["matchNumber"]
+                                ''' '''
+                                img1 = line1["origImgCon"]
+                                img2 = line2["origImgCon"]
+                                
+                                
+                                tPath1 = "%s/%06d_%s.png" % (dpathMatch, line1["matchNumber"], mr1.imgName.split('.')[0])
+                                tPath2 = "%s/%06d_%s.png" % (dpathMatch, line2["matchNumber"], mr2.imgName.split('.')[0])
+                                tPath3 = "%s/%06d_%s.fits" % (dpathMatch, line1["matchNumber"], mr1.imgName.split('.')[0])
+                                tPath4 = "%s/%06d_%s.fits" % (dpathMatch, line2["matchNumber"], mr2.imgName.split('.')[0])
+                                
+                                try:
+                                    if not os.path.exists(tPath1):
+                                        Image.fromarray(img1).save(tPath1)
+                                    if not os.path.exists(tPath2):
+                                        Image.fromarray(img2).save(tPath2)
+                                    if not os.path.exists(tPath3):
+                                        saveSubFits(tPath3, mr1, spath, line1)
+                                    if not os.path.exists(tPath4):
+                                        saveSubFits(tPath4, mr2, spath, line2)
+                                except Exception as err:
+                                    print(img1.shape)
+                                    print("process %s error "%(fname))
+                                    print(err)
+                                    traceback.print_exc()
+                                
+                                #break
+                        i = i + 1
+                    #mr1.saveCutRotateMeteor(dpath)
+                    mr1.cutRotateMeteorPlotPng(dpath, spath)
+                    mrlist.pop(0)
+                
+                    #if idx > 5:
+                    #    break
+                
+        except Exception as err:
+            print("process %s error "%(fname))
+            print(err)
+            traceback.print_exc()
             
     logfile0.close()
     logfile1.close()
@@ -197,7 +228,8 @@ def processAllCCD2():
     dataRoot = "/data/gwac_data/gwac_orig_fits"
     dataDest = "/data/gwac_data/gwac_simot/meteor_181226"
     
-    dateStrs = ['181213', '181214', '181215']
+    dateStrs = ['181214', '181215']
+    #dateStrs = ['181213']
     for dateStr in dateStrs:
         spath0="%s/%s"%(dataRoot,dateStr)
         dpath0="%s/%s"%(dataDest,dateStr)
@@ -206,15 +238,19 @@ def processAllCCD2():
         
         ccds = os.listdir(spath0)
         for ccd in ccds:
-            spath1="%s/%s"%(spath0,ccd)
-            dpath1="%s/%s"%(dpath0,ccd)
-            if not os.path.exists(dpath1):
-                os.system("mkdir %s"%(dpath1))
+            #if ccd>'G004_041':
+                sendTriggerMsg("process %s %s"%(dateStr, ccd))
+                spath1="%s/%s"%(spath0,ccd)
+                dpath1="%s/%s"%(dpath0,ccd)
+                if not os.path.exists(dpath1):
+                    os.system("mkdir %s"%(dpath1))
+        
+                dpath2="%s/meteor_result"%(dpath1)
+                dpath2m="%s/meteor_result_match"%(dpath1)
+                objTotalMatchNumber = 0
+                findMeteors2(spath1, dpath2, dpath2m, objTotalMatchNumber)
     
-            dpath2="%s/meteor_result"%(dpath1)
-            dpath2m="%s/meteor_result_match"%(dpath1)
-            objTotalMatchNumber = 0
-            findMeteors2(spath1, dpath2, dpath2m, objTotalMatchNumber)
+    sendTriggerMsg("meteor process done")
 
 if __name__ == '__main__':
     

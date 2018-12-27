@@ -344,7 +344,7 @@ class AstroTools(object):
         
         self.log.debug("getMatchPosHmg: osn16:%d tsn16:%d osn16_tsn16_cm5:%d, pect:%.3f"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0],percentage))
         
-        if percentage>0.8:
+        if percentage>0.6:
             tIdx1 = tIdx1 - 1
             pos1 = tdata1[tIdx1[:,0]][:,0:2]
             pos2 = tdata2[tIdx1[:,1]][:,0:2]
@@ -554,7 +554,7 @@ class AstroTools(object):
     def sendTriggerMsg(self, tmsg):
 
         try:
-            msgURL = "http://172.28.8.28:8080/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
+            msgURL = "http://172.28.8.8:8080/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
             turl = "%s%s"%(msgURL,tmsg)
             
             msgSession = requests.Session()

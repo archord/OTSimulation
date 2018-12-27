@@ -198,7 +198,7 @@ class BatchImageDiff(object):
                 self.imglist.append((regCatName, regIdx, 0, 0, 0, 0, 99))
                 self.transHGs.append([])
                 regSuccess = False
-                tmsgStr = "%s astrometry failing"%(imgName)
+                tmsgStr = "%d %s astrometry failing"%(imgIdx, imgName)
                 self.log.error(tmsgStr)
                 self.tools.sendTriggerMsg(tmsgStr)
         
@@ -349,7 +349,8 @@ class BatchImageDiff(object):
                 self.srcDir="%s/%s/%s"%(self.srcDir0,tnum[0], tpath1)
                 self.tools.sendTriggerMsg("imageDiff: start %s/%s %d"%(tnum[0], tpath1, tnum[3]))
                 
-                i=0
+                #i=0
+                i=100
                 pStart = i
                 self.tmplImgIdx==0
                 regFalseNum = 0
@@ -358,8 +359,10 @@ class BatchImageDiff(object):
                     self.log.debug("\n\n************%d"%(i))
                     objectImg = files[i][0]
                     if i<self.selTemplateNum+pStart:
-                        self.register(objectImg, i-1, i)
+                        self.register(objectImg, i-1-pStart, i)
                     else:
+                        if i%50==1:
+                            self.tools.sendTriggerMsg("imageDiff %d %s"%(i, objectImg))
                         if self.tmplImgIdx==0:
                             self.makeTemplate()
                         regSuccess = self.register(objectImg, self.tmplImgIdx, i)
@@ -370,17 +373,17 @@ class BatchImageDiff(object):
                         #break
                     i = i +1
                     if regFalseNum>=self.maxFalseNum:
+                        
                         i = i - self.maxFalseNum+1
                         if i<0:
                             i =0
                         pStart = i
                         self.tmplImgIdx==0
-                        regFalseNum = 0
                         self.imglist = []
-                        
-                        tmsgStr = "%d %s, more than %d image regist failing, rebuilt template"%(i,objectImg,regFalseNum)
+                        tmsgStr = "from %d %s, more than %d image regist failing, rebuilt template"%(i,objectImg,regFalseNum)                        
                         self.log.error(tmsgStr)
                         self.tools.sendTriggerMsg(tmsgStr)
+                        regFalseNum = 0
                         #break
                     #if i>5:
                     #    break
@@ -422,7 +425,7 @@ class BatchImageDiff(object):
 def run1():
     
     dataRoot = "/data/gwac_data/gwac_orig_fits"
-    dataDest = "/data/gwac_data/gwac_simot/data_1222"
+    dataDest = "/data/gwac_data/gwac_simot/data_1227"
     
     tdiff = BatchImageDiff(dataRoot, dataDest)
     tdiff.batchSim()

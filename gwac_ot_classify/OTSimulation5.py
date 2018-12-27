@@ -319,7 +319,7 @@ class OTSimulation(object):
         ii = 1
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         while tnum<totalTOT:
-            simFile, simPosFile, simDeltaXYA = imgSimClass.simulateImage1(osn32f, self.objectImg, osn16sf, self.objectImg)
+            simFile, simPosFile, simDeltaXYA, tmpOtImgs = imgSimClass.simulateImage1(osn32f, self.objectImg, osn16sf, self.objectImg)
             self.objectImgSim = simFile
             self.objectImgSimAdd = simPosFile
             
@@ -483,7 +483,7 @@ class OTSimulation(object):
         mchFile, nmhFile, mchPair = self.runCrossMatch(self.templateImgCat, self.templateImgCat, 1)
     
     def batchSim(self):
-        
+        '''
         badImgList = 'bad_fit.txt'
         f = open(badImgList, 'r')
         for line in  f.readlines():
@@ -493,7 +493,7 @@ class OTSimulation(object):
             if os.path.exists(srcPath):
                 print("move bad img %s"%(tfname))
                 shutil.move(srcPath, destPath)
-            
+        '''    
         flist = os.listdir(self.srcDir)
         flist.sort()
         
