@@ -89,6 +89,68 @@ class AstroTools(object):
         
         return mchFile, nmhFile, mchPair
     
+
+    def run_wcs(self, image_in, image_out, ra, dec, width=4096, height=4136):
+    
+        self.log.info('Executing run_wcs ...')
+        
+        astronet_tweak_order = 3
+        scale_low = 0.98
+        scale_high = 1.02
+        base='abcd'
+        astronet_radius = 1.5
+    
+        #scampcat = image_in.replace('.fits','.scamp')
+        cmd = ['solve-field', '--no-plots', #'--no-fits2fits', cloud version of astrometry does not have this arg
+               '--x-column', 'XWIN_IMAGE', '--y-column', 'YWIN_IMAGE',
+               '--sort-column', 'FLUX_AUTO',
+               '--no-remove-lines', '--uniformize', '0',
+               # only work on brightest sources
+               #'--objs', '1000',
+               '--width', str(width), '--height', str(height),           
+               #'--keep-xylist', sexcat,
+               # ignore existing WCS headers in FITS input images
+               #'--no-verify', 
+               #'--verbose',
+               #'--verbose',
+               #'--parity', 'neg',
+               #'--code-tolerance', str(0.01), 
+               #'--quad-size-min', str(0.1),
+               # for KMTNet images restrict the max quad size:
+               #'--quad-size-max', str(0.1),
+               # number of field objects to look at:
+               '--depth', '50,150,200,250,300,350,400,450,500',
+               #'--scamp', scampcat,
+               image_in,
+               '--tweak-order', str(astronet_tweak_order), '--scale-low', str(scale_low),
+               '--scale-high', str(scale_high), '--scale-units', 'app',
+               '--ra', str(ra), '--dec', str(dec), '--radius', str(astronet_radius),
+               '--new-fits', image_out, '--overwrite',
+               '--out', base
+        ]
+        
+        process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        (stdoutstr,stderrstr) = process.communicate()
+        status = process.returncode
+        self.log.info(stdoutstr)
+        self.log.info(stderrstr)
+    
+        return
+
+    def ldac2fits (self, cat_ldac, cat_fits):
+
+        '''
+        This function converts the LDAC binary FITS table from SExtractor
+            to a common binary FITS table (that can be read by Astrometry.net) 
+        '''
+    
+        # read input table and write out primary header and 2nd extension
+        with fits.open(cat_ldac) as hdulist:
+            hdulist_new = fits.HDUList([hdulist[0], hdulist[2]])
+            hdulist_new.writeto(cat_fits, overwrite=True)
+            hdulist_new.close()
+
+
     #source extract
     def runSextractor(self, fname, srcPath, dstPath, fpar='OTsearch.par', 
                       sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3'], 
