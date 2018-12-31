@@ -71,7 +71,7 @@ class QueryData:
             "INNER JOIN camera cam on cam.camera_id=ff2.cam_id "\
             "where sky_id=%d and cam_id=%d and substring(img_name, 15, 6)='%s'  " \
             "order by img_name"%(skyId, camId, dateStr)
-        
+        #print(sql)
         try:
             self.connDb()
     
