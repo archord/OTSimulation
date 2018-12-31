@@ -234,12 +234,19 @@ class BatchImageDiff(object):
         self.tools.sendTriggerMsg(tmsgStr)
         
         os.system("rm -rf %s/*"%(self.templateDir))
-        
-        os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, self.origTmplImgName, self.templateDir, self.templateImg))
-        os.system("%s %s/%s.fz"%(self.funpackProgram, self.templateDir, self.templateImg))
-        '''
-        os.system("cp %s/%s %s/%s"%(self.srcDir, self.origTmplImgName, self.templateDir, self.templateImg))
-        '''
+
+
+        oImgf = "%s/%s"%(self.srcDir,self.origTmplImgName)
+        oImgfz = "%s/%s.fz"%(self.srcDir,self.origTmplImgName)
+        if os.path.exists(oImgf):
+            os.system("cp %s/%s %s/%s"%(self.srcDir, self.origTmplImgName, self.templateDir, self.templateImg))
+        elif os.path.exists(oImgfz):
+            os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, self.origTmplImgName, self.templateDir, self.templateImg))
+            os.system("%s %s/%s.fz"%(self.funpackProgram, self.templateDir, self.templateImg))
+        else:
+            self.log.warning("%s not exist"%(oImgf))
+            return
+            
         self.tools.removeHeaderAndOverScan(self.templateDir, self.templateImg)
         sexConf=['-DETECT_MINAREA','7','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
         fpar='sex_diff.par'
