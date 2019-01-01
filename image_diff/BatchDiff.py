@@ -4,18 +4,17 @@ import numpy as np
 import os
 import math
 import time
-import logging
 import datetime
 from PIL import Image
 from gwac_util import getThumbnail, genPSFView
 from QueryData import QueryData
+from astropy.wcs import WCS
 
 from astrotools import AstroTools
 
+            
 class BatchImageDiff(object):
-    def __init__(self, dataRoot, dataDest): 
-        
-        self.verbose = False
+    def __init__(self, dataRoot, dataDest, tools): 
                 
         self.toolPath = os.getcwd()
         self.funpackProgram="%s/tools/cfitsio/funpack"%(self.toolPath)
@@ -76,20 +75,8 @@ class BatchImageDiff(object):
         self.origTmplImgName = ""
         self.tmplImgIdx = 0
         
-        self.log = logging.getLogger() #create logger
-        self.log.setLevel(logging.INFO) #set level of logger, DEBUG INFO
-        formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s") #set format of logger
-        logging.Formatter.converter = time.gmtime #convert time in logger to UCT
-        #filehandler = logging.FileHandler("%s/otSim.log"%(self.destDir), 'w+')
-        filehandler = logging.FileHandler("%s/otSim.log"%(self.toolPath), 'w+')
-        filehandler.setFormatter(formatter) #add format to log file
-        self.log.addHandler(filehandler) #link log file to logger
-        if self.verbose:
-            streamhandler = logging.StreamHandler() #create print to screen logging
-            streamhandler.setFormatter(formatter) #add format to screen logging
-            self.log.addHandler(streamhandler) #link logger to screen logging
-    
-        self.tools = AstroTools(self.toolPath, self.log)
+        self.tools = tools
+        self.log = tools.log
 
     def register(self, imgName, regIdx, imgIdx):
         
@@ -247,10 +234,23 @@ class BatchImageDiff(object):
             self.log.warning("%s not exist"%(oImgf))
             return
             
-        self.tools.removeHeaderAndOverScan(self.templateDir, self.templateImg)
+        fieldId, ra,dec = self.tools.removeHeaderAndOverScan(self.templateDir, self.templateImg)
         sexConf=['-DETECT_MINAREA','7','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
         fpar='sex_diff.par'
         tmplCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0)
+        
+        sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5','-CATALOG_TYPE', 'FITS_LDAC']
+        tmplCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0, outSuffix='_ldac.fit')
+        
+        self.tools.ldac2fits('%s/%s'%(self.templateDir,tmplCat), '%s/ti_cat.fit'%(self.templateDir))
+        
+        #tpath = "%s/%s"%(self.templateDir,tmplCat)
+        self.tools.runWCS(self.templateDir,'ti_cat.fit', ra, dec)
+        
+        self.wcs = WCS('%s/ti_cat.wcs'%(self.templateDir))
+        ra_center, dec_center = self.wcs.all_pix2world(self.imgSize[1]/2, self.imgSize[0]/2, 1)
+        self.log.info('read_ra_center:%.5f, read_dec_center:%.5f'%(ra, dec))
+        self.log.info('real_ra_center:%.5f, real_dec_center:%.5f'%(ra_center, dec_center))
         
         objName = 'ti.fit'
         bkgName = 'ti_bkg.fit'
@@ -302,6 +302,10 @@ class BatchImageDiff(object):
         if tdata.shape[0]<3000:
             size = self.subImgSize
             fSubImgs, fparms = self.tools.getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, tdata, size)
+            
+            tXY = fparms[:,0:2]
+            tRaDec = self.wcs.all_pix2world(tXY, 1)
+            fparms = np.concatenate((fparms, tRaDec), axis=1)
             
             fotpath = '%s/%s_otimg.npz'%(self.destDir, oImgPre)
             np.savez_compressed(fotpath, fot=fSubImgs, parms=fparms)
@@ -428,11 +432,11 @@ class BatchImageDiff(object):
             if i>=self.selTemplateNum:
                 if self.tmplImgIdx==0:
                     self.makeTemplate()
-                if i>500 and i%10==1:
-                    self.register(objectImg, self.tmplImgIdx, i)
-                    self.diffImage()
-                if i>502:
-                    break
+                
+                self.register(objectImg, self.tmplImgIdx, i)
+                self.diffImage()
+                #if i>502:
+                #    break
                 
             #if i>5:
             #    break
@@ -454,8 +458,6 @@ class BatchImageDiff(object):
             if i<self.selTemplateNum+pStart:
                 self.register(objectImg, i-1-pStart, i)
             else:
-                if i%10==1:
-                    self.tools.sendTriggerMsg("imageDiff %d %s"%(i, objectImg))
                 if self.tmplImgIdx==0:
                     self.makeTemplate()
                 regSuccess = self.register(objectImg, self.tmplImgIdx, i)
@@ -466,7 +468,7 @@ class BatchImageDiff(object):
                 else:
                     regFalseNum = regFalseNum +1
                 #break
-            if i%10==1:
+            if i%100==1:
                 self.tools.sendTriggerMsg("imageDiff %d %s"%(i, objectImg))
             i = i +1
             if regFalseNum>=self.maxFalseNum:
@@ -489,6 +491,9 @@ class BatchImageDiff(object):
 
 def run3():
     
+    toolPath = os.getcwd()
+    tools = AstroTools(toolPath)
+    
     dataRoot = "/data/gwac_data/gwac_orig_fits"
     dataDest = "/data/gwac_data/gwac_simot/data_1231"
 
@@ -509,7 +514,7 @@ def run3():
         srcDir="%s/%s/%s"%(dataRoot,tflist[2], ccdDir)
         dstDir="%s/%s/G%s"%(dataDest,tflist[2], ccd)
         
-        tdiff = BatchImageDiff(srcDir, dstDir)
+        tdiff = BatchImageDiff(srcDir, dstDir, tools)
         tStr = "start imageDiff, %s,skyId:%d, camId:%d, imgNum:%d"%(tflist[2], tflist[0], tflist[1], total)
         tdiff.log.info(tStr)
         tdiff.tools.sendTriggerMsg(tStr)
@@ -520,23 +525,29 @@ def run3():
 
 def run1():
     
+    toolPath = os.getcwd()
+    tools = AstroTools(toolPath)
+    
     dataRoot = "/data/gwac_data/gwac_orig_fits"
     dataDest = "/data/gwac_data/gwac_simot/data_1231"
     
-    tdiff = BatchImageDiff(dataRoot, dataDest)
+    tdiff = BatchImageDiff(dataRoot, dataDest, tools)
     tdiff.batchSim()
     
 def run2():
     
-    dataRoot = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
-    dataDest = "/home/xy/Downloads/myresource/deep_data2/simot/data_1221"
+    toolPath = os.getcwd()
+    tools = AstroTools(toolPath)
     
-    tdiff = BatchImageDiff(dataRoot, dataDest)
+    dataRoot = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
+    dataDest = "/home/xy/Downloads/myresource/deep_data2/simot/data_190101"
+    
+    tdiff = BatchImageDiff(dataRoot, dataDest, tools)
     tdiff.batchSim2()
     
 if __name__ == "__main__":
     
     #run1()
-    #run2()
-    run3()
+    run2()
+    #run3()
     

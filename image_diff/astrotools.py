@@ -7,21 +7,42 @@ import datetime
 import cv2
 from astropy.io import fits
 import warnings
+import time
+import logging
 import requests
 from astropy.modeling import models, fitting
 
 
 class AstroTools(object):
     
-    def __init__(self, rootPath, log): 
+    def __init__(self, rootPath): 
+        
+        self.verbose = True
         
         self.varDir = "%s/tools/simulate_tools"%(rootPath)
         self.matchProgram="%s/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(rootPath)
         self.imgDiffProgram="%s/tools/hotpants/hotpants"%(rootPath)
         self.funpackProgram="%s/tools/cfitsio/funpack"%(rootPath)
+        self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
     
         os.environ['VER_DIR'] = self.varDir
-        self.log = log
+        
+        self.initLog()
+        
+    def initLog(self):
+        
+        self.log = logging.getLogger() #create logger
+        self.log.setLevel(logging.INFO) #set level of logger, DEBUG INFO
+        formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s") #set format of logger
+        logging.Formatter.converter = time.gmtime #convert time in logger to UCT
+        #filehandler = logging.FileHandler("%s/otSim.log"%(self.destDir), 'w+')
+        filehandler = logging.FileHandler("%s/otSim.log"%(self.rootPath), 'w+')
+        filehandler.setFormatter(formatter) #add format to log file
+        self.log.addHandler(filehandler) #link log file to logger
+        if self.verbose:
+            streamhandler = logging.StreamHandler() #create print to screen logging
+            streamhandler.setFormatter(formatter) #add format to screen logging
+            self.log.addHandler(streamhandler) #link logger to screen logging
         
     #catalog self match
     def runSelfMatch(self, srcDir, fname, mchRadius):
@@ -90,23 +111,26 @@ class AstroTools(object):
         return mchFile, nmhFile, mchPair
     
 
-    def run_wcs(self, image_in, image_out, ra, dec, width=4096, height=4136):
+    def runWCS(self, srcDir, objCat, ra, dec, width=4096, height=4136):
     
         self.log.info('Executing run_wcs ...')
         
+        runSuccess = True
         astronet_tweak_order = 3
         scale_low = 0.98
         scale_high = 1.02
-        base='abcd'
-        astronet_radius = 1.5
+        astronet_radius = 10
+        
+        baseName = objCat.split('.')[0]
+        srcPath = "%s/%s"%(srcDir, objCat)
     
         #scampcat = image_in.replace('.fits','.scamp')
-        cmd = ['solve-field', '--no-plots', #'--no-fits2fits', cloud version of astrometry does not have this arg
-               '--x-column', 'XWIN_IMAGE', '--y-column', 'YWIN_IMAGE',
-               '--sort-column', 'FLUX_AUTO',
+        cmd = [self.wcsProgram, srcPath, '--no-plots', '--no-verify', #'--no-fits2fits', cloud version of astrometry does not have this arg
+               '--x-column', 'X_IMAGE', '--y-column', 'Y_IMAGE',
+               '--sort-column', 'FLUX_APER',
                '--no-remove-lines', '--uniformize', '0',
                # only work on brightest sources
-               #'--objs', '1000',
+               '--objs', '1000',
                '--width', str(width), '--height', str(height),           
                #'--keep-xylist', sexcat,
                # ignore existing WCS headers in FITS input images
@@ -121,21 +145,28 @@ class AstroTools(object):
                # number of field objects to look at:
                '--depth', '50,150,200,250,300,350,400,450,500',
                #'--scamp', scampcat,
-               image_in,
-               '--tweak-order', str(astronet_tweak_order), '--scale-low', str(scale_low),
-               '--scale-high', str(scale_high), '--scale-units', 'app',
+               '--tweak-order', str(astronet_tweak_order), 
+               #'--scale-low', str(scale_low),
+               #'--scale-high', str(scale_high), '--scale-units', 'app',
                '--ra', str(ra), '--dec', str(dec), '--radius', str(astronet_radius),
-               '--new-fits', image_out, '--overwrite',
-               '--out', base
+               '--overwrite'
         ]
+        
+        self.log.debug(cmd)
         
         process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         (stdoutstr,stderrstr) = process.communicate()
         status = process.returncode
-        self.log.info(stdoutstr)
-        self.log.info(stderrstr)
-    
-        return
+        self.log.debug(stdoutstr)
+        self.log.debug(stderrstr)
+                
+        wcsfile = baseName+'.wcs'
+        wcsPath = "%s/%s"%(srcDir, wcsfile)
+        if not os.path.exists(wcsPath):
+            self.log.error("astrometry failed.")
+            runSuccess = False
+        
+        return runSuccess
 
     def ldac2fits (self, cat_ldac, cat_fits):
 
@@ -155,7 +186,7 @@ class AstroTools(object):
     def runSextractor(self, fname, srcPath, dstPath, fpar='OTsearch.par', 
                       sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3'], 
                       fconf='OTsearch.sex',
-                      cmdStatus=1):
+                      cmdStatus=1, outSuffix='.cat'):
         
         starttime = datetime.datetime.now()
         
@@ -164,7 +195,7 @@ class AstroTools(object):
         cnfPath = "%s/config/%s"%(self.varDir, fconf)
         outParmPath = "%s/config/%s"%(self.varDir, fpar) #sex_diff.par  OTsearch.par  sex_diff_fot.par
         
-        outFile = "%s.cat"%(outpre)
+        outFile = "%s%s"%(outpre, outSuffix)
         outFPath = "%s/%s"%(dstPath, outFile)
         outCheckPath = "%s/%s_bkg.fit"%(dstPath, outpre)
         
@@ -245,10 +276,10 @@ class AstroTools(object):
         ctrX = math.ceil(ctrPos[0])
         ctrY = math.ceil(ctrPos[1])
         
-        minx = ctrX - hsize
-        maxx = ctrX + hsize + tpad
-        miny = ctrY - hsize
-        maxy = ctrY + hsize + tpad
+        minx = int(ctrX - hsize)
+        maxx = int(ctrX + hsize + tpad)
+        miny = int(ctrY - hsize)
+        maxy = int(ctrY + hsize + tpad)
         
         widImg = []
         if minx>0 and miny>0 and maxx<imgSize[1] and maxy<imgSize[0]:
@@ -295,6 +326,9 @@ class AstroTools(object):
         hdul = fits.open(fullPath, mode='update', memmap=False)
         hdu1 = hdul[0]
         hdr = hdu1.header
+        fieldId = hdr['FIELD_ID']
+        ra = hdr['RA']
+        dec = hdr['DEC']
         self.log.debug("%s skyId %s"%(fname, hdr['FIELD_ID']))
         for kw in keyword:
             hdr.remove(kw,ignore_missing=True)
@@ -302,6 +336,8 @@ class AstroTools(object):
         hdu1.data = data[:,overscanLeft:-overscanRight]
         hdul.flush()
         hdul.close()
+        
+        return fieldId, ra,dec
     
     def gridStatistic(self, srcDir, catfile, imgSize, gridNum=4):
         
@@ -616,7 +652,8 @@ class AstroTools(object):
     def sendTriggerMsg(self, tmsg):
 
         try:
-            msgURL = "http://172.28.8.8:8080/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
+            #msgURL = "http://172.28.8.8:8080/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
+            msgURL = "http://10.0.10.236:9995/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
             turl = "%s%s"%(msgURL,tmsg)
             
             msgSession = requests.Session()

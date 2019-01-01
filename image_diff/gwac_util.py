@@ -40,7 +40,7 @@ def imagePreProcess(imgPath, imgName):
 def genPSFView(psfImgs, innerSpace = 1, zoomScale=1):
     
     imgNum = len(psfImgs)
-    gridNum = math.floor(math.sqrt(imgNum))
+    gridNum = int(math.floor(math.sqrt(imgNum)))
     
     for y in range(gridNum):
         for x in range(gridNum):
