@@ -524,8 +524,7 @@ def run1():
     dataDest = "/data/gwac_data/gwac_simot/data_1231"
     
     tdiff = BatchImageDiff(dataRoot, dataDest)
-    #tdiff.batchSim()
-    tdiff.batchSim3()
+    tdiff.batchSim()
     
 def run2():
     
@@ -537,6 +536,7 @@ def run2():
     
 if __name__ == "__main__":
     
-    run1()
+    #run1()
     #run2()
+    run3()
     
