@@ -266,6 +266,8 @@ class BatchImageDiff(object):
         
         starttime = datetime.datetime.now()
         
+        resultFlag = True
+        
         oImgPre = self.origObjectImg[:self.origObjectImg.index(".")]
         
         os.system("cp %s/%s %s/%s"%(self.templateDir, self.templateImg, self.tmpDir, self.templateImg))
@@ -275,23 +277,7 @@ class BatchImageDiff(object):
         #self.newImageName = self.tools.imageAlign(self.tmpDir, self.objectImg, self.transHG)
                 
         self.objTmpResi = self.tools.runHotpants(self.newImageName, self.templateImg, self.tmpDir)
-        '''
-        tgrid = 4
-        tsize = 500
-        tzoom = 1
-        timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
-        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
-        preViewPath = "%s/%s_resi.jpg"%(self.origPreViewDir, oImgPre)
-        Image.fromarray(timg).save(preViewPath)
-        timg = getThumbnail(self.tmpDir, newImageName, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
-        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
-        preViewPath = "%s/%s_obj.jpg"%(self.origPreViewDir, oImgPre)
-        Image.fromarray(timg).save(preViewPath)
-        timg = getThumbnail(self.tmpDir, self.templateImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
-        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
-        preViewPath = "%s/%s_tmp.jpg"%(self.origPreViewDir, oImgPre)
-        Image.fromarray(timg).save(preViewPath)
-        '''
+
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         resiCat = self.tools.runSextractor(self.objTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf)
@@ -328,14 +314,34 @@ class BatchImageDiff(object):
             #if not os.path.exists(preViewPath):
             psfView = genPSFView(resiImgs)
             Image.fromarray(psfView).save(preViewPath)
+            resultFlag = True
         else:
-            tmsgStr = "resi image has %d objects, maybe wrong"%(tdata.shape[0])
+            tmsgStr = "%s.fit resi image has %d objects, maybe wrong"%(oImgPre, tdata.shape[0])
             self.log.error(tmsgStr)
             self.tools.sendTriggerMsg(tmsgStr)
+            resultFlag = False
+            
+            tgrid = 4
+            tsize = 500
+            tzoom = 1
+            timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+            timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+            preViewPath = "%s/%s_resi.jpg"%(self.origPreViewDir, oImgPre)
+            Image.fromarray(timg).save(preViewPath)
+            timg = getThumbnail(self.tmpDir, self.newImageName, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+            timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+            preViewPath = "%s/%s_obj.jpg"%(self.origPreViewDir, oImgPre)
+            Image.fromarray(timg).save(preViewPath)
+            timg = getThumbnail(self.tmpDir, self.templateImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+            timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+            preViewPath = "%s/%s_tmp.jpg"%(self.origPreViewDir, oImgPre)
+            Image.fromarray(timg).save(preViewPath)
                         
         endtime = datetime.datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.info("********** image diff total use %d seconds"%(runTime))
+        
+        return resultFlag
         
         ''' '''
     def batchSim(self):
@@ -361,6 +367,7 @@ class BatchImageDiff(object):
                 pStart = i
                 self.tmplImgIdx==0
                 regFalseNum = 0
+                diffFalseNum = 0
                 self.imglist = []
                 while i<total:
                     self.log.debug("\n\n************%d"%(i))
@@ -368,13 +375,15 @@ class BatchImageDiff(object):
                     if i<self.selTemplateNum+pStart:
                         self.register(objectImg, i-1-pStart, i)
                     else:
-                        if i%50==1:
+                        if i%10==1:
                             self.tools.sendTriggerMsg("imageDiff %d %s"%(i, objectImg))
                         if self.tmplImgIdx==0:
                             self.makeTemplate()
                         regSuccess = self.register(objectImg, self.tmplImgIdx, i)
                         if regSuccess:
-                            self.diffImage()
+                            diffResult = self.diffImage()
+                            if diffResult == False:
+                                diffFalseNum = diffFalseNum+1
                         else:
                             regFalseNum = regFalseNum +1
                         #break
@@ -431,7 +440,8 @@ class BatchImageDiff(object):
         ''' '''
     def batchSim3(self):
         
-        fileList = [(2575,14,'181208'),(2573,19,'181208'),(2574,9,'181206'),(2576,16,'181206')]
+        #fileList = [(2575,14,'181208'),(2573,19,'181208'),(2574,9,'181206'),(2576,16,'181206')]
+        fileList = [(2573,19,'181208'),(2574,9,'181206')]
         query = QueryData()
         print(fileList)
         

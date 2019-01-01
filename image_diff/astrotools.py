@@ -404,7 +404,7 @@ class AstroTools(object):
         tMin = np.min([tdata1.shape[0], tdata2.shape[0]])
         percentage = tIdx1.shape[0]*1.0/tMin
         
-        self.log.debug("getMatchPosHmg: osn16:%d tsn16:%d osn16_tsn16_cm5:%d, pect:%.3f"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0],percentage))
+        self.log.info("getMatchPosHmg: osn16:%d tsn16:%d osn16_tsn16_cm5:%d, pect:%.3f"%(tdata1.shape[0], tdata2.shape[0],tIdx1.shape[0],percentage))
         
         if percentage>0.6:
             tIdx1 = tIdx1 - 1
