@@ -438,67 +438,85 @@ class BatchImageDiff(object):
             #    break
         
         ''' '''
-    def batchSim3(self):
-        
-        #fileList = [(2575,14,'181208'),(2573,19,'181208'),(2574,9,'181206'),(2576,16,'181206')]
-        fileList = [(2573,19,'181208'),(2574,9,'181206')]
-        query = QueryData()
-        print(fileList)
-        
-        for tflist in fileList:
-        
-            files = query.getFileList(tflist[0], tflist[1], tflist[2])
-            total = len(files)
-            self.log.info("%s,skyId:%d, camId:%d, imgNum:%d"%(tflist[2], tflist[0], tflist[1], total))
-            #continue
-            
-            ccd = files[0][1]
-            #G004_041
-            tpath1 = "G0%s_%s"%(ccd[:2], ccd)
-            self.srcDir="%s/%s/%s"%(self.srcDir0,tflist[2], tpath1)
-            self.tools.sendTriggerMsg("imageDiff: start %s/%s %d"%(tflist[2], tpath1, total))
-            
-            i=0
-            #i=100
-            pStart = i
-            self.tmplImgIdx==0
-            regFalseNum = 0
-            self.imglist = []
-            while i<total:
-                self.log.debug("\n\n************%d"%(i))
-                objectImg = files[i][0]
-                if i<self.selTemplateNum+pStart:
-                    self.register(objectImg, i-1-pStart, i)
-                else:
-                    if self.tmplImgIdx==0:
-                        self.makeTemplate()
-                    regSuccess = self.register(objectImg, self.tmplImgIdx, i)
-                    if regSuccess:
-                        self.diffImage()
-                    else:
-                        regFalseNum = regFalseNum +1
-                    #break
-                if i%50==1:
+    def batchSim3(self, files):
+
+        total=len(files)
+        i=0
+        #i=100
+        pStart = i
+        self.tmplImgIdx==0
+        regFalseNum = 0
+        diffFalseNum = 0
+        self.imglist = []
+        while i<total:
+            self.log.debug("\n\n************%d"%(i))
+            objectImg = files[i][0]
+            if i<self.selTemplateNum+pStart:
+                self.register(objectImg, i-1-pStart, i)
+            else:
+                if i%10==1:
                     self.tools.sendTriggerMsg("imageDiff %d %s"%(i, objectImg))
-                i = i +1
-                if regFalseNum>=self.maxFalseNum:
-                    
-                    i = i - self.maxFalseNum+1
-                    if i<0:
-                        i =0
-                    pStart = i
-                    self.tmplImgIdx==0
-                    self.imglist = []
-                    tmsgStr = "from %d %s, more than %d image regist failing, rebuilt template"%(i,objectImg,regFalseNum)                        
-                    self.log.error(tmsgStr)
-                    self.tools.sendTriggerMsg(tmsgStr)
-                    regFalseNum = 0
-                    #break
-                #if i>5:
-                #    break
-                    
-            #break
-        self.tools.sendTriggerMsg("imageDiff: end")
+                if self.tmplImgIdx==0:
+                    self.makeTemplate()
+                regSuccess = self.register(objectImg, self.tmplImgIdx, i)
+                if regSuccess:
+                    diffResult = self.diffImage()
+                    if diffResult == False:
+                        diffFalseNum = diffFalseNum+1
+                else:
+                    regFalseNum = regFalseNum +1
+                #break
+            if i%10==1:
+                self.tools.sendTriggerMsg("imageDiff %d %s"%(i, objectImg))
+            i = i +1
+            if regFalseNum>=self.maxFalseNum:
+                
+                i = i - self.maxFalseNum+1
+                if i<0:
+                    i =0
+                pStart = i
+                self.tmplImgIdx==0
+                self.imglist = []
+                tmsgStr = "from %d %s, more than %d image regist failing, rebuilt template"%(i,objectImg,regFalseNum)                        
+                self.log.error(tmsgStr)
+                self.tools.sendTriggerMsg(tmsgStr)
+                regFalseNum = 0
+                diffFalseNum = 0
+                #break
+            #if i>5:
+            #    break
+                
+
+def run3():
+    
+    dataRoot = "/data/gwac_data/gwac_orig_fits"
+    dataDest = "/data/gwac_data/gwac_simot/data_1231"
+
+    #fileList = [(2575,14,'181208'),(2573,19,'181208'),(2574,9,'181206'),(2576,16,'181206')]
+    fileList = [(2573,19,'181208'),(2574,9,'181206')]
+    query = QueryData()
+    print(fileList)
+    
+    for tflist in fileList:
+    
+        files = query.getFileList(tflist[0], tflist[1], tflist[2])
+        total = len(files)
+        #continue
+        
+        ccd = files[0][1]
+        #G004_041
+        ccdDir = "G0%s_%s"%(ccd[:2], ccd)
+        srcDir="%s/%s/%s"%(dataRoot,tflist[2], ccdDir)
+        dstDir="%s/%s/G%s"%(dataDest,tflist[2], ccd)
+        
+        tdiff = BatchImageDiff(srcDir, dstDir)
+        tStr = "start imageDiff, %s,skyId:%d, camId:%d, imgNum:%d"%(tflist[2], tflist[0], tflist[1], total)
+        tdiff.log.info(tStr)
+        tdiff.tools.sendTriggerMsg(tStr)
+        tdiff.batchSim3(files)
+        tStr = "end imageDiff, %s,skyId:%d, camId:%d, imgNum:%d"%(tflist[2], tflist[0], tflist[1], total)
+        tdiff.log.info(tStr)
+        tdiff.tools.sendTriggerMsg(tStr)
 
 def run1():
     
