@@ -54,10 +54,11 @@ def createModel():
 def train():
     
     fotpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1212_1213"
-    totpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0929"
+    #totpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0929"
+    totpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1227"
     
     #dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
-    dateStr = '20181227'
+    dateStr = '20190102'
     workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
     if not os.path.exists(workPath):
         os.system("mkdir %s"%(workPath))
@@ -84,17 +85,18 @@ def train():
         
 def test():
 
-    tpath2 = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
-    tpath3 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0929"
+    fotpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1212_1213"
+    #totpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0929"
+    totpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1227"
     
-    dateStr = '20181001'
+    dateStr = '20190102'
     #dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
     workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
     if not os.path.exists(workPath):
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    X,Y,s2n = getData(tpath3, tpath2, workPath)
+    X,Y,s2n = getData(totpath, fotpath, workPath)
     print(X.shape)
     print(Y.shape)
     print(s2n.shape)
