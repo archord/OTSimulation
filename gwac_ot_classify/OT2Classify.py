@@ -16,19 +16,23 @@ import matplotlib.pyplot as plt
 
 def showImage(imgs, props, predY, label, showNum=10):
     
+    maxEllip = 0.5
+    
     for i in range(imgs.shape[0]):
         
-        #if i>=showNum:
-        #    break
+        if i>=showNum:
+           break
         
         s2n = 1.087/props[i,12].astype(np.float)
         #print(props[i])
         X = props[i][0]
         Y = props[i][1]
-        if math.fabs(Y-2616.9944)>5:
-            continue
+        #if math.fabs(Y-2616.9944)>5:
+        #    continue
         ELONGATION = props[i][5]
         ELLIPTICITY = props[i][6]
+        if ELLIPTICITY>maxEllip:
+            continue
         print("ELONGATION=%.2f,ELLIPTICITY=%.2f,X=%.2f,Y=%.2f"%(ELONGATION,ELLIPTICITY,X, Y))
         
         objWidz = zscale_image(imgs[i][0])
@@ -45,7 +49,7 @@ def showImage(imgs, props, predY, label, showNum=10):
         axes.flat[0].imshow(objWidz, interpolation = "nearest", cmap='gray')
         axes.flat[1].imshow(tmpWidz, interpolation = "nearest", cmap='gray')
         axes.flat[2].imshow(resiWidz, interpolation = "nearest", cmap='gray')
-        axes.flat[1].set_title("predicted pbb=%.2f, label=%s, s2n=%.2f\n"%(predY[i][1],label,s2n))
+        axes.flat[1].set_title("predicted pbb=%.2f, label=%s, s2n=%.2f,ellip=%.2f\n"%(predY[i][1],label,s2n,ELLIPTICITY))
         plt.show()
     
 def realDataTest():
@@ -101,7 +105,7 @@ def realDataTest():
         
         print("\n\n***********************")
         print("%d images classified as False"%(falseNum))
-        showImage(falseImgs, falseProps, falsePreYs, 'FOT', showNum=5000)
+        showImage(falseImgs, falseProps, falsePreYs, 'FOT', showNum=100)
         
         
   

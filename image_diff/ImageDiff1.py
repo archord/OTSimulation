@@ -23,13 +23,13 @@ class ImageDiff(object):
         
         self.varDir = "/home/xy/Downloads/myresource/deep_data2/simulate_tools"
         #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/mini_gwac" # ls CombZ_*fit
-        self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0"
+        self.srcDir = "/home/xy/gwac_test/181208"
         #self.srcDir = "/home/xy"
         #self.srcDir = "/home/xy/Downloads/myresource/deep_data2/chaodata" # ls CombZ_*fit
         self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0_bad"
         self.tmpDir="/run/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1026"
-        self.preViewDir="/home/xy/Downloads/myresource/deep_data2/simot/preview_1026"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_0104"
+        self.preViewDir="/home/xy/Downloads/myresource/deep_data2/simot/preview_0104"
         self.matchProgram="/home/xy/program/netbeans/C/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="/home/xy/Downloads/myresource/deep_data2/hotpants/hotpants"
         self.geomapProgram="/home/xy/program/netbeans/C/GWACProject/dist/Debug/GNU-Linux/gwacproject"
@@ -644,7 +644,7 @@ class ImageDiff(object):
         plt.show()
         
         fpar='sex_diff.par'
-        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','1.5','-ANALYSIS_THRESH','1.5']
         resiCat = self.runSextractor(resImg, fpar, sexConf)
         
         mchFile, nmhFile, mchPair = self.runCrossMatch(resiCat, badPixCat, 5)
@@ -670,8 +670,8 @@ class ImageDiff(object):
         
         #objectImg = 'CombZ_0.fit'
         #templateImg = 'CombZ_101.fit'
-        objectImg = 'G044_mon_objt_181121T18300131.fit'
-        templateImg = 'G044_mon_objt_181121T16100132.fit'
+        objectImg = 'G044_mon_objt_181208T10391696.fit'
+        templateImg = 'G044_mon_objt_181208T10014696.fit'
         self.simImage(objectImg, templateImg)
     
     def test3(self):
@@ -728,7 +728,7 @@ class ImageDiff(object):
 if __name__ == "__main__":
     
     otsim = ImageDiff()
-    otsim.batchSim()
-    #otsim.test()
+    #otsim.batchSim()
+    otsim.test()
     #otsim.simFOT2('obj', 'tmp')
     
