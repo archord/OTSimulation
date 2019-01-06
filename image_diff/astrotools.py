@@ -7,10 +7,12 @@ import datetime
 import cv2
 from astropy.io import fits
 import warnings
+import traceback
 import time
 import logging
 import requests
 from astropy.modeling import models, fitting
+import paramiko
 
 
 class AstroTools(object):
@@ -24,6 +26,7 @@ class AstroTools(object):
         self.imgDiffProgram="%s/tools/hotpants/hotpants"%(rootPath)
         self.funpackProgram="%s/tools/cfitsio/funpack"%(rootPath)
         self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
+        self.wcsProgramPC780="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/astrometry.net/bin/solve-field"%(rootPath)
     
         os.environ['VER_DIR'] = self.varDir
         
@@ -110,7 +113,6 @@ class AstroTools(object):
         
         return mchFile, nmhFile, mchPair
     
-
     def runWCS(self, srcDir, objCat, ra, dec, width=4096, height=4136):
     
         self.log.info('Executing run_wcs ...')
@@ -168,6 +170,87 @@ class AstroTools(object):
         
         return runSuccess
 
+    def runWCSRemotePC780(self, srcDir, objCat, ra, dec, ccdName, width=4096, height=4136):
+    
+        self.log.info('Executing run_wcs remotely ...')
+    
+        runSuccess = True
+        baseName = objCat.split('.')[0]
+        wcsfile = baseName+'.wcs'
+            
+        sftpUser  =  'xy'
+        sftpPass  =  'l'
+        pc870 = '10.36.1.211'
+        wcsParm1 = " --no-plots --no-verify --x-column X_IMAGE --y-column Y_IMAGE --sort-column FLUX_APER --objs 1000 --overwrite " \
+            "--depth 50,150,200,250,300,350,400,450,500 "
+                
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy( paramiko.AutoAddPolicy() )
+            
+        runSuccess = True
+        astronet_tweak_order = 3
+        astronet_radius = 10
+        try:
+            remoteSrcRoot = "/run/shm/gwacwcs/%s"%(ccdName)
+            remoteSrcPath = "%s/%s"%(remoteSrcRoot,objCat)
+            srcPath = "%s/%s"%(srcDir, objCat)
+            remoteWcsPath = "%s/%s"%(remoteSrcRoot,wcsfile)
+            wcsPath = "%s/%s"%(srcDir, wcsfile)
+            
+            ssh.connect(pc870, username=sftpUser, password=sftpPass)
+            tcmd = "rm -rf %s;mkdir -p %s;"%(remoteSrcRoot,remoteSrcRoot)
+            ssh.exec_command(tcmd)
+            
+            ftp = ssh.open_sftp()
+            ftp.put(srcPath,remoteSrcPath)
+            
+            wcsParm2 = "--width %d --height %d --tweak-order %d --ra %f --dec %f --radius %f"%(width, height, astronet_tweak_order, ra, dec, astronet_radius)
+            wcsCMD = "%s %s %s %s"%(self.wcsProgramPC780, remoteSrcPath, wcsParm1, wcsParm2)
+            self.log.debug(wcsCMD)
+            ssh.exec_command(wcsCMD)
+            
+            ftp.chdir(remoteSrcRoot)
+            tfiles = ftp.listdir()
+            tfiles.sort()
+            remoteWCSExist = False
+            for tfile in tfiles:
+                if tfile==wcsfile:
+                    remoteWCSExist=True
+                    break
+            if remoteWCSExist:
+                ftp.get(remoteWcsPath,wcsPath)
+                
+            if (not remoteWCSExist) or (not os.path.exists(wcsPath)):
+                self.log.error("astrometry failed.")
+                runSuccess = False
+                    
+        except paramiko.AuthenticationException:
+            self.log.error("Authentication Failed!")
+            runSuccess = False
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        except paramiko.SSHException:
+            self.log.error("Issues with SSH service!")
+            runSuccess = False
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        except Exception as e:
+            self.log.error(str(e))
+            runSuccess = False
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        
+        try:
+            time.sleep(1)
+            ftp.close()
+            ssh.close()
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        
+        return runSuccess
+        
     def ldac2fits (self, cat_ldac, cat_fits):
 
         '''
