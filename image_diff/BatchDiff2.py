@@ -324,11 +324,11 @@ class BatchImageDiff(object):
         self.log.info("resi image star %d"%(tdata.shape[0]))
         '''
         ''' '''
-        mchRadius = 15
+        mchRadius = 15 #15 10
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, resiCat, self.templateImgCat, mchRadius)
         fotProps = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
         
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.badPixCat, 5) #1 and 5 
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.badPixCat, 1) #1 and 5 
         os.system("cp %s/%s %s/%s"%(self.tmpDir, nmhFile, self.resiCatDir, "%s.cat"%(oImgPre)))
         
         totProps = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
