@@ -20,6 +20,7 @@ class BatchImageDiff(object):
         self.toolPath = os.getcwd()
         self.funpackProgram="%s/tools/cfitsio/funpack"%(self.toolPath)
         self.tmpRoot="/dev/shm/gwacsim"
+        self.tmpUpload="/dev/shm/gwacupload"
         self.tmpDir="%s/tmp"%(self.tmpRoot)
         self.tmpCat="%s/cat"%(self.tmpRoot)
         self.templateDir="%s/tmpl"%(self.tmpRoot)
@@ -35,6 +36,8 @@ class BatchImageDiff(object):
         
         os.system("rm -rf %s/*"%(self.tmpRoot))
                 
+        if not os.path.exists(self.tmpUpload):
+            os.system("mkdir -p %s"%(self.tmpUpload))
         if not os.path.exists(self.templateDir):
             os.system("mkdir -p %s"%(self.templateDir))
         if not os.path.exists(self.tmpDir):
@@ -78,7 +81,7 @@ class BatchImageDiff(object):
         
         self.tools = tools
         self.log = tools.log
-
+        
     def register(self, imgName, regIdx, imgIdx):
         
         starttime = datetime.now()
@@ -136,7 +139,7 @@ class BatchImageDiff(object):
             tImgCat = self.imglist[regIdx][0]
             os.system("cp %s/%s %s/%s"%(self.tmpCat, tImgCat, self.tmpDir, self.templateImgCat))
             
-            tmsgStr = "%d,%s regist to %d,%s"%(tImgNum, imgName, regIdx, tImgCat)
+            tmsgStr = "%d,%s regist to %d,%s, fwhm %.2f"%(tImgNum, imgName, regIdx, tImgCat, self.imglist[regIdx][6])
             self.log.info(tmsgStr)
             
             #if imgIdx==492:
@@ -206,9 +209,11 @@ class BatchImageDiff(object):
             tImgNum = len(self.imglist)
             if tImgNum>=4*60:
                 selTempRange=4*30
+                endIdx = tImgNum-30
+            else:
+                endIdx = tImgNum
             
             startIdx = tImgNum-selTempRange
-            endIdx = tImgNum-30
             timgN = self.imglist[-1]
             timgNk = self.imglist[startIdx]
             if timgN[1]!=timgNk[1]: #check if rebuilt template
@@ -338,16 +343,14 @@ class BatchImageDiff(object):
         self.log.info(tstr)
         
         size = self.subImgSize
-        if totProps.shape[0]<300 and totProps.shape[0]>0:
+        if totProps.shape[0]<500 and totProps.shape[0]>0:
             
             totSubImgs, totParms = self.tools.getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, totProps, size)
-            
             tXY = totParms[:,0:2]
             tRaDec = self.wcs.all_pix2world(tXY, 1)
             totParms = np.concatenate((totParms, tRaDec), axis=1)
-            
-            fotpath = '%s/%s_totimg_%d.npz'%(self.destDir, oImgPre, totParms.shape[0])
-            np.savez_compressed(fotpath, fot=totSubImgs, parms=totParms)
+            fotpath = '%s/%s_totimg.npz'%(self.destDir, oImgPre)
+            np.savez_compressed(fotpath, imgs=totSubImgs, parms=totParms)
             
             resiImgs = []
             for timg in totSubImgs:
@@ -358,15 +361,18 @@ class BatchImageDiff(object):
             psfView = genPSFView(resiImgs)
             Image.fromarray(psfView).save(preViewPath)
             
-            if fotProps.shape[0]>0 and fotProps.shape[0]<1000:
+            if fotProps.shape[0]>0 and fotProps.shape[0]<2000:
                 fotSubImgs, fotParms = self.tools.getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, fotProps, size)
-                fotpath = '%s/%s_fotimg_%d.npz'%(self.destDir, oImgPre, fotParms.shape[0])
-                np.savez_compressed(fotpath, fot=fotSubImgs, parms=fotParms)
+                tXY = fotParms[:,0:2]
+                tRaDec = self.wcs.all_pix2world(tXY, 1)
+                fotParms = np.concatenate((fotParms, tRaDec), axis=1)
+                fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
+                np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms)
             
             if badPixProps.shape[0]>0:
                 badSubImgs, badParms = self.tools.getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps, size)
-                fotpath = '%s/%s_badimg_%d.npz'%(self.destDir, oImgPre, badParms.shape[0])
-                np.savez_compressed(fotpath, fot=badSubImgs, parms=badParms)
+                fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
+                np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
                     
             resultFlag = True
         else:
@@ -375,28 +381,44 @@ class BatchImageDiff(object):
             self.tools.sendTriggerMsg(tmsgStr)
             resultFlag = False
             
-            tgrid = 4
-            tsize = 500
-            tzoom = 1
-            timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
-            timg = scipy.ndimage.zoom(timg, tzoom, order=0)
-            preViewPath = "%s/%s_resi.jpg"%(self.origPreViewDir, oImgPre)
-            Image.fromarray(timg).save(preViewPath)
-            timg = getThumbnail(self.tmpDir, self.newImageName, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
-            timg = scipy.ndimage.zoom(timg, tzoom, order=0)
-            preViewPath = "%s/%s_obj.jpg"%(self.origPreViewDir, oImgPre)
-            Image.fromarray(timg).save(preViewPath)
-            timg = getThumbnail(self.tmpDir, self.templateImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
-            timg = scipy.ndimage.zoom(timg, tzoom, order=0)
-            preViewPath = "%s/%s_tmp.jpg"%(self.origPreViewDir, oImgPre)
-            Image.fromarray(timg).save(preViewPath)
-                        
+        tgrid = 4
+        tsize = 500
+        tzoom = 1
+        timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        #timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+        preViewPath = "%s/%s_resi.jpg"%(self.origPreViewDir, oImgPre)
+        Image.fromarray(timg).save(preViewPath)
+        '''
+        timg = getThumbnail(self.tmpDir, self.newImageName, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+        preViewPath = "%s/%s_obj.jpg"%(self.origPreViewDir, oImgPre)
+        Image.fromarray(timg).save(preViewPath)
+        timg = getThumbnail(self.tmpDir, self.templateImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+        preViewPath = "%s/%s_tmp.jpg"%(self.origPreViewDir, oImgPre)
+        Image.fromarray(timg).save(preViewPath)
+        '''     
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.info("********** image diff total use %d seconds"%(runTime))
         
         return resultFlag
     
+    def classifyAndUpload(self):
+        
+        oImgPre = self.origObjectImg[:self.origObjectImg.index(".")]
+        upDir = "%s/%s"%(self.tmpUpload, oImgPre)
+        if not os.path.exists(upDir):
+            os.system("mkdir -p %s"%(upDir))
+        
+        os.system("cp %s/%s %s/%s"%(self.tmpDir, self.newImageName, upDir, self.newImageName))
+        os.system("cp %s/%s %s/%s"%(self.tmpDir, self.templateImg, upDir, self.templateImg))
+        os.system("cp %s/%s %s/%s"%(self.tmpDir, self.objTmpResi, upDir, self.objTmpResi))
+        
+        totpath = '%s/%s_totimg.npz'%(self.destDir, oImgPre)
+        fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
+        
+        
     def reInitReg(self, idx):
         
         if idx<0:

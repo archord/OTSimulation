@@ -13,13 +13,14 @@ import logging
 import requests
 from astropy.modeling import models, fitting
 import paramiko
+from ot2classify import OT2Classify
 
 
 class AstroTools(object):
     
     def __init__(self, rootPath): 
         
-        self.verbose = True
+        self.verbose = False
         
         self.rootPath = rootPath
         self.varDir = "%s/tools/simulate_tools"%(rootPath)
@@ -30,6 +31,8 @@ class AstroTools(object):
         self.wcsProgramPC780="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/astrometry.net/bin/solve-field"
     
         os.environ['VER_DIR'] = self.varDir
+        
+        self.ot2Classifier = OT2Classify(rootPath)
         
         self.initLog()
         
@@ -754,3 +757,12 @@ class AstroTools(object):
             self.log.error(" send trigger msg error ")
             self.log.error(str(e))
 
+    def classifyImg(self, imgs, parms, prob=0.01):
+        
+        predProbs = self.ot2Classifier.doClassifyData(imgs)
+        parms = np.concatenate((parms, predProbs), axis=1)
+        tIdx = predProbs>=prob
+        tParms = parms[tIdx]
+        
+        return tParms
+        
