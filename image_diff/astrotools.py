@@ -3,7 +3,7 @@ import numpy as np
 import os
 import math
 import subprocess
-import datetime
+from datetime import datetime
 import cv2
 from astropy.io import fits
 import warnings
@@ -21,12 +21,13 @@ class AstroTools(object):
         
         self.verbose = True
         
+        self.rootPath = rootPath
         self.varDir = "%s/tools/simulate_tools"%(rootPath)
         self.matchProgram="%s/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(rootPath)
         self.imgDiffProgram="%s/tools/hotpants/hotpants"%(rootPath)
         self.funpackProgram="%s/tools/cfitsio/funpack"%(rootPath)
         self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
-        self.wcsProgramPC780="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/astrometry.net/bin/solve-field"%(rootPath)
+        self.wcsProgramPC780="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/astrometry.net/bin/solve-field"
     
         os.environ['VER_DIR'] = self.varDir
         
@@ -182,7 +183,7 @@ class AstroTools(object):
         sftpPass  =  'l'
         pc870 = '10.36.1.211'
         wcsParm1 = " --no-plots --no-verify --x-column X_IMAGE --y-column Y_IMAGE --sort-column FLUX_APER --objs 1000 --overwrite " \
-            "--depth 50,150,200,250,300,350,400,450,500 "
+            "--no-remove-lines --uniformize 0 --depth 50,150,200,250,300,350,400,450,500 "
                 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy( paramiko.AutoAddPolicy() )
@@ -199,15 +200,19 @@ class AstroTools(object):
             
             ssh.connect(pc870, username=sftpUser, password=sftpPass)
             tcmd = "rm -rf %s;mkdir -p %s;"%(remoteSrcRoot,remoteSrcRoot)
-            ssh.exec_command(tcmd)
+            stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
+            for line in iter(stdout.readline, ""):
+                self.log.debug(line)
             
             ftp = ssh.open_sftp()
             ftp.put(srcPath,remoteSrcPath)
             
             wcsParm2 = "--width %d --height %d --tweak-order %d --ra %f --dec %f --radius %f"%(width, height, astronet_tweak_order, ra, dec, astronet_radius)
             wcsCMD = "%s %s %s %s"%(self.wcsProgramPC780, remoteSrcPath, wcsParm1, wcsParm2)
-            self.log.debug(wcsCMD)
-            ssh.exec_command(wcsCMD)
+            self.log.info(wcsCMD)
+            stdin, stdout, stderr = ssh.exec_command(wcsCMD, get_pty=True)
+            for line in iter(stdout.readline, ""):
+                self.log.debug(line)
             
             ftp.chdir(remoteSrcRoot)
             tfiles = ftp.listdir()
@@ -223,6 +228,8 @@ class AstroTools(object):
             if (not remoteWCSExist) or (not os.path.exists(wcsPath)):
                 self.log.error("astrometry failed.")
                 runSuccess = False
+            else:
+                self.log.info("astrometry success.")
                     
         except paramiko.AuthenticationException:
             self.log.error("Authentication Failed!")
@@ -271,7 +278,7 @@ class AstroTools(object):
                       fconf='OTsearch.sex',
                       cmdStatus=1, outSuffix='.cat'):
         
-        starttime = datetime.datetime.now()
+        starttime = datetime.now()
         
         outpre= fname.split(".")[0]
         fullPath = "%s/%s"%(srcPath, fname)
@@ -308,7 +315,7 @@ class AstroTools(object):
         else:
             self.log.debug("sextractor failed.")
         
-        endtime = datetime.datetime.now()
+        endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("run sextractor use %d seconds"%(runTime))
             
@@ -317,7 +324,7 @@ class AstroTools(object):
         #hotpants
     def runHotpants(self, objImg, tmpImg, srcDir):
         
-        starttime = datetime.datetime.now()
+        starttime = datetime.now()
         
         objpre= objImg.split(".")[0]
         tmppre= tmpImg.split(".")[0]
@@ -345,7 +352,7 @@ class AstroTools(object):
         else:
             self.log.error("hotpants failed.")
             
-        endtime = datetime.datetime.now()
+        endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("run hotpants use %d seconds"%(runTime))
             
@@ -554,7 +561,7 @@ class AstroTools(object):
     
     def imageAlign2(self, srcDir, oiFile, tiFile, mchPair):
     
-        starttime = datetime.datetime.now()
+        starttime = datetime.now()
         
         h, xshift, yshift = self.getMatchPos(srcDir, oiFile, tiFile, mchPair)
         
@@ -562,7 +569,7 @@ class AstroTools(object):
         tData = fits.getdata(tpath)
         newimage = cv2.warpPerspective(tData, h, (tData.shape[1],tData.shape[0]))
         
-        endtime = datetime.datetime.now()
+        endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("opencv remap sci image use %.2f seconds"%(runTime))
         
@@ -570,7 +577,7 @@ class AstroTools(object):
         
     def imageAlignHmg(self, srcDir, oiImg, transHG):
     
-        starttime = datetime.datetime.now()
+        starttime = datetime.now()
                 
         tpath = "%s/%s"%(srcDir, oiImg)
         tData = fits.getdata(tpath)
@@ -584,7 +591,7 @@ class AstroTools(object):
         hdul = fits.HDUList([hdu])
         hdul.writeto(newPath)
         
-        endtime = datetime.datetime.now()
+        endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("opencv remap sci image use %.2f seconds"%(runTime))
         
@@ -612,7 +619,7 @@ class AstroTools(object):
     
     def processBadPix(self, objName, bkgName, srcPath, dstPath):
         
-        starttime = datetime.datetime.now()
+        starttime = datetime.now()
         
         objPath = "%s/%s"%(srcPath, objName)
         bkgPath = "%s/%s"%(srcPath, bkgName)
@@ -635,7 +642,7 @@ class AstroTools(object):
         hdul.writeto(newPath)
         '''
         
-        starttime1 = datetime.datetime.now()
+        starttime1 = datetime.now()
         bkgData = bkgData.astype(np.uint16)
         #bkgData = mean(bkgData, square(3))
         #kernel = np.ones((3,3),np.float32)/25
@@ -643,7 +650,7 @@ class AstroTools(object):
         bkgData = cv2.blur(bkgData,(3,3)) #faster than mean
         bkgData = bkgData.astype(np.uint16)
         
-        endtime1 = datetime.datetime.now()
+        endtime1 = datetime.now()
         runTime1 = (endtime1 - starttime1).seconds
         self.log.debug("process badpix meanfilter use %d seconds"%(runTime1))
         
@@ -683,7 +690,7 @@ class AstroTools(object):
             for tobj in tdata:
                fp1.write("%.3f %.3f %.3f\n"%(tobj[0], tobj[1], tobj[11]))
         
-        endtime = datetime.datetime.now()
+        endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("process badpix use %d seconds"%(runTime))
         
@@ -735,8 +742,10 @@ class AstroTools(object):
     def sendTriggerMsg(self, tmsg):
 
         try:
-            #msgURL = "http://172.28.8.8:8080/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
-            msgURL = "http://10.0.10.236:9995/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
+            sendTime = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S")
+            tmsg = "%s: %s"%(sendTime, tmsg)
+            msgURL = "http://172.28.8.8:8080/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
+            #msgURL = "http://10.0.10.236:9995/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
             turl = "%s%s"%(msgURL,tmsg)
             
             msgSession = requests.Session()
@@ -744,3 +753,4 @@ class AstroTools(object):
         except Exception as e:
             self.log.error(" send trigger msg error ")
             self.log.error(str(e))
+

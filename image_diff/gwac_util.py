@@ -8,9 +8,7 @@ from astropy.io import fits
 from skimage import morphology,feature, segmentation, measure, filters, io, transform
 #import cv2
 
-'''
-尝试通过通用图像处理的方法，提取部分亮星，进行天文位置定标
-'''
+
 def imagePreProcess(imgPath, imgName):
     
     fpath = "%s/%s"%(imgPath, imgName)
@@ -79,11 +77,6 @@ def getFullAndSubThumbnail(imgPath, imgName):
     
     return fullImg, subImg
     
-'''
-对图像均匀接取grid=width_num*height_num个子窗口图像，每个窗口图像的大小为stampSize=(stampW, stapmH)
-grid可以等于(1,1)
-innerSpace可以等于0
-'''
 def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contrast=0.25, border=0):
     
     fpath = "%s/%s"%(imgPath, imgName)
@@ -92,11 +85,6 @@ def getThumbnail(imgPath, imgName, stampSize=(500,500), grid=(3, 3), innerSpace 
     conImg = getThumbnail_(tdata, stampSize=stampSize, grid=grid, innerSpace = innerSpace, contrast=contrast, border=border)
     return conImg
                 
-'''
-对图像均匀接取grid=width_num*height_num个子窗口图像，每个窗口图像的大小为stampSize=(stampW, stapmH)
-grid可以等于(1,1)
-innerSpace可以等于0
-'''
 def getThumbnail_(tdata, stampSize=(500,500), grid=(3, 3), innerSpace = 1, contrast=0.25, border=0):
     
     imgSize = tdata.shape
@@ -381,11 +369,6 @@ def filtByEllipticity(fname, tpath, maxEllip=0.5):
     
     return outCatName
 
-'''
-选择部分假OT，过滤条件：
-1）过滤最暗的和最亮的（3%）
-2）过滤图像边缘的fSize（200px）
-'''
 def filtOTs(fname, tpath, darkMagRatio=0.03, brightMagRatio=0.03,fSize=200, imgSize=[4096,4096]):
 
     tdata = np.loadtxt("%s/%s"%(tpath, fname))

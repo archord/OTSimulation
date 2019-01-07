@@ -44,8 +44,8 @@ class QueryData:
     def queryFilesNum(self):
                 
         sql = "select substring(img_name, 15, 6) date_str, sky_id, cam_id, count(*) total "\
-            "from fits_file2_his "\
-            "where substring(img_name, 6, 7)='mon_obj' and gen_time>'2018-12-09 09:00:00' and gen_time<'2018-12-10 09:00:00' "\
+            "from fits_file2 "\
+            "where substring(img_name, 6, 7)='mon_obj' "\
             "GROUP BY date_str, sky_id, cam_id "\
             "ORDER BY date_str desc, total desc, sky_id, cam_id "
         
@@ -63,8 +63,55 @@ class QueryData:
             print(err)
             
         return rows
+        
+    def queryFilesNumHis(self):
+                
+        sql = "select substring(img_name, 15, 6) date_str, sky_id, cam_id, count(*) total "\
+            "from fits_file2_his "\
+            "where substring(img_name, 6, 7)='mon_obj' and gen_time>'2018-12-08 09:00:00' and gen_time<'2018-12-08 23:59:59' "\
+            "GROUP BY date_str, sky_id, cam_id "\
+            "ORDER BY date_str desc, total desc, sky_id, cam_id "
+        
+        try:
+            self.connDb()
+    
+            cur = self.conn.cursor()
+            cur.execute(sql)
+            rows = cur.fetchall()
+            cur.close()
+            self.closeDb()
+        except Exception as err:
+            rows = []
+            print(" query OT2 image error ")
+            print(err)
+            
+        return rows
+        
     
     def getFileList(self, skyId, camId, dateStr):
+        
+        sql = "select img_name, cam.name "\
+            "from fits_file2 ff2 "\
+            "INNER JOIN camera cam on cam.camera_id=ff2.cam_id "\
+            "where sky_id=%d and cam_id=%d and substring(img_name, 15, 6)='%s'  " \
+            "order by img_name"%(skyId, camId, dateStr)
+        #print(sql)
+        try:
+            self.connDb()
+    
+            cur = self.conn.cursor()
+            cur.execute(sql)
+            rows = cur.fetchall()
+            cur.close()
+            self.closeDb()
+        except Exception as err:
+            rows = []
+            print(" query OT2 image error ")
+            print(err)
+            
+        return rows
+    
+    def getFileListHis(self, skyId, camId, dateStr):
         
         sql = "select img_name, cam.name "\
             "from fits_file2_his ff2 "\
