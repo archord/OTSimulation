@@ -2,21 +2,25 @@
 import scipy.ndimage
 import numpy as np
 import os
+import cv2
 import math
 import time
 from datetime import datetime
 import traceback
 from PIL import Image
-from gwac_util import getThumbnail, genPSFView
+from gwac_util import getThumbnail, genPSFView, getWindowImgs, zscale_image
 from QueryData import QueryData
 from astropy.wcs import WCS
+from keras.models import load_model
+from DataPreprocess import getImgStamp
 
 from astrotools import AstroTools
+from ot2classify import OT2Classify
 
             
 class BatchImageDiff(object):
     def __init__(self, dataRoot, dataDest, tools): 
-                
+                        
         self.toolPath = os.getcwd()
         self.funpackProgram="%s/tools/cfitsio/funpack"%(self.toolPath)
         self.tmpRoot="/dev/shm/gwacsim"
@@ -24,6 +28,7 @@ class BatchImageDiff(object):
         self.tmpDir="%s/tmp"%(self.tmpRoot)
         self.tmpCat="%s/cat"%(self.tmpRoot)
         self.templateDir="%s/tmpl"%(self.tmpRoot)
+        self.modelPath="%s/tools/mlmodel"%(self.toolPath)
         
         #self.dataRoot = "/data/gwac_data"
         self.srcDir0 = "%s"%(dataRoot)
@@ -72,7 +77,7 @@ class BatchImageDiff(object):
         self.subImgSize = 21
         self.imgShape = []  
              
-        self.selTemplateNum = 10 # 10 3
+        self.selTemplateNum = 3 # 10 3
         self.maxFalseNum = 5
         self.imglist = []
         self.transHGs = []
@@ -81,6 +86,7 @@ class BatchImageDiff(object):
         
         self.tools = tools
         self.log = tools.log
+        self.ot2Classifier = OT2Classify(self.toolPath, self.log)
         
     def register(self, imgName, regIdx, imgIdx):
         
@@ -339,13 +345,13 @@ class BatchImageDiff(object):
         totProps = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
         #badPixProps = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
         badPixProps = np.loadtxt("%s/%s"%(self.tmpDir, self.badPixCat))
-        tstr = "badPix %d, fot %d, tot %d"%(badPixProps.shape[0], fotProps.shape[0], totProps.shape[0])
+        tstr = "badPix %d, match %d, noMatch %d"%(badPixProps.shape[0], fotProps.shape[0], totProps.shape[0])
         self.log.info(tstr)
         
         size = self.subImgSize
         if totProps.shape[0]<500 and totProps.shape[0]>0:
             
-            totSubImgs, totParms = self.tools.getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, totProps, size)
+            totSubImgs, totParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, totProps, size)
             tXY = totParms[:,0:2]
             tRaDec = self.wcs.all_pix2world(tXY, 1)
             totParms = np.concatenate((totParms, tRaDec), axis=1)
@@ -362,7 +368,7 @@ class BatchImageDiff(object):
             Image.fromarray(psfView).save(preViewPath)
             
             if fotProps.shape[0]>0 and fotProps.shape[0]<2000:
-                fotSubImgs, fotParms = self.tools.getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, fotProps, size)
+                fotSubImgs, fotParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, fotProps, size)
                 tXY = fotParms[:,0:2]
                 tRaDec = self.wcs.all_pix2world(tXY, 1)
                 fotParms = np.concatenate((fotParms, tRaDec), axis=1)
@@ -370,7 +376,7 @@ class BatchImageDiff(object):
                 np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms)
             
             if badPixProps.shape[0]>0:
-                badSubImgs, badParms = self.tools.getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps, size)
+                badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps, size)
                 fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
                 np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
                     
@@ -415,8 +421,12 @@ class BatchImageDiff(object):
         os.system("cp %s/%s %s/%s"%(self.tmpDir, self.templateImg, upDir, self.templateImg))
         os.system("cp %s/%s %s/%s"%(self.tmpDir, self.objTmpResi, upDir, self.objTmpResi))
         
-        totpath = '%s/%s_totimg.npz'%(self.destDir, oImgPre)
-        fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
+        totImgsName = '%s_totimg.npz'%(oImgPre)
+        fotImgsName = '%s_fotimg.npz'%(oImgPre)
+
+        self.ot2Classifier.doClassifyAndUpload(self.destDir, totImgsName, fotImgsName, 
+                          upDir, self.newImageName, self.templateImg, self.objTmpResi, 
+                          self.origObjectImg, self.tools.serverIP)
         
         
     def reInitReg(self, idx):
@@ -443,8 +453,8 @@ class BatchImageDiff(object):
         while i<total:
             try:
                 self.log.debug("\n\n************%d"%(i))
-                objectImg = files[i][0]
-                #objectImg = files[i]
+                #objectImg = files[i][0]
+                objectImg = files[i]
                 if i<self.selTemplateNum+self.pStart:
                     self.register(objectImg, i-1-self.pStart, i)
                 else:
@@ -458,6 +468,8 @@ class BatchImageDiff(object):
                         diffResult = self.diffImage()
                         if diffResult == False:
                             self.diffFalseNum = self.diffFalseNum+1
+                        else:
+                            self.classifyAndUpload()
                         #break
                     else:
                         if self.regFalseIdx+self.regFalseNum==i:
@@ -494,10 +506,9 @@ class BatchImageDiff(object):
                     self.log.info(tmsgStr)
                     self.tools.sendTriggerMsg(tmsgStr)
                 
-            #if i>5:
-            #    break
-        #self.tools.sendTriggerMsg("imageDiff: end")
-          
+            if i>=5:
+                break
+  
               
 def run1():
     
@@ -595,7 +606,7 @@ def run2():
     
 if __name__ == "__main__":
     
-    run1()
+    #run1()
     #run3()
-    #run2()
+    run2()
     

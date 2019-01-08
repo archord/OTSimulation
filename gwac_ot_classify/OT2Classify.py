@@ -56,10 +56,11 @@ def realDataTest():
     
     imgSize = 8
     pbb_threshold = 0.5
-    workPath = "//home/xy/Downloads/myresource/deep_data2/simot/train_20190102"
+    workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_20190102"
     model = load_model("%s/model_128_5_RealFOT_8.h5"%(workPath))
     
-    dataPath = '/home/xy/Downloads/myresource/deep_data2/simot/G181208_C03490'
+    #dataPath = '/home/xy/Downloads/myresource/deep_data2/simot/G181208_C03490'
+    dataPath = '/home/xy/Downloads/myresource/deep_data2/simot/data_190107/subImg'
     
     flist = os.listdir(dataPath)
     flist.sort()
@@ -69,13 +70,14 @@ def realDataTest():
         #G034_mon_objt_181208T10463819
         #G044_mon_objt_181208T10391696
         #G024_mon_objt_181206T12154991_otimg
-        if tfilename.find('G044_mon_objt_181208T10391696')==-1:
+        if tfilename.find('G044_mon_objt_180416T12263444_totimg')==-1:
             continue
         print(tfilename)
         
         tpath = "%s/%s"%(dataPath, tfilename)
         tdata1 = np.load(tpath)
-        timg32s = tdata1['fot']
+        #timg32s = tdata1['fot']
+        timg32s = tdata1['imgs']
         props = tdata1['parms']
         #fs2n = 1.087/props[:,12].astype(np.float)
         

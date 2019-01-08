@@ -5,35 +5,50 @@ import numpy as np
 import scipy.ndimage
 import math
 from astropy.io import fits
-from skimage import morphology,feature, segmentation, measure, filters, io, transform
 #import cv2
 
 
-def imagePreProcess(imgPath, imgName):
+def getWindowImg(img, ctrPos, size):
     
-    fpath = "%s/%s"%(imgPath, imgName)
-    tdata = fits.getdata(fpath)
-    '''
-    imgAvg = np.average(tdata)
-    imgRms = np.std(tdata)
-    thred1 = imgAvg + 0.5 * imgRms
+    imgSize = img.shape
+    hsize = int(size/2)
+    tpad = int(size%2)
+    ctrX = math.ceil(ctrPos[0])
+    ctrY = math.ceil(ctrPos[1])
     
-    img2 = np.zeros(tdata.shape)
-    img2[tdata<thred1]=0
-    img2[tdata>=thred1]=1
-    kernel = np.ones((3,3))
-    sub1 = cv2.filter2D(img2, -1, kernel)
-    sub1[sub1<6]=0
-    sub1[sub1>0]=255
-    '''
-    sub1 =morphology.opening(tdata, morphology.square(3)) #闭运算
+    minx = int(ctrX - hsize)
+    maxx = int(ctrX + hsize + tpad)
+    miny = int(ctrY - hsize)
+    maxy = int(ctrY + hsize + tpad)
     
-    timg = getThumbnail_(sub1, stampSize=(100,100), grid=(5, 5), innerSpace = 1)
-    timg = scipy.ndimage.zoom(timg, 4, order=0)
-    import matplotlib.pyplot as plt
-    plt.figure(figsize = (12, 12))
-    plt.imshow(timg, cmap='gray')
-    plt.show()
+    widImg = []
+    if minx>0 and miny>0 and maxx<imgSize[1] and maxy<imgSize[0]:
+        widImg=img[miny:maxy,minx:maxx]
+        
+    return widImg
+
+def getWindowImgs(srcDir, objImg, tmpImg, resiImg, datalist, size):
+    
+    objPath = "%s/%s"%(srcDir, objImg)
+    tmpPath = "%s/%s"%(srcDir, tmpImg)
+    resiPath = "%s/%s"%(srcDir, resiImg)
+    
+    objData = fits.getdata(objPath)
+    tmpData = fits.getdata(tmpPath)
+    resiData = fits.getdata(resiPath)
+    
+    subImgs = []
+    parms = []
+    for td in datalist:
+        objWid = getWindowImg(objData, (td[0], td[1]), size)
+        tmpWid = getWindowImg(tmpData, (td[0], td[1]), size)
+        resiWid = getWindowImg(resiData, (td[0], td[1]), size)
+        
+        if len(objWid)>0 and len(tmpWid)>0 and len(resiWid)>0:
+            subImgs.append([objWid, tmpWid, resiWid])
+            parms.append(td)
+            
+    return np.array(subImgs), np.array(parms)
 
 def genPSFView(psfImgs, innerSpace = 1, zoomScale=1):
     
@@ -463,4 +478,3 @@ def genFinalOTDs9Reg(tname, tpath, poslist):
     ofp.close()
     tfp.close()
         
-    

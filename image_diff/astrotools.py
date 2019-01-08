@@ -13,14 +13,16 @@ import logging
 import requests
 from astropy.modeling import models, fitting
 import paramiko
-from ot2classify import OT2Classify
 
 
 class AstroTools(object):
     
     def __init__(self, rootPath): 
         
-        self.verbose = False
+        self.verbose = True
+        
+        #self.serverIP = "http://172.28.8.8:8080"
+        self.serverIP = "http://10.0.10.236:9995"
         
         self.rootPath = rootPath
         self.varDir = "%s/tools/simulate_tools"%(rootPath)
@@ -31,9 +33,7 @@ class AstroTools(object):
         self.wcsProgramPC780="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/astrometry.net/bin/solve-field"
     
         os.environ['VER_DIR'] = self.varDir
-        
-        self.ot2Classifier = OT2Classify(rootPath)
-        
+                
         self.initLog()
         
     def initLog(self):
@@ -360,48 +360,6 @@ class AstroTools(object):
         self.log.debug("run hotpants use %d seconds"%(runTime))
             
         return outFile
-    
-    def getWindowImg(self, img, ctrPos, size):
-        
-        imgSize = img.shape
-        hsize = int(size/2)
-        tpad = int(size%2)
-        ctrX = math.ceil(ctrPos[0])
-        ctrY = math.ceil(ctrPos[1])
-        
-        minx = int(ctrX - hsize)
-        maxx = int(ctrX + hsize + tpad)
-        miny = int(ctrY - hsize)
-        maxy = int(ctrY + hsize + tpad)
-        
-        widImg = []
-        if minx>0 and miny>0 and maxx<imgSize[1] and maxy<imgSize[0]:
-            widImg=img[miny:maxy,minx:maxx]
-            
-        return widImg
-    
-    def getWindowImgs(self, srcDir, objImg, tmpImg, resiImg, datalist, size):
-        
-        objPath = "%s/%s"%(srcDir, objImg)
-        tmpPath = "%s/%s"%(srcDir, tmpImg)
-        resiPath = "%s/%s"%(srcDir, resiImg)
-        
-        objData = fits.getdata(objPath)
-        tmpData = fits.getdata(tmpPath)
-        resiData = fits.getdata(resiPath)
-        
-        subImgs = []
-        parms = []
-        for td in datalist:
-            objWid = self.getWindowImg(objData, (td[0], td[1]), size)
-            tmpWid = self.getWindowImg(tmpData, (td[0], td[1]), size)
-            resiWid = self.getWindowImg(resiData, (td[0], td[1]), size)
-            
-            if len(objWid)>0 and len(tmpWid)>0 and len(resiWid)>0:
-                subImgs.append([objWid, tmpWid, resiWid])
-                parms.append(td)
-                
-        return np.array(subImgs), np.array(parms)
     
     def removeHeaderAndOverScan(self, srcDir, fname):
         
@@ -747,8 +705,7 @@ class AstroTools(object):
         try:
             sendTime = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S")
             tmsg = "%s: %s"%(sendTime, tmsg)
-            msgURL = "http://172.28.8.8:8080/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
-            #msgURL = "http://10.0.10.236:9995/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="
+            msgURL = "%s/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="%(self.serverIP)
             turl = "%s%s"%(msgURL,tmsg)
             
             msgSession = requests.Session()
@@ -757,12 +714,4 @@ class AstroTools(object):
             self.log.error(" send trigger msg error ")
             self.log.error(str(e))
 
-    def classifyImg(self, imgs, parms, prob=0.01):
-        
-        predProbs = self.ot2Classifier.doClassifyData(imgs)
-        parms = np.concatenate((parms, predProbs), axis=1)
-        tIdx = predProbs>=prob
-        tParms = parms[tIdx]
-        
-        return tParms
         
