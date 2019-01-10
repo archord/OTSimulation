@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import os
 from astropy.stats import sigma_clip
 import numpy as np
 import scipy.ndimage
@@ -8,6 +8,31 @@ from astropy.io import fits
 #import cv2
 
 
+#limit: require the file at least have two lines
+def getLastLine(fname):
+    f = open(fname, 'rb')
+    last = ""
+    try:
+        f.seek(0, os.SEEK_END)
+        if f.tell()>1:
+            f.seek(-1, os.SEEK_END)     # Jump to the second last byte.
+            tdata = f.read(1)
+            #jump the last empty line, to the last line with content
+            while tdata == b"\n" or tdata == b"\r":
+                if f.tell()<=1:
+                    break
+                f.seek(-2, os.SEEK_CUR) 
+                tdata = f.read(1)
+            #search to the head of last line
+            while tdata != b"\n" and tdata != b"\r":
+                f.seek(-2, os.SEEK_CUR)
+                tdata = f.read(1)
+            last = f.readline().decode()         # Read last line.
+            #last = f.readlines()[-1].decode()
+    finally:
+        f.close()
+    return last.strip()
+    
 def getWindowImg(img, ctrPos, size):
     
     imgSize = img.shape

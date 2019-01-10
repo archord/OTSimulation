@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import sys
 import requests
 import traceback
 from datetime import datetime
@@ -25,12 +25,16 @@ def doUpload(path, fnames, ftype, serverIP):
     except Exception as e:
         tstr = traceback.format_exc()
         print(tstr)
-        
 
-if __name__ == "__main__":
+def testUpload():
     
     path=r"F:\test"
     fnames=['1.jpg','2.jpg','1.png','2.png']
     ftype="diffot1img"
     serverIP="http://127.0.0.1:8080"
     doUpload(path, fnames, ftype, serverIP)
+
+if __name__ == "__main__":
+    
+    print(len(sys.argv))
+    print(sys.argv)

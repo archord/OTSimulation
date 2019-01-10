@@ -19,10 +19,10 @@ class AstroTools(object):
     
     def __init__(self, rootPath): 
         
-        self.verbose = True
+        self.verbose = False
         
-        #self.serverIP = "http://172.28.8.8:8080"
-        self.serverIP = "http://10.0.10.236:9995"
+        self.serverIP = "http://172.28.8.8:8080"
+        #self.serverIP = "http://10.0.10.236:9995"
         
         self.rootPath = rootPath
         self.varDir = "%s/tools/simulate_tools"%(rootPath)
@@ -328,6 +328,7 @@ class AstroTools(object):
     def runHotpants(self, objImg, tmpImg, srcDir):
         
         starttime = datetime.now()
+        runSuccess = True        
         
         objpre= objImg.split(".")[0]
         tmppre= tmpImg.split(".")[0]
@@ -352,14 +353,16 @@ class AstroTools(object):
         if os.path.exists(outFPath) and status==0:
             self.log.debug("run hotpants success.")
             self.log.debug("generate diff residual image %s"%(outFPath))
+            runSuccess = True
         else:
             self.log.error("hotpants failed.")
+            runSuccess = False
             
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("run hotpants use %d seconds"%(runTime))
             
-        return outFile
+        return outFile, runSuccess
     
     def removeHeaderAndOverScan(self, srcDir, fname):
         

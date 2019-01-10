@@ -77,8 +77,8 @@ class OT2Classify(object):
                 tpath = "%s/%s"%(path, tfname)
                 files.append(('fileUpload', (tfname,  open(tpath,'rb'), 'text/plain')))
             
-            print(values)
-            print(files)
+            #print(values)
+            #print(files)
             msgSession = requests.Session()
             r = msgSession.post(turl, files=files, data=values)
             
@@ -95,84 +95,90 @@ class OT2Classify(object):
         
         starttime = datetime.now()
         
-        nameBase = origName[:origName.index(".")]
-        
-        tParms1 = self.doClassifyFile(subImgPath, totFile)
-        if tParms1.shape[0]>0:
-            tParms1 = tParms1[tParms1[:,6]<maxNEllip]
+        try:
+            nameBase = origName[:origName.index(".")]
+            
+            tParms1 = self.doClassifyFile(subImgPath, totFile)
             if tParms1.shape[0]>0:
-                tflags1 = np.ones((tParms1.shape[0],1)) #OT FLAG 
-                tParms1 = np.concatenate((tParms1, tflags1), axis=1)
-        
-        tParms2 = self.doClassifyFile(subImgPath, fotFile)
-        if tParms2.shape[0]>0:
-            tParms2 = tParms2[tParms2[:,6]<maxMEllip]
+                tParms1 = tParms1[tParms1[:,6]<maxNEllip]
+                if tParms1.shape[0]>0:
+                    tflags1 = np.ones((tParms1.shape[0],1)) #OT FLAG 
+                    tParms1 = np.concatenate((tParms1, tflags1), axis=1)
+            
+            tParms2 = self.doClassifyFile(subImgPath, fotFile)
             if tParms2.shape[0]>0:
-                tflags2 = np.zeros((tParms2.shape[0],1)) #OT FLAG 
-                tParms2 = np.concatenate((tParms2, tflags2), axis=1)
-        
-        if tParms1.shape[0]>0 and tParms2.shape[0]>0:
-            tParms = np.concatenate((tParms1, tParms2), axis=0)
-        elif tParms1.shape[0]>0:
-            tParms = tParms1
-        elif tParms2.shape[0]>0:
-            tParms = tParms2
+                tParms2 = tParms2[tParms2[:,6]<maxMEllip]
+                if tParms2.shape[0]>0:
+                    tflags2 = np.zeros((tParms2.shape[0],1)) #OT FLAG 
+                    tParms2 = np.concatenate((tParms2, tflags2), axis=1)
             
-        if tParms.shape[0]>0:
-            tParms = tParms[tParms[:,15]>=prob]
-        if tParms.shape[0]>0:
-            tSubImgs, tParms = getWindowImgs(fullImgPath, newImg, tmpImg, resImg, tParms, 100)
-            self.log.info("after classified, %s total get %d sub images"%(origName, tSubImgs.shape[0]))
-            
-            i=1
-            timgNames = []
-            for timg in tSubImgs:
-                objWid, tmpWid, resiWid = timg[0],timg[1],timg[2]
+            if tParms1.shape[0]>0 and tParms2.shape[0]>0:
+                tParms = np.concatenate((tParms1, tParms2), axis=0)
+            elif tParms1.shape[0]>0:
+                tParms = tParms1
+            elif tParms2.shape[0]>0:
+                tParms = tParms2
                 
-                objWidz = zscale_image(objWid)
-                tmpWidz = zscale_image(tmpWid)
-                resiWidz = zscale_image(resiWid)
-                objWidz = scipy.ndimage.zoom(objWidz, 2, order=0)
-                tmpWidz = scipy.ndimage.zoom(tmpWidz, 2, order=0)
-                resiWidz = scipy.ndimage.zoom(resiWidz, 2, order=0)
+            if tParms.shape[0]>0:
+                tParms = tParms[tParms[:,15]>=prob]
+            if tParms.shape[0]>0:
+                tSubImgs, tParms = getWindowImgs(fullImgPath, newImg, tmpImg, resImg, tParms, 100)
+                self.log.info("after classified, %s total get %d sub images"%(origName, tSubImgs.shape[0]))
                 
-                objWidz = objWidz.reshape(objWidz.shape[0], objWidz.shape[1],1).repeat(3,2)
-                tmpWidz = tmpWidz.reshape(tmpWidz.shape[0], tmpWidz.shape[1],1).repeat(3,2)
-                resiWidz = resiWidz.reshape(resiWidz.shape[0], resiWidz.shape[1],1).repeat(3,2)
-                
-                shift00=3
-                cv2.circle(objWidz, (int(objWidz.shape[0]/2)-shift00, int(objWidz.shape[1]/2)-shift00), 10, (0,255,0), thickness=2)
-                cv2.circle(tmpWidz, (int(tmpWidz.shape[0]/2)-shift00, int(tmpWidz.shape[1]/2)-shift00), 10, (0,255,0), thickness=2)
-                cv2.circle(resiWidz, (int(resiWidz.shape[0]/2)-shift00, int(resiWidz.shape[1]/2)-shift00), 10, (0,255,0), thickness=2)
-                
-                spaceLine = np.ones((objWidz.shape[0],5), dtype=np.uint8)*255
-                spaceLine = spaceLine.reshape(spaceLine.shape[0], spaceLine.shape[1],1).repeat(3,2)
-                sub2Con = np.concatenate((objWidz, spaceLine, tmpWidz, spaceLine, resiWidz), axis=1)
-                
-                tImgName = "%s_%05d.jpg"%(nameBase,i)
-                timgNames.append(tImgName)
-                savePath = "%s/%s"%(fullImgPath, tImgName)
-                Image.fromarray(sub2Con).save(savePath)
-                i = i+1
-    
-            catName = tImgName = "%s.cat"%(nameBase)
-            catPath = "%s/%s"%(fullImgPath, catName)
-            fp0 = open(catPath, 'w')
-            fp0.write(self.theader)
-            i=0
-            for td in tParms:
-                tstr = "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f,%f,%f,%.3f,%d,%s\n"%\
-                    (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12],td[13],
-                     td[14],td[15],td[16], timgNames[i])
-                fp0.write(tstr)
-                i=i+1
-            fp0.close()
-            
-            self.doUpload(fullImgPath,[catName],'diffot1',serverIP)
-            self.doUpload(fullImgPath,timgNames,'diffot1img',serverIP)
+                i=1
+                timgNames = []
+                for timg in tSubImgs:
+                    objWid, tmpWid, resiWid = timg[0],timg[1],timg[2]
+                    
+                    objWidz = zscale_image(objWid)
+                    tmpWidz = zscale_image(tmpWid)
+                    resiWidz = zscale_image(resiWid)
+                    objWidz = scipy.ndimage.zoom(objWidz, 2, order=0)
+                    tmpWidz = scipy.ndimage.zoom(tmpWidz, 2, order=0)
+                    resiWidz = scipy.ndimage.zoom(resiWidz, 2, order=0)
+                    
+                    objWidz = objWidz.reshape(objWidz.shape[0], objWidz.shape[1],1).repeat(3,2)
+                    tmpWidz = tmpWidz.reshape(tmpWidz.shape[0], tmpWidz.shape[1],1).repeat(3,2)
+                    resiWidz = resiWidz.reshape(resiWidz.shape[0], resiWidz.shape[1],1).repeat(3,2)
+                    
+                    shift00=3
+                    cv2.circle(objWidz, (int(objWidz.shape[0]/2)-shift00, int(objWidz.shape[1]/2)-shift00), 10, (0,255,0), thickness=2)
+                    cv2.circle(tmpWidz, (int(tmpWidz.shape[0]/2)-shift00, int(tmpWidz.shape[1]/2)-shift00), 10, (0,255,0), thickness=2)
+                    cv2.circle(resiWidz, (int(resiWidz.shape[0]/2)-shift00, int(resiWidz.shape[1]/2)-shift00), 10, (0,255,0), thickness=2)
+                    
+                    spaceLine = np.ones((objWidz.shape[0],5), dtype=np.uint8)*255
+                    spaceLine = spaceLine.reshape(spaceLine.shape[0], spaceLine.shape[1],1).repeat(3,2)
+                    sub2Con = np.concatenate((objWidz, spaceLine, tmpWidz, spaceLine, resiWidz), axis=1)
+                    
+                    tImgName = "%s_%05d.jpg"%(nameBase,i)
+                    timgNames.append(tImgName)
+                    savePath = "%s/%s"%(fullImgPath, tImgName)
+                    Image.fromarray(sub2Con).save(savePath)
+                    i = i+1
         
-        #os.system("rm -rf %s"%(fullImgPath))
+                catName = tImgName = "%s.cat"%(nameBase)
+                catPath = "%s/%s"%(fullImgPath, catName)
+                fp0 = open(catPath, 'w')
+                #fp0.write(self.theader)
+                i=0
+                for td in tParms:
+                    tstr = "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f,%f,%f,%.3f,%d,%s\n"%\
+                        (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12],td[13],
+                         td[14],td[15],td[16], timgNames[i])
+                    fp0.write(tstr)
+                    i=i+1
+                fp0.close()
+                
+                self.doUpload(fullImgPath,[catName],'diffot1',serverIP)
+                self.doUpload(fullImgPath,timgNames,'diffot1img',serverIP)
+            
+            os.system("rm -rf %s"%(fullImgPath))
         
+        except Exception as e:
+            self.log.error('classifyAndUpload error')
+            self.log.error(str(e))
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.info("********** classifyAndUpload %s use %d seconds"%(origName, runTime))
