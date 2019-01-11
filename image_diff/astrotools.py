@@ -707,7 +707,7 @@ class AstroTools(object):
 
         try:
             sendTime = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S")
-            tmsg = "%s: %s"%(sendTime, tmsg)
+            tmsg = "%s\n %s"%(sendTime, tmsg)
             msgURL = "%s/gwebend/sendTrigger2WChart.action?chatId=gwac004&triggerMsg="%(self.serverIP)
             turl = "%s%s"%(msgURL,tmsg)
             

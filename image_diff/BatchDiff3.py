@@ -20,8 +20,11 @@ from ot2classify import OT2Classify
 
             
 class BatchImageDiff(object):
-    def __init__(self, dataRoot, dataDest, tools): 
-                        
+    def __init__(self, dataRoot, dataDest, tools, camName, skyName): 
+        
+        self.camName = camName
+        self.skyName = str(skyName)
+        self.ffNumber = 0
         self.toolPath = os.getcwd()
         self.funpackProgram="%s/tools/cfitsio/funpack"%(self.toolPath)
         self.tmpRoot="/dev/shm/gwacsim"
@@ -68,14 +71,6 @@ class BatchImageDiff(object):
         
         self.initReg(0)
                 
-        if not os.path.exists(self.tmpUpload):
-            os.system("mkdir -p %s"%(self.tmpUpload))
-        if not os.path.exists(self.templateDir):
-            os.system("mkdir -p %s"%(self.templateDir))
-        if not os.path.exists(self.tmpDir):
-            os.system("mkdir -p %s"%(self.tmpDir))
-        if not os.path.exists(self.tmpCat):
-            os.system("mkdir -p %s"%(self.tmpCat))
         if not os.path.exists(self.resiCatDir):
             os.system("mkdir -p %s"%(self.resiCatDir))
         if not os.path.exists(self.destDir):
@@ -84,13 +79,26 @@ class BatchImageDiff(object):
             os.system("mkdir -p %s"%(self.preViewDir))
         if not os.path.exists(self.origPreViewDir):
             os.system("mkdir -p %s"%(self.origPreViewDir))
+
+    def sendMsg(self, tmsg):
         
+        tmsgStr = "%s, sky:%s, ffNum:%d\n %s"%(self.camName, self.skyName, self.ffNumber, tmsg)
+        self.tools.sendTriggerMsg(tmsgStr)
+    
     def initReg(self, idx):
         
         if idx<=0:
             idx =0
             os.system("rm -rf %s/*"%(self.tmpRoot))
             os.system("rm -rf %s/*"%(self.tmpUpload))
+            if not os.path.exists(self.tmpUpload):
+                os.system("mkdir -p %s"%(self.tmpUpload))
+            if not os.path.exists(self.templateDir):
+                os.system("mkdir -p %s"%(self.templateDir))
+            if not os.path.exists(self.tmpDir):
+                os.system("mkdir -p %s"%(self.tmpDir))
+            if not os.path.exists(self.tmpCat):
+                os.system("mkdir -p %s"%(self.tmpCat))
         
         self.procNum = 0
         self.tmplImgIdx = 0
@@ -162,11 +170,7 @@ class BatchImageDiff(object):
             
             tmsgStr = "%d,%s regist to %d,%s, fwhm %.2f"%(tImgNum, imgName, regIdx, tImgCat, self.imglist[regIdx][6])
             self.log.info(tmsgStr)
-            
-            #if imgIdx==492:
-            #    xshift0 = 1.10
-            #    yshift0 = 12.80
-            
+                        
             xshift0Orig = xshift0
             yshift0Orig = yshift0
             tryShifts = [1.0,0.1]
@@ -211,7 +215,7 @@ class BatchImageDiff(object):
                 regSuccess = False
                 tmsgStr = "%d %s astrometry failing"%(imgIdx, imgName)
                 self.log.error(tmsgStr)
-                self.tools.sendTriggerMsg(tmsgStr)
+                self.sendMsg(tmsgStr)
         
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
@@ -235,6 +239,8 @@ class BatchImageDiff(object):
                 endIdx = tImgNum
             
             startIdx = tImgNum-selTempRange
+            if startIdx<0:
+                startIdx = 0
             timgN = self.imglist[-1]
             timgNk = self.imglist[startIdx]
             if timgN[1]!=timgNk[1]: #check if rebuilt template
@@ -265,13 +271,14 @@ class BatchImageDiff(object):
             
             tmsgStr = "select %dth image %s as template, it has min fwhm %.2f"%(self.tmplImgIdx, self.origTmplImgName, tfwhms[minIdx])
             self.log.info(tmsgStr)
-            self.tools.sendTriggerMsg(tmsgStr)
+            self.sendMsg(tmsgStr)
             
             os.system("rm -rf %s/*"%(self.templateDir))
     
     
             oImgf = "%s/%s"%(self.srcDir,self.origTmplImgName)
             oImgfz = "%s/%s.fz"%(self.srcDir,self.origTmplImgName)
+            fileExist = True
             if os.path.exists(oImgf):
                 os.system("cp %s/%s %s/%s"%(self.srcDir, self.origTmplImgName, self.templateDir, self.templateImg))
             elif os.path.exists(oImgfz):
@@ -279,41 +286,43 @@ class BatchImageDiff(object):
                 os.system("%s %s/%s.fz"%(self.funpackProgram, self.templateDir, self.templateImg))
             else:
                 self.log.warning("%s not exist"%(oImgf))
-                return
+                fileExist = False
+                runSuccess = False
+            
+            if fileExist:
+                fieldId, ra,dec = self.tools.removeHeaderAndOverScan(self.templateDir, self.templateImg)
+                sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
+                fpar='sex_diff.par'
+                tmplCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0)
                 
-            fieldId, ra,dec = self.tools.removeHeaderAndOverScan(self.templateDir, self.templateImg)
-            sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
-            fpar='sex_diff.par'
-            tmplCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0)
-            
-            sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5','-CATALOG_TYPE', 'FITS_LDAC']
-            tmplCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0, outSuffix='_ldac.fit')
-            
-            self.tools.ldac2fits('%s/%s'%(self.templateDir,tmplCat), '%s/ti_cat.fit'%(self.templateDir))
-            
-            #tpath = "%s/%s"%(self.templateDir,tmplCat)
-            #self.tools.runWCS(self.templateDir,'ti_cat.fit', ra, dec)
-            ccdName = self.origTmplImgName[:4]
-            runSuccess = self.tools.runWCSRemotePC780(self.templateDir,'ti_cat.fit', ra, dec, ccdName)
-            
-            if runSuccess:
-                self.wcs = WCS('%s/ti_cat.wcs'%(self.templateDir))
-                ra_center, dec_center = self.wcs.all_pix2world(self.imgSize[1]/2, self.imgSize[0]/2, 1)
-                self.log.info('read_ra_center:%.5f, read_dec_center:%.5f'%(ra, dec))
-                self.log.info('real_ra_center:%.5f, real_dec_center:%.5f'%(ra_center, dec_center))
-            else:
-                self.wcs = []
-                self.log.error('make template %s, get wcs error'%(self.origTmplImgName))
-            
-            objName = 'ti.fit'
-            bkgName = 'ti_bkg.fit'
-            self.badPixCat = self.tools.processBadPix(objName, bkgName, self.templateDir, self.templateDir)
-            
-            #do astrometry, get wcs    
-            
-            endtime = datetime.now()
-            runTime = (endtime - starttime).seconds
-            self.log.info("********** make template %s use %d seconds"%(self.origTmplImgName, runTime))
+                sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5','-CATALOG_TYPE', 'FITS_LDAC']
+                tmplCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0, outSuffix='_ldac.fit')
+                
+                self.tools.ldac2fits('%s/%s'%(self.templateDir,tmplCat), '%s/ti_cat.fit'%(self.templateDir))
+                
+                #tpath = "%s/%s"%(self.templateDir,tmplCat)
+                #self.tools.runWCS(self.templateDir,'ti_cat.fit', ra, dec)
+                ccdName = self.origTmplImgName[:4]
+                runSuccess = self.tools.runWCSRemotePC780(self.templateDir,'ti_cat.fit', ra, dec, ccdName)
+                
+                if runSuccess:
+                    self.wcs = WCS('%s/ti_cat.wcs'%(self.templateDir))
+                    ra_center, dec_center = self.wcs.all_pix2world(self.imgSize[1]/2, self.imgSize[0]/2, 1)
+                    self.log.info('read_ra_center:%.5f, read_dec_center:%.5f'%(ra, dec))
+                    self.log.info('real_ra_center:%.5f, real_dec_center:%.5f'%(ra_center, dec_center))
+                else:
+                    self.wcs = []
+                    self.log.error('make template %s, get wcs error'%(self.origTmplImgName))
+                
+                objName = 'ti.fit'
+                bkgName = 'ti_bkg.fit'
+                self.badPixCat = self.tools.processBadPix(objName, bkgName, self.templateDir, self.templateDir)
+                
+                #do astrometry, get wcs    
+                
+                endtime = datetime.now()
+                runTime = (endtime - starttime).seconds
+                self.log.info("********** make template %s use %d seconds"%(self.origTmplImgName, runTime))
             
         except Exception as e:
             runSuccess = False
@@ -322,7 +331,7 @@ class BatchImageDiff(object):
             tstr = traceback.format_exc()
             self.log.error(tstr)
             tmsgStr = "make template error"
-            self.tools.sendTriggerMsg(tmsgStr)
+            self.sendMsg(tmsgStr)
         
         return runSuccess
         
@@ -403,7 +412,7 @@ class BatchImageDiff(object):
         else:
             tmsgStr = "%s.fit resi image has %d tot objects, maybe wrong"%(oImgPre, totProps.shape[0])
             self.log.error(tmsgStr)
-            self.tools.sendTriggerMsg(tmsgStr)
+            self.sendMsg(tmsgStr)
             resultFlag = False
             
         tgrid = 4
@@ -449,6 +458,7 @@ class BatchImageDiff(object):
         
     def processImg(self, objectImg, ffNumber):
 
+        self.ffNumber = ffNumber
         i = self.procNum
         try:
             self.log.debug("\n\n************%d, %s"%(i, objectImg))
@@ -463,46 +473,50 @@ class BatchImageDiff(object):
                     else:
                         self.makeTempFalseNum = 0
 
-                regSuccess = self.register(objectImg, self.tmplImgIdx, i)
-                if regSuccess:
-                    diffResult = self.diffImage()
-                    if diffResult == False:
-                        self.diffFalseNum = self.diffFalseNum+1
+                if len(self.origTmplImgName)>0:
+                    regSuccess = self.register(objectImg, self.tmplImgIdx, i)
+                    if regSuccess:
+                        diffResult = self.diffImage()
+                        if diffResult == False:
+                            self.diffFalseNum = self.diffFalseNum+1
+                        else:
+                            self.classifyAndUpload()
+                        #break
                     else:
-                        self.classifyAndUpload()
-                    #break
-                else:
-                    if self.regFalseIdx+self.regFalseNum==i:
-                        self.regFalseNum = self.regFalseNum +1
-                    else:
-                        self.regFalseIdx=i
-                        self.regFalseNum = 1
+                        if self.regFalseIdx+self.regFalseNum==i:
+                            self.regFalseNum = self.regFalseNum +1
+                        else:
+                            self.regFalseIdx=i
+                            self.regFalseNum = 1
                         
         except Exception as e:
             tstr = traceback.format_exc()
             self.log.error(tstr)
             tmsgStr = "process %d %s error"%(i,objectImg)
-            self.tools.sendTriggerMsg(tmsgStr)
+            self.sendMsg(tmsgStr)
         finally:
-            if i%10==1:
-                self.tools.sendTriggerMsg("imageDiff idx=%d, ffNumber=%d, %s"%(i, ffNumber, objectImg))
             i = i +1
             self.procNum = i
             if self.regFalseNum>=self.maxFalseNum:
-                self.initReg(0)
                 tmsgStr = "from %d %s, more than %d image regist failing, rebuilt template"%(i,objectImg,self.regFalseNum)
+                self.initReg(0)
                 self.log.error(tmsgStr)
-                self.tools.sendTriggerMsg(tmsgStr)
+                self.sendMsg(tmsgStr)
+            elif self.makeTempFalseNum>=self.maxFalseNum:
+                tmsgStr = "from %d %s, more than %d image make template failing, rebuilt template"%(i,objectImg,self.regFalseNum)
+                self.initReg(0)
+                self.log.info(tmsgStr)
+                self.sendMsg(tmsgStr)
             elif i==4*10:
                 self.tmplImgIdx=0
                 tmsgStr = "10 minutes, rebuilt template from %d %s"%(i,objectImg)
                 self.log.info(tmsgStr)
-                self.tools.sendTriggerMsg(tmsgStr)
+                self.sendMsg(tmsgStr)
             elif i>4*60 and i%(4*60)==1:
                 self.tmplImgIdx=0
-                tmsgStr = "60 minutes, rebuilt template from %d %s"%(i,objectImg)
+                tmsgStr = "%d hours, rebuilt template from %d %s"%(i/(4*60), i,objectImg)
                 self.log.info(tmsgStr)
-                self.tools.sendTriggerMsg(tmsgStr)
+                self.sendMsg(tmsgStr)
   
               
 def run1(camName):
@@ -528,15 +542,15 @@ def run1(camName):
     while True:
         curUtcDateTime = datetime.utcnow()
         tDateTime = datetime.utcnow()
-        startDateTime = tDateTime.replace(hour=4, minute=30, second=0)  #9=17
-        endDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #23=7
+        startDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #9=17  4=12
+        endDateTime = tDateTime.replace(hour=22, minute=30, second=0)  #22=6    8=16
         remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
         remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
         if remainSeconds1<0 and remainSeconds2>0:
             dayRun = 0
             try:
                 tfiles = query.getFileList(camName, ffId)
-                print(tfiles)
+                #print(tfiles)
                 for tfile in tfiles:
                     
                     curFfId = tfile[0]
@@ -557,10 +571,10 @@ def run1(camName):
                                                         
                     if skyId!=curSkyId and curFfId>ffId:
                         dstDir='%s/%s'%(dataDest0, dateStr)
-                        tdiff = BatchImageDiff(srcDir, dstDir, tools)
-                        tStr = "start imageDiff, skyId:%s,ffNumber:%d,%s"%(curSkyId, ffNumber, timgName)
+                        tdiff = BatchImageDiff(srcDir, dstDir, tools, camName, curSkyId)
+                        tStr = "start diff: %s"%(timgName)
                         tdiff.log.info(tStr)
-                        tdiff.tools.sendTriggerMsg(tStr)
+                        tdiff.sendMsg(tStr)
                         
                     if curFfId>ffId:
                         skyId=curSkyId
@@ -581,22 +595,34 @@ def run1(camName):
                 tstr = traceback.format_exc()
                 print(tstr)
                 try:
-                    tStr = "%s: imageDiff error, stop."%(camName)
-                    tdiff.log.info(tStr)
-                    tdiff.tools.sendTriggerMsg(tStr)
+                    if 'tdiff' in locals():
+                        tStr = "diff error"
+                        tdiff.log.info(tStr)
+                        tdiff.sendMsg(tStr)
                 except Exception as e1:
                     print(str(e1))
                     tstr = traceback.format_exc()
+                    print(tstr)
             if len(tfiles)==0:
                 time.sleep(5)
             nigRun = nigRun+1
             #if nigRun>=3:
             #    break
         else:
+            # day temp file clean
+            try:
+                if ('tdiff' in locals()) and (dayRun==0):
+                     tdiff.initReg(0)
+            except Exception as e1:
+                print(str(e1))
+                tstr = traceback.format_exc()
+                print(tstr)
+                
             nigRun = 0
             dayRun = dayRun+1
             skyId = 0
             ffId = 0
+            
             if dayRun%6==1:
                 print("day %d wait"%(dayRun))
             time.sleep(10*60)

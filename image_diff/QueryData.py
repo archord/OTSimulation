@@ -69,3 +69,12 @@ class QueryData:
             
         return rows
     
+
+if __name__ == '__main__':
+    
+    camName = 'G021'
+    ffId = '500'
+    tquery = QueryData()
+    rows = tquery.getFileList(camName, ffId)
+    print(rows)
+    

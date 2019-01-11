@@ -12,7 +12,7 @@ from gwac_util import zscale_image, getWindowImgs
 
 class OT2Classify(object):
     
-    def __init__(self, dataRoot, log, modelName='model_128_5_RealFOT_8.h5'): 
+    def __init__(self, dataRoot, log, modelName='model_128_5_RealFOT_8_190111.h5'): 
         
         self.dataRoot=dataRoot
         self.modelName=modelName
@@ -56,7 +56,7 @@ class OT2Classify(object):
             #fs2n = 1.087/props[:,12].astype(np.float)
             
             if timgs32.shape[0]>0:
-                timgs = getImgStamp(timgs32, size=self.imgSize, padding = 0, transMethod='none')
+                timgs = getImgStamp(timgs32, size=self.imgSize, padding = 1, transMethod='none')
                 preY = self.model.predict(timgs, batch_size=128)
                 predProbs = preY[:, 1]
                 predProbs = predProbs.reshape([predProbs.shape[0],1])
