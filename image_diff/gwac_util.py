@@ -5,6 +5,7 @@ import numpy as np
 import scipy.ndimage
 import math
 from astropy.io import fits
+import traceback
 #import cv2
 
 
@@ -65,13 +66,18 @@ def getWindowImgs(srcDir, objImg, tmpImg, resiImg, datalist, size):
     subImgs = []
     parms = []
     for td in datalist:
-        objWid = getWindowImg(objData, (td[0], td[1]), size)
-        tmpWid = getWindowImg(tmpData, (td[0], td[1]), size)
-        resiWid = getWindowImg(resiData, (td[0], td[1]), size)
-        
-        if len(objWid)>0 and len(tmpWid)>0 and len(resiWid)>0:
-            subImgs.append([objWid, tmpWid, resiWid])
-            parms.append(td)
+        try:
+            objWid = getWindowImg(objData, (td[0], td[1]), size)
+            tmpWid = getWindowImg(tmpData, (td[0], td[1]), size)
+            resiWid = getWindowImg(resiData, (td[0], td[1]), size)
+            
+            if len(objWid)>0 and len(tmpWid)>0 and len(resiWid)>0:
+                subImgs.append([objWid, tmpWid, resiWid])
+                parms.append(td)
+                
+        except Exception as e:
+            tstr = traceback.format_exc()
+            print(tstr)
             
     return np.array(subImgs), np.array(parms)
 

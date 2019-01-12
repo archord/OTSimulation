@@ -550,11 +550,11 @@ class AstroTools(object):
         tdata1[:,0]=pos2[:,0]
         tdata1[:,1]=pos2[:,1]
         
-        outCatName = "%_trans.cat"%(oiCat[:oiCat.index(".")])
+        outCatName = "%s_trans.cat"%(oiCat[:oiCat.index(".")])
         outCatPath = "%s/%s"%(srcDir, outCatName)
         tstr=""
         for td in tdata1:
-           tstr += "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f\n"%\
+           tstr += "%.4f %.4f %.2f %.2f %.2f %.3f %.3f %.3f %.2f %.2f %d %.4f %.4f\n"%\
               (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12])
         with open(outCatPath, 'w') as fp0:
                fp0.write(tstr)
@@ -669,7 +669,7 @@ class AstroTools(object):
         with open(selposPath, 'w') as fp1:
             for td in tdata:
                #fp1.write("%.3f %.3f %.3f\n"%(td[0], td[1], td[11]))
-               tstr = "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f\n"%\
+               tstr = "%.4f %.4f %.2f %.2f %.2f %.3f %.3f %.3f %.2f %.2f %d %.4f %.4f\n"%\
                   (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12])
                fp1.write(tstr)
         
@@ -722,7 +722,7 @@ class AstroTools(object):
                
         return outCatName
         
-    def getBright(fname, tpath, brightMagRatio=0.5):
+    def getBright(self, tpath, fname, brightMagRatio=0.5):
     
         tdata = np.loadtxt("%s/%s"%(tpath, fname))
             
@@ -732,11 +732,11 @@ class AstroTools(object):
                 
         tdata = tdata[tdata[:,12]<maxMag]
                 
-        outCatName = "%_fp%.0f.cat"%(fname[:fname.index(".")], brightMagRatio*100)
+        outCatName = "%s_fp%02d.cat"%(fname[:fname.index(".")], int(brightMagRatio*100))
         outCatPath = "%s/%s"%(tpath, outCatName)
         with open(outCatPath, 'w') as fp0:
             for td in tdata:
-               tstr = "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f\n"%\
+               tstr = "%.4f %.4f %.2f %.2f %.2f %.3f %.3f %.3f %.2f %.2f %d %.4f %.4f\n"%\
                   (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12])
                fp0.write(tstr)
                

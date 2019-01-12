@@ -1,19 +1,15 @@
 # -*- coding: utf-8 -*-
-import scipy.ndimage
 import numpy as np
 import os
-import cv2
 import sys
 import math
 import time
 from datetime import datetime
 import traceback
 from PIL import Image
-from gwac_util import getThumbnail, genPSFView, getWindowImgs, zscale_image, getLastLine
+from gwac_util import getThumbnail, genPSFView, getWindowImgs, getLastLine
 from QueryData import QueryData
 from astropy.wcs import WCS
-from keras.models import load_model
-from DataPreprocess import getImgStamp
 
 from astrotools import AstroTools
 from ot2classify import OT2Classify
@@ -371,7 +367,7 @@ class BatchImageDiff(object):
         
         #mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.badPixCat, 1) #1 and 5 
         #os.system("cp %s/%s %s/%s"%(self.tmpDir, nmhFile, self.resiCatDir, "%s.cat"%(oImgPre)))
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.objectImgCatTrans, 1) #1 and 5 
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.objectImgCatTrans, 2) #1 and 5 
         os.system("cp %s/%s %s/%s"%(self.tmpDir, mchFile, self.resiCatDir, "%s.cat"%(oImgPre)))
         
         totProps = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
@@ -550,8 +546,8 @@ def run1(camName):
     while True:
         curUtcDateTime = datetime.utcnow()
         tDateTime = datetime.utcnow()
-        startDateTime = tDateTime.replace(hour=1, minute=30, second=0)  #9=17  1=9
-        endDateTime = tDateTime.replace(hour=8, minute=30, second=0)  #22=6    8=16
+        startDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #9=17  1=9
+        endDateTime = tDateTime.replace(hour=22, minute=30, second=0)  #22=6    8=16
         remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
         remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
         if remainSeconds1<0 and remainSeconds2>0:
@@ -597,7 +593,7 @@ def run1(camName):
                             tdiff.processImg(timgName, ffNumber)
                         else:
                             print("%s not exist"%(tpath))
-                    
+                    #break
             except Exception as e:
                 print(str(e))
                 tstr = traceback.format_exc()
@@ -614,7 +610,7 @@ def run1(camName):
             if len(tfiles)==0:
                 time.sleep(5)
             nigRun = nigRun+1
-            #if nigRun>=3:
+            #if nigRun>=1:
             #    break
         else:
             # day temp file clean
