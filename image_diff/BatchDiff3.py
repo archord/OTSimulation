@@ -354,6 +354,8 @@ class BatchImageDiff(object):
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         resiCat = self.tools.runSextractor(self.objTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf)
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, resiCat, self.objectImgCatTrans, 2) #1 and 5 
+        badPixProps2 = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
         
         '''
         self.tools.runSelfMatch(self.tmpDir, resiCat, 1) #debug: get ds9 reg file
@@ -362,16 +364,13 @@ class BatchImageDiff(object):
         '''
         ''' '''
         mchRadius = 15 #15 10
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, resiCat, self.templateImgCat, mchRadius)
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, mchFile, self.templateImgCat, mchRadius)
         fotProps = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
         
-        #mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.badPixCat, 1) #1 and 5 
-        #os.system("cp %s/%s %s/%s"%(self.tmpDir, nmhFile, self.resiCatDir, "%s.cat"%(oImgPre)))
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.objectImgCatTrans, 2) #1 and 5 
-        os.system("cp %s/%s %s/%s"%(self.tmpDir, mchFile, self.resiCatDir, "%s.cat"%(oImgPre)))
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.badPixCat, 1) #1 and 5 
+        os.system("cp %s/%s %s/%s"%(self.tmpDir, nmhFile, self.resiCatDir, "%s.cat"%(oImgPre)))
         
-        totProps = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
-        badPixProps2 = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
+        totProps = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
         badPixProps = np.loadtxt("%s/%s"%(self.tmpDir, self.badPixCat))
         tstr = "orgBadPix %d, nmBad %d, match %d, noMatch %d"%(badPixProps.shape[0], badPixProps2.shape[0], fotProps.shape[0], totProps.shape[0])
         self.log.info(tstr)
@@ -380,45 +379,50 @@ class BatchImageDiff(object):
         if totProps.shape[0]<500 and totProps.shape[0]>0:
             
             totSubImgs, totParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, totProps, size)
-            tXY = totParms[:,0:2]
-            tRaDec = self.wcs.all_pix2world(tXY, 1)
-            totParms = np.concatenate((totParms, tRaDec), axis=1)
-            fotpath = '%s/%s_totimg.npz'%(self.destDir, oImgPre)
-            np.savez_compressed(fotpath, imgs=totSubImgs, parms=totParms)
-            
-            resiImgs = []
-            for timg in totSubImgs:
-                resiImgs.append(timg[2])
-    
-            preViewPath = "%s/%s_tot.jpg"%(self.preViewDir, oImgPre)
-            #if not os.path.exists(preViewPath):
-            psfView = genPSFView(resiImgs)
-            Image.fromarray(psfView).save(preViewPath)
+            if totParms.shape[0]>0:
+                tXY = totParms[:,0:2]
+                tRaDec = self.wcs.all_pix2world(tXY, 1)
+                totParms = np.concatenate((totParms, tRaDec), axis=1)
+                fotpath = '%s/%s_totimg.npz'%(self.destDir, oImgPre)
+                np.savez_compressed(fotpath, imgs=totSubImgs, parms=totParms)
+                
+                resiImgs = []
+                for timg in totSubImgs:
+                    resiImgs.append(timg[2])
+        
+                preViewPath = "%s/%s_tot.jpg"%(self.preViewDir, oImgPre)
+                #if not os.path.exists(preViewPath):
+                psfView = genPSFView(resiImgs)
+                Image.fromarray(psfView).save(preViewPath)
             
             if fotProps.shape[0]>0 and fotProps.shape[0]<2000:
                 fotSubImgs, fotParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, fotProps, size)
-                tXY = fotParms[:,0:2]
-                tRaDec = self.wcs.all_pix2world(tXY, 1)
-                fotParms = np.concatenate((fotParms, tRaDec), axis=1)
-                fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
-                np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms)
+                if fotParms.shape[0]>0:
+                    tXY = fotParms[:,0:2]
+                    tRaDec = self.wcs.all_pix2world(tXY, 1)
+                    fotParms = np.concatenate((fotParms, tRaDec), axis=1)
+                    fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
+                    np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms)
             
             if badPixProps.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps, size)
-                fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
-                np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
+                if badParms.shape[0]>0:
+                    fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
+                    np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
             if badPixProps2.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps2, size)
-                fotpath = '%s/%s_badimg2.npz'%(self.destDir, oImgPre)
-                np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
+                if badParms.shape[0]>0:
+                    fotpath = '%s/%s_badimg2.npz'%(self.destDir, oImgPre)
+                    np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
                     
             resultFlag = True
         else:
             tmsgStr = "%s.fit resi image has %d tot objects, maybe wrong"%(oImgPre, totProps.shape[0])
             self.log.error(tmsgStr)
-            self.sendMsg(tmsgStr)
+            #self.sendMsg(tmsgStr)
             resultFlag = False
-            
+        
+        '''
         tgrid = 4
         tsize = 500
         tzoom = 1
@@ -426,6 +430,7 @@ class BatchImageDiff(object):
         #timg = scipy.ndimage.zoom(timg, tzoom, order=0)
         preViewPath = "%s/%s_resi.jpg"%(self.origPreViewDir, oImgPre)
         Image.fromarray(timg).save(preViewPath)
+        '''
         '''
         timg = getThumbnail(self.tmpDir, self.newImageName, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
         timg = scipy.ndimage.zoom(timg, tzoom, order=0)
