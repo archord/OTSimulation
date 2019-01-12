@@ -539,9 +539,25 @@ class AstroTools(object):
         
         return newimage, h, xshift, yshift
         
-    def imageAlignHmg(self, srcDir, oiImg, transHG):
+    def imageAlignHmg(self, srcDir, oiImg, oiCat, transHG):
     
         starttime = datetime.now()
+        
+        tdata1 = np.loadtxt("%s/%s"%(srcDir, oiCat))
+        pos1 = tdata1[:,0:2]
+        pos2 = cv2.perspectiveTransform(np.array([pos1]), transHG)
+        pos2 = pos2[0]
+        tdata1[:,0]=pos2[:,0]
+        tdata1[:,1]=pos2[:,1]
+        
+        outCatName = "%_trans.cat"%(oiCat[:oiCat.index(".")])
+        outCatPath = "%s/%s"%(srcDir, outCatName)
+        tstr=""
+        for td in tdata1:
+           tstr += "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f\n"%\
+              (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12])
+        with open(outCatPath, 'w') as fp0:
+               fp0.write(tstr)
                 
         tpath = "%s/%s"%(srcDir, oiImg)
         tData = fits.getdata(tpath)
@@ -559,7 +575,7 @@ class AstroTools(object):
         runTime = (endtime - starttime).seconds
         self.log.debug("opencv remap sci image use %.2f seconds"%(runTime))
         
-        return newName
+        return newName, outCatName
         
     def catShift(self, srcDir, fileName, xshift0, yshift0, transHG):
     
@@ -651,8 +667,11 @@ class AstroTools(object):
         selposName = "%s_sel.cat"%(resultCat[:resultCat.index(".")])
         selposPath = "%s/%s"%(srcPath, selposName)
         with open(selposPath, 'w') as fp1:
-            for tobj in tdata:
-               fp1.write("%.3f %.3f %.3f\n"%(tobj[0], tobj[1], tobj[11]))
+            for td in tdata:
+               #fp1.write("%.3f %.3f %.3f\n"%(td[0], td[1], td[11]))
+               tstr = "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f\n"%\
+                  (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12])
+               fp1.write(tstr)
         
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
@@ -700,6 +719,26 @@ class AstroTools(object):
             for tobj in tobjs:
                fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 10\"\n"%
                (tobj[0], tobj[1], 4.0, tobj[2]))
+               
+        return outCatName
+        
+    def getBright(fname, tpath, brightMagRatio=0.5):
+    
+        tdata = np.loadtxt("%s/%s"%(tpath, fname))
+            
+        mag = tdata[:,12]
+        mag = np.sort(mag)
+        maxMag = mag[int(brightMagRatio*tdata.shape[0])]
+                
+        tdata = tdata[tdata[:,12]<maxMag]
+                
+        outCatName = "%_fp%.0f.cat"%(fname[:fname.index(".")], brightMagRatio*100)
+        outCatPath = "%s/%s"%(tpath, outCatName)
+        with open(outCatPath, 'w') as fp0:
+            for td in tdata:
+               tstr = "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f\n"%\
+                  (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12])
+               fp0.write(tstr)
                
         return outCatName
         

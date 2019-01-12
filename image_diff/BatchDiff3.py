@@ -134,10 +134,12 @@ class BatchImageDiff(object):
                 
         self.tools.removeHeaderAndOverScan(self.tmpDir,self.objectImg)
 
-        sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
+        #sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         fpar='sex_diff.par'
         self.objectImgCat = self.tools.runSextractor(self.objectImg, self.tmpDir, self.tmpDir, fpar, sexConf)
-        mchFile16, nmhFile16 = self.tools.runSelfMatch(self.tmpDir, self.objectImgCat, 16)
+        self.objectImgCatBright = self.tools.getBright(self.tmpDir, self.objectImgCat, 0.5)
+        mchFile16, nmhFile16 = self.tools.runSelfMatch(self.tmpDir, self.objectImgCatBright, 16)
         
         tobjImgCat = nmhFile16
         os.system("cp %s/%s %s/%s"%(self.tmpDir, tobjImgCat, self.tmpCat, regCatName))
@@ -191,7 +193,7 @@ class BatchImageDiff(object):
                 
                 self.transHG, xshift, yshift, xrms, yrms = self.tools.getMatchPosHmg(self.tmpDir, tobjImgCat, self.templateImgCat, osn16_tsn16_cm_pair)
                 if xrms<1 and yrms<1 and imgIdx>=self.selTemplateNum:
-                    self.newImageName = self.tools.imageAlignHmg(self.tmpDir, self.objectImg, self.transHG)
+                    self.newImageName, self.objectImgCatTrans = self.tools.imageAlignHmg(self.tmpDir, self.objectImg, self.objectImgCat, self.transHG)
                 self.log.info("homography astrometry pos transform, xshift0=%.2f, yshift0=%.2f"%(xshift0, yshift0))
                 self.log.info("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
                 
@@ -367,13 +369,15 @@ class BatchImageDiff(object):
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, resiCat, self.templateImgCat, mchRadius)
         fotProps = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
         
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.badPixCat, 1) #1 and 5 
-        os.system("cp %s/%s %s/%s"%(self.tmpDir, nmhFile, self.resiCatDir, "%s.cat"%(oImgPre)))
+        #mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.badPixCat, 1) #1 and 5 
+        #os.system("cp %s/%s %s/%s"%(self.tmpDir, nmhFile, self.resiCatDir, "%s.cat"%(oImgPre)))
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.objectImgCatTrans, 1) #1 and 5 
+        os.system("cp %s/%s %s/%s"%(self.tmpDir, mchFile, self.resiCatDir, "%s.cat"%(oImgPre)))
         
-        totProps = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
-        #badPixProps = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
+        totProps = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
+        badPixProps2 = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
         badPixProps = np.loadtxt("%s/%s"%(self.tmpDir, self.badPixCat))
-        tstr = "badPix %d, match %d, noMatch %d"%(badPixProps.shape[0], fotProps.shape[0], totProps.shape[0])
+        tstr = "orgBadPix %d, nmBad %d, match %d, noMatch %d"%(badPixProps.shape[0], badPixProps2.shape[0], fotProps.shape[0], totProps.shape[0])
         self.log.info(tstr)
         
         size = self.subImgSize
@@ -406,6 +410,10 @@ class BatchImageDiff(object):
             if badPixProps.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps, size)
                 fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
+                np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
+            if badPixProps2.shape[0]>0:
+                badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps2, size)
+                fotpath = '%s/%s_badimg2.npz'%(self.destDir, oImgPre)
                 np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
                     
             resultFlag = True
@@ -542,8 +550,8 @@ def run1(camName):
     while True:
         curUtcDateTime = datetime.utcnow()
         tDateTime = datetime.utcnow()
-        startDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #9=17  4=12
-        endDateTime = tDateTime.replace(hour=22, minute=30, second=0)  #22=6    8=16
+        startDateTime = tDateTime.replace(hour=1, minute=30, second=0)  #9=17  1=9
+        endDateTime = tDateTime.replace(hour=8, minute=30, second=0)  #22=6    8=16
         remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
         remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
         if remainSeconds1<0 and remainSeconds2>0:
