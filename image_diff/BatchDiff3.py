@@ -595,7 +595,11 @@ def run1(camName):
                         
                         tpathfz = "%s.fz"%(tpath)
                         if os.path.exists(tpath) or os.path.exists(tpathfz):
+                            starttime = datetime.now()
                             tdiff.processImg(timgName, ffNumber)
+                            endtime = datetime.now()
+                            runTime = (endtime - starttime).seconds
+                            tdiff.log.info("totalTime %d seconds, sky:%d, ffNum:%d, %s"%(runTime, curSkyId, ffNumber, timgName))
                         else:
                             print("%s not exist"%(tpath))
                     #break
