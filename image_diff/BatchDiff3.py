@@ -131,7 +131,7 @@ class BatchImageDiff(object):
         self.tools.removeHeaderAndOverScan(self.tmpDir,self.objectImg)
 
         #sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
-        sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         fpar='sex_diff.par'
         self.objectImgCat = self.tools.runSextractor(self.objectImg, self.tmpDir, self.tmpDir, fpar, sexConf)
         self.objectImgCatBright = self.tools.getBright(self.tmpDir, self.objectImgCat, 0.5)
@@ -352,7 +352,7 @@ class BatchImageDiff(object):
             return False
 
         fpar='sex_diff.par'
-        sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         resiCat = self.tools.runSextractor(self.objTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf)
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, resiCat, self.objectImgCatTrans, 1) #1 and 5 
         badPixProps2 = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
