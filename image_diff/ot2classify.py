@@ -120,9 +120,11 @@ class OT2Classify(object):
                 tParms = tParms1
             elif tParms2.shape[0]>0:
                 tParms = tParms2
+            else:
+                tParms = np.array([])
                 
             if tParms.shape[0]>0:
-                tParms = tParms[tParms[:,15]>=prob]
+                tParms = tParms[tParms[:,17]>=prob]
             if tParms.shape[0]>0:
                 tSubImgs, tParms = getWindowImgs(fullImgPath, newImg, tmpImg, resImg, tParms, 100)
                 self.log.info("after classified, %s total get %d sub images"%(origName, tSubImgs.shape[0]))
