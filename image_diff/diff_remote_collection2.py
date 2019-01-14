@@ -32,8 +32,9 @@ def batchCopy(spath, dpath):
         ccdName = ip[-2:]
         dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
         dateStr = dateStr[2:]
+        dateStr = '190113'
         dirName1 = "G00%s_0%s_%s"%(ccdName[0],ccdName,dateStr)
-        dirName2 = "G00%s_0%s_190111"%(ccdName[0],ccdName)
+        dirName2 = "G00%s_0%s_190112"%(ccdName[0],ccdName)
         
         try:
             
