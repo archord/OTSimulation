@@ -544,20 +544,23 @@ class AstroTools(object):
         starttime = datetime.now()
         
         tdata1 = np.loadtxt("%s/%s"%(srcDir, oiCat))
-        pos1 = tdata1[:,0:2]
+        pos1 = tdata1[:,0:2].copy()  ## orig X Y
         pos2 = cv2.perspectiveTransform(np.array([pos1]), transHG)
-        pos2 = pos2[0]
+        pos2 = pos2[0] # temp X Y
         tdata1[:,0]=pos2[:,0]
         tdata1[:,1]=pos2[:,1]
         
         outCatName = "%s_trans.cat"%(oiCat[:oiCat.index(".")])
         outCatPath = "%s/%s"%(srcDir, outCatName)
         tstr=""
+        i=0
         for td in tdata1:
-           tstr += "%.4f %.4f %.2f %.2f %.2f %.3f %.3f %.3f %.2f %.2f %d %.4f %.4f\n"%\
-              (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12])
-        with open(outCatPath, 'w') as fp0:
-               fp0.write(tstr)
+           tstr += "%.4f %.4f %.2f %.2f %.2f %.3f %.3f %.3f %.2f %.2f %d %.4f %.4f %.4f %.4f\n"%\
+              (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12], pos1[i][0], pos1[i][1])
+           i=i+1
+        fp0 = open(outCatPath, 'w')
+        fp0.write(tstr)
+        fp0.close()
                 
         tpath = "%s/%s"%(srcDir, oiImg)
         tData = fits.getdata(tpath)

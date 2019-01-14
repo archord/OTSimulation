@@ -36,11 +36,13 @@ class OT2Classify(object):
                 "#  11 FLAGS                  Extraction flags                                                  \n"\
                 "#  12 MAG_APER               Fixed aperture magnitude vector                            [mag]  \n"\
                 "#  13 MAGERR_APER            RMS error vector for fixed aperture mag.                   [mag]  \n"\
-                "#  14 RA                     Fixed aperture magnitude vector                            [deg]  \n"\
-                "#  15 DEC                    RMS error vector for fixed aperture mag.                   [deg]  \n"\
-                "#  16 probability            machine learning predict probability.                             \n"\
-                "#  17 OT FLAG                1: resi not match temp; 0:resi match temp.                       \n"\
-                "#  18 stamp image name       the concatenate of 3 stamp image from obj, temp, resi.           \n"
+                "#  14 X_TEMP                 Object position along x                                    [pixel]\n"\
+                "#  15 Y_TEMP                 Object position along y                                    [pixel]\n"\
+                "#  16 RA                     Fixed aperture magnitude vector                            [deg]  \n"\
+                "#  17 DEC                    RMS error vector for fixed aperture mag.                   [deg]  \n"\
+                "#  18 probability            machine learning predict probability.                             \n"\
+                "#  19 OT FLAG                1: resi not match temp; 0:resi match temp.                       \n"\
+                "#  20 stamp image name       the concatenate of 3 stamp image from obj, temp, resi.           \n"
             
         self.catFormate="%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f,%f,%f,%.3f,%d,%s\n"
     
@@ -162,9 +164,9 @@ class OT2Classify(object):
                 #fp0.write(self.theader)
                 i=0
                 for td in tParms:
-                    tstr = "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f,%f,%f,%.3f,%d,%s\n"%\
+                    tstr = "%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f,%.4f,%.4f,%f,%f,%.3f,%d,%s\n"%\
                         (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12],td[13],
-                         td[14],td[15],td[16], timgNames[i])
+                         td[14],td[15],td[16],td[17],td[18], timgNames[i])
                     fp0.write(tstr)
                     i=i+1
                 fp0.close()

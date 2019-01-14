@@ -354,8 +354,30 @@ class BatchImageDiff(object):
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         resiCat = self.tools.runSextractor(self.objTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf)
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, resiCat, self.objectImgCatTrans, 2) #1 and 5 
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, resiCat, self.objectImgCatTrans, 1) #1 and 5 
         badPixProps2 = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
+        
+        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
+        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgCatTrans))
+        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair)).astype(np.int)
+        tIdx1 = tIdx1 - 1
+        origPos = tdata2[tIdx1[:,1]][:,-2:]
+        
+        if origPos.shape[0]==tdata1.shape[0]:
+            outCatName = "%s_orgpos.cat"%(mchFile[:mchFile.index(".")])
+            outCatPath = "%s/%s"%(self.tmpDir, outCatName)
+            tstr=""
+            i=0
+            for td in tdata1:
+               tstr += "%.4f %.4f %.2f %.2f %.2f %.3f %.3f %.3f %.2f %.2f %d %.4f %.4f %.4f %.4f\n"%\
+                  (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12], origPos[i][0], origPos[i][1])
+               i=i+1
+            fp0 = open(outCatPath, 'w')
+            fp0.write(tstr)
+            fp0.close()
+            mchFile = outCatName
+        else:
+            self.log.error("add orig pos error")
         
         '''
         self.tools.runSelfMatch(self.tmpDir, resiCat, 1) #debug: get ds9 reg file
