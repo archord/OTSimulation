@@ -543,18 +543,18 @@ class BatchImageDiff(object):
                 tmsgStr = "10 minutes, rebuilt template from %d %s"%(i,objectImg)
                 self.log.info(tmsgStr)
                 self.sendMsg(tmsgStr)
-            elif i==4*40:
+            elif i==4*30:
                 self.tmplImgIdx=0
                 tmsgStr = "30 minutes, rebuilt template from %d %s"%(i,objectImg)
                 self.log.info(tmsgStr)
                 self.sendMsg(tmsgStr)
-                '''
+                
             elif i>4*60 and i%(4*60)==1:
                 self.tmplImgIdx=0
                 tmsgStr = "%d hours, rebuilt template from %d %s"%(i/(4*60), i,objectImg)
                 self.log.info(tmsgStr)
                 self.sendMsg(tmsgStr)
-                '''
+                ''''''
               
 def run1(camName):
     
