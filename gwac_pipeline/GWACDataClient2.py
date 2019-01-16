@@ -5,7 +5,7 @@ from astropy.time import Time
 from astropy.io import fits
 import traceback
 import paramiko
-
+import time
 
 class GWACDataClient(object):
     def __init__(self, ip, port, tryTimes = 3):
@@ -265,6 +265,7 @@ class GWACDataClient(object):
                 timgIdx = 0
                 if tempFlag:
                     self.sendMsg('reset')
+                    time.sleep(10)
                 else:
                     print("cannot find template, stop.")
                 

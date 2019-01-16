@@ -64,7 +64,7 @@ def getIpList():
             ips.append(ip)
     return ips
     
-def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr):
+def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr, dataClient):
     
     tempDirName = "G002_021_181217"
     tempFitsName = "G021_mon_objt_181214T13131212.Fcat"
@@ -133,7 +133,7 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr):
             print(tstr)
         
         print("copy to middle machine done, start transfer: ")
-        dataClient = GWACDataClient('10.0.82.111', '12626')
+        #dataClient = GWACDataClient('10.0.82.111', '12626')
         totalImg, sendSuccess = dataClient.sendPath(dpath2, ssh)
         os.system("rm -rf %s"%(dpath2))
         
@@ -150,6 +150,10 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr):
         
         
 def backupAllMachine(msgSession):
+    
+    dataClient = GWACDataClient('10.0.82.111', '12626')
+    dataClient.sendMsg('start')
+    time.sleep(60)
     
     dataRoot = os.getcwd()
     spath1 = '/data/GWAC/OutTable'
@@ -183,7 +187,7 @@ def backupAllMachine(msgSession):
         try:
             ssh.connect(tip, username=sftpUser, password=sftpPass)        
             ftp = ssh.open_sftp()
-            backupDir(spath1, dpath, logCletpath, ssh, ftp, tip, msgSession, curDateStr)
+            backupDir(spath1, dpath, logCletpath, ssh, ftp, tip, msgSession, curDateStr, dataClient)
         except paramiko.AuthenticationException:
             print("Authentication Failed!")
         except paramiko.SSHException:
@@ -197,8 +201,9 @@ def backupAllMachine(msgSession):
             ssh.close()
         except Exception as e:
             print(str(e))
-        break
+        #break
     
+    dataClient.sendMsg('start')
 
 if __name__ == '__main__':
     
