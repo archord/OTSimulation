@@ -116,7 +116,7 @@ if __name__ == '__main__':
                 loopNum = loopNum + 1
                 #if loopNum>1:
                 #    break
-                time.sleep(60*20)
+                time.sleep(60*10)
             else:
                 time.sleep(60*5)
     else:
