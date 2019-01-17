@@ -59,7 +59,7 @@ def getIpList():
     #for i in range(2,5):
     #    for j in range(1,6):
     for i in range(4,5):
-        for j in range(4,5):
+        for j in range(2,4):
             ip = "%s%d%d"%(ipPrefix, i,j)
             ips.append(ip)
     return ips
