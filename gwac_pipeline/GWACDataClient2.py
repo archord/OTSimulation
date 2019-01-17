@@ -257,6 +257,9 @@ class GWACDataClient(object):
         for tcat in tcats:
             tpath1 = "%s/%s"%(tpath, tcat)
             ccdNoo, fieldNoo, timeStampo, tempPatho, jdo = self.getHeaders(tpath1)
+            jdStr = str(jdo)
+            if len(jdStr)<=len('2458468.0'):
+                continue
             if len(ccdNoo)==0:
                 continue
             if tempFieldNoo!=fieldNoo:

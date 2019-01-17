@@ -397,8 +397,8 @@ class BatchImageDiff(object):
         tstr = "orgBadPix %d, nmBad %d, match %d, noMatch %d"%(badPixProps.shape[0], badPixProps2.shape[0], fotProps.shape[0], totProps.shape[0])
         self.log.info(tstr)
         
-        #size = self.subImgSize
-        size = 100
+        size = self.subImgSize
+        #size = 100
         if totProps.shape[0]<500 and totProps.shape[0]>0:
             
             totSubImgs, totParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, totProps, size)

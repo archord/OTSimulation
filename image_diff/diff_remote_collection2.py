@@ -79,11 +79,15 @@ def batchCopy2(spath, dpath):
         
         print("process %s"%(ip))
         ssh.connect(ip, username=sftpUser, password=sftpPass)    
-        dateStr = '20190115'
+        dateStr = '20190116'
         
         try:
             
-            #tcmd = "cd %s ; tar -c G00* | ssh gwac@172.28.8.8 'tar -xf - -C %s/%s'"%(spath, dpath, dateStr)
+            tcmd = "cd %s ; tar -c G00* | ssh gwac@172.28.8.8 'tar -xf - -C %s/%s'"%(spath, dpath, dateStr)
+            print(tcmd)
+            stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
+            for line in iter(stdout.readline, ""):
+                print(line)
             tcmd = "cd %s ; rm -rf G00* "%(spath)
             print(tcmd)
             stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
