@@ -511,8 +511,6 @@ class OTSimulation(object):
     
     def batchSim(self):
         
-        # ls CombZ_*fit
-        templateImg = 'CombZ_temp.fit'
         flist = os.listdir(self.srcDir)
         flist.sort()
         

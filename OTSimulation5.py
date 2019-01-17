@@ -25,7 +25,7 @@ class OTSimulation(object):
         self.srcDir = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0" # ls CombZ_*fit
         self.srcDirBad = "/home/xy/Downloads/myresource/deep_data2/G180216/17320495.0_bad"
         self.tmpDir="/run/shm/gwacsim"
-        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_1227"
+        self.destDir="/home/xy/Downloads/myresource/deep_data2/simot/rest_data_190116"
         self.matchProgram="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"
         self.imgDiffProgram="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/hotpants/hotpants"
                 
@@ -319,7 +319,7 @@ class OTSimulation(object):
         ii = 1
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         while tnum<totalTOT:
-            simFile, simPosFile, simDeltaXYA = imgSimClass.simulateImage1(osn32f, self.objectImg, osn16sf, self.objectImg)
+            simFile, simPosFile, simDeltaXYA, psfImgs = imgSimClass.simulateImage1(osn32f, self.objectImg, osn16sf, self.objectImg)
             self.objectImgSim = simFile
             self.objectImgSimAdd = simPosFile
             
@@ -370,7 +370,8 @@ class OTSimulation(object):
                                       [tdata22[:,0]], [tdata22[:,1]]), axis=0).transpose()
             #print(poslist)
             #genFinalOTDs9Reg('tot', self.tmpDir, poslist)
-            size = self.subImgSize
+            #size = self.subImgSize
+            size = 100
             subImgs = self.getWindowImgs(self.objectImgSim, self.templateImg, self.simTmpResi, poslist, size)
             #subImgs = self.getWindowImgs(self.objectImgSimSubBkg, self.templateImgSubBkg, self.simTmpResi, poslist, size)
             tnum = tnum + len(subImgs)
@@ -483,24 +484,16 @@ class OTSimulation(object):
         mchFile, nmhFile, mchPair = self.runCrossMatch(self.templateImgCat, self.templateImgCat, 1)
     
     def batchSim(self):
-        
-        badImgList = 'bad_fit.txt'
-        f = open(badImgList, 'r')
-        for line in  f.readlines():
-            tfname = line[:-1]
-            srcPath = "%s/%s"%(self.srcDir, tfname)
-            destPath = "%s/%s"%(self.srcDirBad, tfname)
-            if os.path.exists(srcPath):
-                print("move bad img %s"%(tfname))
-                shutil.move(srcPath, destPath)
-            
+                    
         flist = os.listdir(self.srcDir)
         flist.sort()
         
         imgs = []
         for tfilename in flist:
-            if tfilename.find("fit")>-1 and tfilename.find("temp")==-1:
+            if tfilename.find("fit")>-1:
                 imgs.append(tfilename)
+        
+        print("total %d images"%(len(imgs)))
         
         for i, timg in enumerate(imgs):
             if i<120:
