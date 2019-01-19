@@ -252,7 +252,7 @@ class GWACDataClient(object):
         tempCat='' 
         totalImg = len(tcats)
         sendSuccess = 0
-        tempFieldNoo=''
+        tempFieldPatho=''
         timgIdx = 0
         for tcat in tcats:
             tpath1 = "%s/%s"%(tpath, tcat)
@@ -262,8 +262,8 @@ class GWACDataClient(object):
                 continue
             if len(ccdNoo)==0:
                 continue
-            if tempFieldNoo!=fieldNoo:
-                tempFieldNoo = fieldNoo
+            if tempFieldPatho!=tempPatho:
+                tempFieldPatho = tempPatho
                 tempFlag, tempCat = self.getTemplate(tpath, tcat, ssh)
                 timgIdx = 0
                 if tempFlag:
@@ -281,10 +281,10 @@ class GWACDataClient(object):
                     rst = self.send(tpath, tcat, "")
                 if rst:
                     sendSuccess = sendSuccess+1
-                print("field:%s, %dth send done\n"%(tempFieldNoo, timgIdx+1))
+                print("field:%s, %dth send done\n"%(fieldNoo, timgIdx+1))
             else:
                 if timgIdx<5:
-                    print("field:%s, no template"%(tempFieldNoo))
+                    print("field:%s, no template"%(fieldNoo))
             timgIdx = timgIdx+1
             os.system("rm -rf %s"%(tpath1))
             #if timgIdx>10:
