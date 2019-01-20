@@ -347,8 +347,6 @@ class AstroTools(object):
         process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         (stdoutstr,stderrstr) = process.communicate()
         status = process.returncode
-        #self.log.info(stdoutstr)
-        #self.log.info(stderrstr)
         
         if os.path.exists(outFPath) and status==0:
             self.log.debug("run hotpants success.")
@@ -356,6 +354,8 @@ class AstroTools(object):
             runSuccess = True
         else:
             self.log.error("hotpants failed.")
+            self.log.info(stdoutstr)
+            self.log.info(stderrstr)
             runSuccess = False
             
         endtime = datetime.now()
