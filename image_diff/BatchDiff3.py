@@ -97,8 +97,9 @@ class BatchImageDiff(object):
                 os.system("mkdir -p %s"%(self.tmpCat))
         
         self.procNum = 0
-        self.tmplImgIdx = 0
+        self.tmplImgIdx = 0 
         self.regFalseNum = 0
+        self.regSuccessNum = 0
         self.diffFalseNum = 0
         self.origTmplImgName = ""
         self.regFalseIdx = 0
@@ -494,8 +495,17 @@ class BatchImageDiff(object):
         i = self.procNum
         try:
             self.log.debug("\n\n************%d, %s"%(i, objectImg))
-            if i<self.selTemplateNum:
-                self.register(objectImg, i-1, i)
+            if i<self.selTemplateNum or self.regSuccessNum<self.selTemplateNum:
+                regSuccess = self.register(objectImg, i-1, i)
+                if not regSuccess:
+                    self.regSuccessNum=0
+                    if self.regFalseIdx+self.regFalseNum==i:
+                        self.regFalseNum = self.regFalseNum +1
+                    else:
+                        self.regFalseIdx=i
+                        self.regFalseNum = 1
+                else:
+                    self.regSuccessNum = self.regSuccessNum +1
             else:
                 if self.tmplImgIdx==0:
                     tempSuccess = self.makeTemplate()
@@ -572,6 +582,7 @@ def run1(camName):
     if not os.path.exists(logDest0):
         os.system("mkdir -p %s"%(logDest0))
     
+    startProcess = False
     dayRun = 0
     nigRun = 0
     skyId = 0
@@ -580,7 +591,7 @@ def run1(camName):
     while True:
         curUtcDateTime = datetime.utcnow()
         tDateTime = datetime.utcnow()
-        startDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #9=17  1=9
+        startDateTime = tDateTime.replace(hour=0, minute=30, second=0)  #9=17  1=9
         endDateTime = tDateTime.replace(hour=22, minute=30, second=0)  #22=6    8=16
         remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
         remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
@@ -594,8 +605,18 @@ def run1(camName):
                     curFfId = tfile[0]
                     ffNumber = tfile[1]
                     curSkyId = tfile[2]
-                    timgName = tfile[3]
+                    timgName = tfile[3] #G021_tom_objt_190109T13531492.fit
                     tpath = tfile[4] #/data3/G002_021_190109/G021_tom_objt_190109T13531492.fit
+                    
+                    imgDate = timgName[14:20]
+                    pathDate = tpath[16:22]
+                    if imgDate!=pathDate:
+                        ffId=curFfId
+                        startProcess = False
+                        continue
+                    elif not startProcess:
+                        ffId=0
+                        startProcess = True
                     
                     srcDir= tpath[:(tpath.find(camName)-1)] #/data3/G002_021_190109
                     dateStr = srcDir[srcDir.find('G'):] #G002_021_190109
@@ -606,7 +627,7 @@ def run1(camName):
                             tlastLine = getLastLine(logfName0)
                             if len(tlastLine)>2:
                                 ffId=int(tlastLine.strip())
-                                                        
+
                     if skyId!=curSkyId and curFfId>ffId:
                         dstDir='%s/%s'%(dataDest0, dateStr)
                         tdiff = BatchImageDiff(srcDir, dstDir, tools, camName, curSkyId)
@@ -631,7 +652,8 @@ def run1(camName):
                             tdiff.log.info("totalTime %d seconds, sky:%d, ffNum:%d, %s"%(runTime, curSkyId, ffNumber, timgName))
                         else:
                             print("%s not exist"%(tpath))
-                    #break
+                #if curFfId>ffId:
+                #    break
             except Exception as e:
                 print(str(e))
                 tstr = traceback.format_exc()
@@ -664,6 +686,7 @@ def run1(camName):
             dayRun = dayRun+1
             skyId = 0
             ffId = 0
+            startProcess = False
             
             if dayRun%6==1:
                 print("day %d wait"%(dayRun))

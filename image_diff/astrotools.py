@@ -192,8 +192,8 @@ class AstroTools(object):
         ssh.set_missing_host_key_policy( paramiko.AutoAddPolicy() )
             
         runSuccess = True
-        astronet_tweak_order = 4
-        astronet_radius = 10
+        astronet_tweak_order = 5
+        astronet_radius = 20
         try:
             remoteSrcRoot = "/run/shm/gwacwcs/%s"%(ccdName)
             remoteSrcPath = "%s/%s"%(remoteSrcRoot,objCat)

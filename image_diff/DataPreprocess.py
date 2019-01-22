@@ -7,6 +7,7 @@ import shutil
 from datetime import datetime
 import matplotlib.pyplot as plt
 from gwac_util import zscale_image
+import traceback
 
 '''
 preMethod: 
@@ -260,6 +261,170 @@ def getData(totPath, fotPath, destPath, imgSize=8, transMethod='none'):
         for fname in tdirs:
             tpath1 = "%s/%s"%(totPath, fname)
             #print(tpath1)
+            tdata1 = np.load(tpath1)
+            
+            totImg = tdata1['tot']
+            ts2n = tdata1['ts2n']
+            totImg = getImgStamp(totImg, size=imgSize, padding = 1, transMethod='none')
+            
+            if totImgs.shape[0]==0:
+                totImgs = totImg
+                ts2ns = ts2n
+            else:
+                totImgs = np.concatenate((totImgs, totImg), axis=0)
+                ts2ns = np.concatenate((ts2ns, ts2n), axis=0)
+            
+            totNum = totNum + totImg.shape[0]
+            if totNum >= fotImgs.shape[0]:
+                break
+            #break
+                
+        print("totSize %d"%(totImgs.shape[0]))
+        
+        totNum = totImgs.shape[0]
+        fotNum = fotImgs.shape[0]
+        if totNum>fotNum:
+            totImgs = totImgs[0:fotNum]
+            ts2ns = ts2ns[0:fotNum]
+        elif totNum<fotNum:
+            fotImgs = fotImgs[0:totNum]
+            fs2ns = fs2ns[0:totNum]
+
+        totSize = totImgs.shape[0]
+        fotSize = fotImgs.shape[0]
+        totLabel = np.ones(totSize)
+        fotLabel = np.zeros(fotSize)
+        X = np.concatenate((totImgs, fotImgs), axis=0)
+        s2n = np.concatenate((ts2ns, fs2ns), axis=0)
+        y = np.concatenate((totLabel, fotLabel), axis=0)
+        Y = np.array([np.logical_not(y), y]).transpose()
+            
+        XY = []
+        for i in range(Y.shape[0]):
+            XY.append((X[i],Y[i],s2n[i]))
+        XY = np.array(XY)
+        np.random.shuffle(XY)
+        
+        X = []
+        Y = []
+        s2n = []
+        for i in range(XY.shape[0]):
+            X.append(XY[i][0])
+            Y.append(XY[i][1])
+            s2n.append(XY[i][2])
+        X = np.array(X)
+        Y = np.array(Y)
+        s2n = np.array(s2n)
+        
+        np.savez_compressed(timgbinPath, X=X, Y=Y, s2n=s2n)
+        print("save bin fiel to %s"%(timgbinPath))
+    return X, Y, s2n
+    
+def getData2(totPath, fotPath, destPath, tNamePart, imgSize=64, transMethod='none'):
+    
+    timgbinPath = '%s/SIM_TOT_REAL_FOT_bin_%s_%s.npz'%(destPath, transMethod, tNamePart)
+    if os.path.exists(timgbinPath):
+        print("bin file exist, read from %s"%(timgbinPath))
+        timgbin = np.load(timgbinPath)
+        X = timgbin['X']
+        Y = timgbin['Y']
+        s2n = timgbin['s2n']
+    else:
+                
+        #realFotPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
+        tdirs = os.listdir(fotPath)
+        tdirs.sort()
+        
+        badImgfiles = []
+        fotImgfiles = []
+        totImgfiles = []
+        for tfile in tdirs:
+            if tfile.find('bad')>-1:
+                badImgfiles.append(tfile)
+            elif tfile.find('fot')>-1:
+                fotImgfiles.append(tfile)
+            elif tfile.find('tot')>-1:
+                totImgfiles.append(tfile)
+        
+        fotImgs = np.array([])
+        fs2ns = np.array([])
+        for i, fname in enumerate(fotImgfiles):
+            #if fname[:3]=='fot':
+            try:
+                tpath21 = "%s/%s"%(fotPath, fname)
+                print("%d:%s"%(i,tpath21))
+                fdata1 = np.load(tpath21)
+                fotImg = fdata1['imgs']
+                fprops = fdata1['parms']
+                
+                if fotImg.shape[0]>600:
+                    continue
+                
+                fotImg = getImgStamp(fotImg, size=imgSize, padding = 1, transMethod='none')
+                #fs2n = np.zeros(fotImg.shape[0])
+                fs2n = 1.087/fprops[:,12].astype(np.float)
+                
+                if fotImgs.shape[0]==0:
+                    fotImgs = fotImg
+                    fs2ns = fs2n
+                else:
+                    fotImgs = np.concatenate((fotImgs, fotImg), axis=0)
+                    fs2ns = np.concatenate((fs2ns, fs2n), axis=0)
+                if fotImgs.shape[0]>50000:
+                    break
+                
+            except Exception as e:
+                tstr = traceback.format_exc()
+                print(tstr)
+        
+        
+        badImgs = np.array([])
+        bads2ns = np.array([])
+        for i, fname in enumerate(badImgfiles):
+            #if fname[:3]=='fot':
+            try:
+                tpath21 = "%s/%s"%(fotPath, fname)
+                print("%d:%s"%(i,tpath21))
+                fdata1 = np.load(tpath21)
+                fotImg = fdata1['imgs']
+                fprops = fdata1['parms']
+                
+                if fotImg.shape[0]>600:
+                    continue
+                
+                fotImg = getImgStamp(fotImg, size=imgSize, padding = 1, transMethod='none')
+                fs2n = np.zeros(fotImg.shape[0])
+                #fs2n = 1.087/fprops[:,12].astype(np.float)
+                
+                if badImgs.shape[0]==0:
+                    badImgs = fotImg
+                    bads2ns = fs2n
+                else:
+                    badImgs = np.concatenate((badImgs, fotImg), axis=0)
+                    bads2ns = np.concatenate((bads2ns, fs2n), axis=0)
+                if badImgs.shape[0]>50000:
+                    break
+            except Exception as e:
+                tstr = traceback.format_exc()
+                print(tstr)
+        
+        print("fotSize %d"%(fotImgs.shape[0]))
+        print("badSize %d"%(badImgs.shape[0]))
+        
+        fotImgs = np.concatenate((fotImgs, badImgs), axis=0)
+        fs2ns = np.concatenate((fs2ns, bads2ns), axis=0)
+        print("fotImgs %d"%(fotImgs.shape[0]))
+        print("fs2ns %d"%(fs2ns.shape[0]))
+        
+        totImgs = np.array([])
+        ts2ns = np.array([])
+        
+        totNum = 0
+        tdirs = os.listdir(totPath)
+        tdirs.sort()
+        for i, fname in enumerate(tdirs):
+            tpath1 = "%s/%s"%(totPath, fname)
+            print("%d:%s"%(i,tpath1))
             tdata1 = np.load(tpath1)
             
             totImg = tdata1['tot']
