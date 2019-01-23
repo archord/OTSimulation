@@ -18,7 +18,7 @@ class OT2Classify(object):
         self.modelName=modelName
         self.modelPath="%s/tools/mlmodel/%s"%(dataRoot,self.modelName)
         
-        self.imgSize = 8
+        self.imgSize = 64
         self.pbb_threshold = 0.5
         self.model = load_model(self.modelPath)
         self.log = log
@@ -176,9 +176,11 @@ class OT2Classify(object):
                     
                     self.doUpload(fullImgPath,[catName],'diffot1',serverIP)
                     self.doUpload(fullImgPath,timgNames,'diffot1img',serverIP)
-            
+                    
+            if tParms.shape[0]==0:
+                self.log.info("after classified, OT candidate left")
             if tParms.shape[0]>=25:
-                self.log.error("skip upload2db: after classified, %s total get %d sub images"%(origName, tSubImgs.shape[0]))
+                self.log.error("too more OT candidate, skip upload2db: after classified, %s total get %d sub images"%(origName, tSubImgs.shape[0]))
             os.system("rm -rf %s"%(fullImgPath))
         
         except Exception as e:

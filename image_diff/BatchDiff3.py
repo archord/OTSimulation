@@ -63,7 +63,9 @@ class BatchImageDiff(object):
         
         self.tools = tools
         self.log = tools.log
-        self.ot2Classifier = OT2Classify(self.toolPath, self.log)
+        #self.modelName='model_128_5_RealFOT_8_190111.h5'
+        self.modelName='model_RealFOT_64_100_fot10w_20190122_dropout.h5'
+        self.ot2Classifier = OT2Classify(self.toolPath, self.log, self.modelName)
         
         self.initReg(0)
                 
@@ -394,12 +396,13 @@ class BatchImageDiff(object):
         os.system("cp %s/%s %s/%s"%(self.tmpDir, nmhFile, self.resiCatDir, "%s.cat"%(oImgPre)))
         
         totProps = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
-        badPixProps = np.loadtxt("%s/%s"%(self.tmpDir, self.badPixCat))
+        #badPixProps = np.loadtxt("%s/%s"%(self.tmpDir, self.badPixCat))
+        badPixProps = np.array([])
         tstr = "orgBadPix %d, nmBad %d, match %d, noMatch %d"%(badPixProps.shape[0], badPixProps2.shape[0], fotProps.shape[0], totProps.shape[0])
         self.log.info(tstr)
         
-        size = self.subImgSize
-        #size = 100
+        #size = self.subImgSize
+        size = 68
         if totProps.shape[0]<500 and totProps.shape[0]>0:
             
             totSubImgs, totParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, totProps, size)
@@ -427,12 +430,13 @@ class BatchImageDiff(object):
                     fotParms = np.concatenate((fotParms, tRaDec), axis=1)
                     fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms)
-            
+            '''
             if badPixProps.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps, size)
                 if badParms.shape[0]>0:
                     fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
+            '''
             if badPixProps2.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps2, size)
                 if badParms.shape[0]>0:
@@ -591,7 +595,7 @@ def run1(camName):
     while True:
         curUtcDateTime = datetime.utcnow()
         tDateTime = datetime.utcnow()
-        startDateTime = tDateTime.replace(hour=0, minute=30, second=0)  #9=17  1=9
+        startDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #9=17  1=9
         endDateTime = tDateTime.replace(hour=22, minute=30, second=0)  #22=6    8=16
         remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
         remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
