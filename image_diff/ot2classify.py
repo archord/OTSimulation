@@ -180,7 +180,7 @@ class OT2Classify(object):
             if tParms.shape[0]==0:
                 self.log.info("after classified, OT candidate left")
             if tParms.shape[0]>=25:
-                self.log.error("too more OT candidate, skip upload2db: after classified, %s total get %d sub images"%(origName, tSubImgs.shape[0]))
+                self.log.error("too more OT candidate, skip upload2db: after classified, %s total get %d sub images"%(origName, tParms.shape[0]))
             os.system("rm -rf %s"%(fullImgPath))
         
         except Exception as e:
