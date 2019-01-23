@@ -10,7 +10,7 @@ import keras
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Activation, Flatten, Input
 from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, Concatenate, Cropping2D
-from DataPreprocess import getData2
+from DataPreprocess import getData2, getRealData, saveImgs
 from gwac_util import zscale_image
     
 def createModel1():
@@ -72,9 +72,9 @@ def createModel():
     return model0
 
 #train with real Sample of False miss classify as True
-def train(totpath, fotpath, workPath, tNamePart):
+def train(totpath, fotpath, workPath, tSampleNamePart, tModelNamePart):
     
-    X,Y,s2n = getData2(totpath, fotpath, workPath, tNamePart)
+    X,Y,s2n = getData2(totpath, fotpath, workPath, tSampleNamePart)
     print(X.shape)
     print(Y.shape)
     print(s2n.shape)
@@ -91,13 +91,14 @@ def train(totpath, fotpath, workPath, tNamePart):
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     
     model.fit(X_train, Y_train, batch_size=128, epochs=100, validation_split=0.2)
-    modelName = "model_RealFOT_%s_dropout.h5"%(tNamePart)
+    modelName = "model_RealFOT_%s.h5"%(tModelNamePart)
     model.save("%s/%s"%(workPath, modelName))
 
 def doAll():
     
     fotpath = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120/all"
     totpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_20190120"
+    realDataPath = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120/20190116tot"
     
     #dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
     dateStr = '20190122'
@@ -106,13 +107,225 @@ def doAll():
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    tNamePart = "64_fot10w_%s"%(dateStr)
-    train(totpath, fotpath, workPath, tNamePart)
-    test(totpath, fotpath, workPath, tNamePart)
-         
-def test(totpath, fotpath, workPath, tNamePart):
+    tSampleNamePart = "64_fot10w_%s"%(dateStr)
+    tModelNamePart = "64_100_fot10w_%s_dropout"%(dateStr)
+    #tModelNamePart = "8_100_fot10w_%s_dropout"%(dateStr)
+    train(totpath, fotpath, workPath, tSampleNamePart, tModelNamePart)
+    test(totpath, fotpath, workPath, tSampleNamePart, tModelNamePart)
     
-    X,Y,s2n = getData2(totpath, fotpath, workPath, tNamePart)
+def modelCompare():
+    
+    fotpath = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120/all"
+    totpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_20190120"
+    realDataPath = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120/20190116tot"
+    
+    #dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
+    dateStr = '20190122'
+    workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
+    if not os.path.exists(workPath):
+        os.system("mkdir %s"%(workPath))
+    print("work path is %s"%(workPath))
+    
+    tSampleNamePart = "64_fot10w_%s"%(dateStr)
+    tModelNamePart1 = "64_100_fot10w_%s_dropout"%(dateStr)
+    tModelNamePart2 = "8_100_fot10w_%s_dropout"%(dateStr)
+    #realDataTest(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
+    realDataTest2(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
+    
+def realDataTest2(realOtPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2):
+    
+    X,Y,s2n = getRealData(realOtPath, workPath, tSampleNamePart)
+    
+    subNum = 1000
+    X = X[:subNum]
+    Y = Y[:subNum]
+    s2n = s2n[:subNum]
+    print(X.shape)
+    print(Y.shape)
+    print(s2n.shape)
+    
+    X_test, Y_test, s2n_test = X, Y, s2n
+    y = np.zeros(X_test.shape[0])
+    Y_test = np.array([np.logical_not(y), y]).transpose()
+    
+    from keras.models import load_model
+    
+    modelName1 = "model_RealFOT_%s.h5"%(tModelNamePart1)
+    model = load_model("%s/%s"%(workPath, modelName1))
+    Y_pred1 = model.predict(X_test)
+    
+    modelName2 = "model_RealFOT_%s.h5"%(tModelNamePart2)
+    model = load_model("%s/%s"%(workPath, modelName2))
+    Y_pred2 = model.predict(X_test)
+    
+    
+    pbb_threshold = 0.5
+    pred_labels1 = np.array((Y_pred1[:, 1] > pbb_threshold), dtype = "int")
+    pred_labels2 = np.array((Y_pred2[:, 1] > pbb_threshold), dtype = "int")
+    
+    model1True = pred_labels1[pred_labels1==Y_test[:, 1]]
+    model2True = pred_labels2[pred_labels2==Y_test[:, 1]]
+    print("model1 correct=%d"%(model1True.shape[0]))
+    print("model2 correct=%d"%(model2True.shape[0]))
+    
+    model1True = pred_labels1[pred_labels1==1]
+    model2True = pred_labels2[pred_labels2==1]
+    print("model1 True=%d"%(model1True.shape[0]))
+    print("model2 True=%d"%(model2True.shape[0]))
+    
+    allt = (pred_labels1==1) & (pred_labels2==1)
+    allf = (pred_labels1==0) & (pred_labels2==0)
+    m2t = (pred_labels1==0) & (pred_labels2==1)
+    m1t = (pred_labels1==1) & (pred_labels2==0)
+         
+    alltImg = X_test[allt]
+    allfImg = X_test[allf]
+    m1tImg = X_test[m1t]
+    m2tImg = X_test[m2t]
+    
+    print("allt=%d"%(alltImg.shape[0]))
+    print("allf=%d"%(allfImg.shape[0]))
+    print("m1t=%d"%(m1tImg.shape[0]))
+    print("m2t=%d"%(m2tImg.shape[0]))
+    
+    print("\n\n***********************")
+    print("alltImg: %d"%(alltImg.shape[0]))
+    saveImgs(alltImg, "rstImgs/alltImg", zoomScale=4)
+    
+    print("\n\n***********************")
+    print("allfImg: %d"%(allfImg.shape[0]))
+    saveImgs(allfImg, "rstImgs/allfImg", zoomScale=4)
+    
+    print("\n\n***********************")
+    print("m1tImg: %d"%(m1tImg.shape[0]))
+    saveImgs(m1tImg, "rstImgs/m1tImg", zoomScale=4)
+    
+    print("\n\n***********************")
+    print("m2tImg: %d"%(m2tImg.shape[0]))
+    saveImgs(m2tImg, "rstImgs/m2tImg", zoomScale=4)
+    
+
+def realDataTest(realOtPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2):
+    
+    X,Y,s2n = getRealData(realOtPath, workPath, tSampleNamePart)
+    
+    subNum = 1000
+    X = X[:subNum]
+    Y = Y[:subNum]
+    s2n = s2n[:subNum]
+    print(X.shape)
+    print(Y.shape)
+    print(s2n.shape)
+    
+    X_test, Y_test, s2n_test = X, Y, s2n
+    y = np.zeros(X_test.shape[0])
+    Y_test = np.array([np.logical_not(y), y]).transpose()
+    
+    from keras.models import load_model
+    
+    modelName1 = "model_RealFOT_%s.h5"%(tModelNamePart1)
+    model = load_model("%s/%s"%(workPath, modelName1))
+    Y_pred1 = model.predict(X_test)
+    
+    modelName2 = "model_RealFOT_%s.h5"%(tModelNamePart2)
+    model = load_model("%s/%s"%(workPath, modelName2))
+    Y_pred2 = model.predict(X_test)
+    
+    
+    pbb_threshold = 0.5
+    pred_labels1 = np.array((Y_pred1[:, 1] > pbb_threshold), dtype = "int")
+    pred_labels2 = np.array((Y_pred2[:, 1] > pbb_threshold), dtype = "int")
+    
+    model1True = pred_labels1[pred_labels1==Y_test[:, 1]]
+    model2True = pred_labels2[pred_labels2==Y_test[:, 1]]
+    print("model1 correct=%d"%(model1True.shape[0]))
+    print("model2 correct=%d"%(model2True.shape[0]))
+    
+    model1True = pred_labels1[pred_labels1==1]
+    model2True = pred_labels2[pred_labels2==1]
+    print("model1 True=%d"%(model1True.shape[0]))
+    print("model2 True=%d"%(model2True.shape[0]))
+    
+    diffIdx = pred_labels1!=pred_labels2
+    m1t = (pred_labels1==1) & diffIdx
+    m1f = (pred_labels1==0) & diffIdx
+    m2t = (pred_labels2==1) & diffIdx
+    m2f = (pred_labels2==0) & diffIdx
+         
+    m1tImg = X_test[m1t]
+    m1fImg = X_test[m1f]
+    m2tImg = X_test[m2t]
+    m2fImg = X_test[m2f]
+    
+    m1tS2n = s2n_test[m1t]
+    m1fS2n = s2n_test[m1f]
+    m2tS2n = s2n_test[m2t]
+    m2fS2n = s2n_test[m2f]
+    
+    m1tPred = Y_pred1[m1t]
+    m1fPred = Y_pred1[m1f]
+    m2tPred = Y_pred2[m2t]
+    m2fPred = Y_pred2[m2f]
+    
+    print("m1t=%d"%(m1tImg.shape[0]))
+    print("m1f=%d"%(m1fImg.shape[0]))
+    print("m2t=%d"%(m2tImg.shape[0]))
+    print("m2f=%d"%(m2fImg.shape[0]))
+    
+    #totImgPath = 'totimg'
+    #for i, timg in enumerate(m1tImg):
+    #    savePath = "%s/%05d.png"%(totImgPath, i)
+
+    showNum = 100
+    falseImg = m1tImg[:showNum]
+    falseS2n = m1tS2n[:showNum]
+    falsePred = m1tPred[:showNum]
+    print("\n\n***********************")
+    print("model1 True, model2 False: %d"%(falseImg.shape[0]))
+    for i in range(falseImg.shape[0]):
+        objWidz = zscale_image(falseImg[i][0])
+        tmpWidz = zscale_image(falseImg[i][1])
+        resiWidz = zscale_image(falseImg[i][2])
+        if objWidz.shape[0] == 0:
+            objWidz = falseImg[i][0]
+        if tmpWidz.shape[0] == 0:
+            tmpWidz = falseImg[i][1]
+        if resiWidz.shape[0] == 0:
+            resiWidz = falseImg[i][2]
+        plt.clf()
+        fig, axes = plt.subplots(1, 3, figsize=(6, 2))
+        axes.flat[0].imshow(objWidz, interpolation = "nearest", cmap='gray')
+        axes.flat[1].imshow(tmpWidz, interpolation = "nearest", cmap='gray')
+        axes.flat[2].imshow(resiWidz, interpolation = "nearest", cmap='gray')
+        axes.flat[1].set_title("pbb=%.2f,s2n=%.2f"%(falsePred[i][1], falseS2n[i]))
+        plt.show()
+    
+    falseImg = m1fImg[:showNum]
+    falseS2n = m1fS2n[:showNum]
+    falsePred = m1fPred[:showNum]
+    print("\n\n***********************")
+    print("model1 True, model2 False: %d"%(falseImg.shape[0]))
+    for i in range(falseImg.shape[0]):
+        objWidz = zscale_image(falseImg[i][0])
+        tmpWidz = zscale_image(falseImg[i][1])
+        resiWidz = zscale_image(falseImg[i][2])
+        if objWidz.shape[0] == 0:
+            objWidz = falseImg[i][0]
+        if tmpWidz.shape[0] == 0:
+            tmpWidz = falseImg[i][1]
+        if resiWidz.shape[0] == 0:
+            resiWidz = falseImg[i][2]
+        plt.clf()
+        fig, axes = plt.subplots(1, 3, figsize=(6, 2))
+        axes.flat[0].imshow(objWidz, interpolation = "nearest", cmap='gray')
+        axes.flat[1].imshow(tmpWidz, interpolation = "nearest", cmap='gray')
+        axes.flat[2].imshow(resiWidz, interpolation = "nearest", cmap='gray')
+        axes.flat[1].set_title("pbb=%.2f,s2n=%.2f"%(falsePred[i][1], falseS2n[i]))
+        plt.show()
+        
+def test(totpath, fotpath, workPath, tSampleNamePart, tModelNamePart):
+    
+    X,Y,s2n = getData2(totpath, fotpath, workPath, tSampleNamePart)
     print(X.shape)
     print(Y.shape)
     print(s2n.shape)
@@ -124,7 +337,7 @@ def test(totpath, fotpath, workPath, tNamePart):
     X_test, Y_test, s2n_test = X[N_train:], Y[N_train:], s2n[N_train:]
     
     from keras.models import load_model
-    modelName = "model_RealFOT_%s_dropout.h5"%(tNamePart)
+    modelName = "model_RealFOT_%s.h5"%(tModelNamePart)
     model = load_model("%s/%s"%(workPath, modelName))
     Y_pred = model.predict(X_test)
     pbb_threshold = 0.5

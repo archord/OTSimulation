@@ -8,6 +8,8 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from gwac_util import zscale_image
 import traceback
+import scipy.ndimage
+from PIL import Image
 
 '''
 preMethod: 
@@ -614,35 +616,57 @@ def readStampFromFits(filename, size=12):
         
     return rst
     
-def getRealData(realOtPath, imgSize=8, transMethod='none'):
+def getRealData(realOtPath, destPath, tNamePart, imgSize=64, transMethod='none'):
     
-    otImgs = np.array([])
-    props = np.array([])
-            
-    #realFotPath = "/home/xy/Downloads/myresource/deep_data2/gwac_ot2_apart"
-    tdirs = os.listdir(realOtPath)
-    tdirs.sort()
-            
-    for i, fname in enumerate(tdirs):
-        tpath21 = "%s/%s"%(realOtPath, fname)
-        print(tpath21)
-        data1 = np.load(tpath21)
-        otImg = data1['imgs']
-        prop = data1['props']
-        
-        otImg = getImgStamp(otImg, size=imgSize, padding = 0, transMethod='none')
-        
-        if otImgs.shape[0]==0:
-            otImgs = otImg
-            props = prop
-        else:
-            otImgs = np.concatenate((otImgs, otImg), axis=0)
-            props = np.concatenate((props, prop), axis=0)
-        #break
+    timgbinPath = '%s/SIM_REAL_DATA_bin_%s_%s.npz'%(destPath, transMethod, tNamePart)
+    if os.path.exists(timgbinPath):
+        print("bin file exist, read from %s"%(timgbinPath))
+        timgbin = np.load(timgbinPath)
+        X = timgbin['X']
+        Y = timgbin['Y']
+        s2n = timgbin['s2n']
+    else:
     
-    print(otImgs.shape)
+        otImgs = np.array([])
+        props = np.array([])
         
-    return otImgs, props
+        tdirs = os.listdir(realOtPath)
+        tdirs.sort()
+                
+        for i, fname in enumerate(tdirs):
+            
+            try:
+                tpath21 = "%s/%s"%(realOtPath, fname)
+                print("%d:%s"%(i,tpath21))
+                data1 = np.load(tpath21)
+                otImg = data1['imgs']
+                prop = data1['parms']
+                
+                otImg = getImgStamp(otImg, size=imgSize, padding = 1, transMethod='none')
+                ots2n = 1.087/prop[:,12].astype(np.float)
+                
+                if otImgs.shape[0]==0:
+                    otImgs = otImg
+                    props = ots2n
+                else:
+                    otImgs = np.concatenate((otImgs, otImg), axis=0)
+                    props = np.concatenate((props, ots2n), axis=0)
+                #break
+            except Exception as e:
+                tstr = traceback.format_exc()
+                print(tstr)
+                
+        otSize = otImgs.shape[0]
+        otLabel = np.zeros(otSize)
+        X = otImgs
+        s2n = props
+        y = otLabel
+        Y = np.array([np.logical_not(y), y]).transpose()
+        
+        np.savez_compressed(timgbinPath, X=X, Y=Y, s2n=s2n)
+        print("save bin fiel to %s"%(timgbinPath))
+            
+    return X, Y, s2n
     
 def getRealData2(realOtPath, imgSize=8, transMethod='none'):
         
@@ -831,5 +855,25 @@ def resizeRealData():
         
         #showImgs(dpath21, "\n\n**********show FOT 12")
         #break
+
+def saveImgs(imgs, tpath, zoomScale=4):
     
+    if not os.path.exists(tpath):
+        os.system("mkdir -p %s"%(tpath))
     
+    for i in range(imgs.shape[0]):
+        X = imgs[i]
+        tobjImg = zscale_image(X[0])
+        tTempImg = zscale_image(X[1])
+        tResiImg = zscale_image(X[2])
+        
+        tobjImg = scipy.ndimage.zoom(tobjImg, zoomScale, order=0)
+        tTempImg = scipy.ndimage.zoom(tTempImg, zoomScale, order=0)
+        tResiImg = scipy.ndimage.zoom(tResiImg, zoomScale, order=0)
+        xspace = np.ones((tobjImg.shape[0],10), np.uint8)*255
+        timg = np.concatenate((tobjImg, xspace, tTempImg, xspace, tResiImg), axis=1)
+        
+        savePath = "%s/%05d.jpg"%(tpath,i)
+        Image.fromarray(timg).save(savePath)
+        
+        
