@@ -20,8 +20,8 @@ def createModel():
     model1.add(Conv2D(18, (3, 3), padding='same', activation='relu',input_shape=(3, 8, 8)))
     model1.add(Conv2D(18, (3, 3), padding='same', activation='relu'))
     model1.add(MaxPooling2D(pool_size =(2, 2)))
-    model1.add(Conv2D(24, (3, 3), padding='same', activation='relu'))
-    model1.add(Conv2D(36, (3, 3), padding='same', activation='relu'))
+    model1.add(Conv2D(24, (2, 2), padding='same', activation='relu'))
+    model1.add(Conv2D(36, (2, 2), padding='same', activation='relu'))
     model1.add(MaxPooling2D(pool_size =(2, 2)))
     model1.add(Flatten())
     

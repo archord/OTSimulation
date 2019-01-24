@@ -16,11 +16,15 @@ class OT2Classify(object):
         
         self.dataRoot=dataRoot
         self.modelName=modelName
+        self.modelName2='model_128_5_RealFOT_8_190111.h5'
         self.modelPath="%s/tools/mlmodel/%s"%(dataRoot,self.modelName)
+        self.modelPath2="%s/tools/mlmodel/%s"%(dataRoot,self.modelName2)
         
         self.imgSize = 64
+        self.imgSize2 = 8
         self.pbb_threshold = 0.5
         self.model = load_model(self.modelPath)
+        self.model2 = load_model(self.modelPath2)
         self.log = log
         
         self.theader="#   1 X_IMAGE                Object position along x                                    [pixel]\n"\
@@ -60,7 +64,15 @@ class OT2Classify(object):
             if timgs32.shape[0]>0:
                 timgs = getImgStamp(timgs32, size=self.imgSize, padding = 1, transMethod='none')
                 preY = self.model.predict(timgs, batch_size=128)
+                
+                timgs2 = getImgStamp(timgs32, size=self.imgSize2, padding = 1, transMethod='none')
+                preY2 = self.model2.predict(timgs2, batch_size=128)
+                
                 predProbs = preY[:, 1]
+                predProbs2 = preY2[:, 1]
+                predProbsJoin = ~((predProbs>self.pbb_threshold) & (predProbs2>self.pbb_threshold))
+                predProbs[predProbsJoin]=0
+                
                 predProbs = predProbs.reshape([predProbs.shape[0],1])
                 rstParms = np.concatenate((parms, predProbs), axis=1)
         
@@ -96,7 +108,7 @@ class OT2Classify(object):
         self.log.debug("start new thread classifyAndUpload %s"%(origName))        
         
         starttime = datetime.now()
-        
+        self.pbb_threshold = prob
         try:
             nameBase = origName[:origName.index(".")]
             
@@ -178,7 +190,7 @@ class OT2Classify(object):
                     self.doUpload(fullImgPath,timgNames,'diffot1img',serverIP)
                     
             if tParms.shape[0]==0:
-                self.log.info("after classified, OT candidate left")
+                self.log.info("after classified, no OT candidate left")
             if tParms.shape[0]>=25:
                 self.log.error("too more OT candidate, skip upload2db: after classified, %s total get %d sub images"%(origName, tParms.shape[0]))
             os.system("rm -rf %s"%(fullImgPath))
