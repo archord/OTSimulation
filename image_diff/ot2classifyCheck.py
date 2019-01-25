@@ -20,33 +20,12 @@ class OT2Classify(object):
         self.modelPath="%s/tools/mlmodel/%s"%(dataRoot,self.modelName)
         self.modelPath2="%s/tools/mlmodel/%s"%(dataRoot,self.modelName2)
         
-        self.imgSize = 68
+        self.imgSize = 64
         self.imgSize2 = 8
         self.pbb_threshold = 0.5
         self.model = load_model(self.modelPath)
         self.model2 = load_model(self.modelPath2)
         self.log = log
-        
-        self.theader="#   1 X_IMAGE                Object position along x                                    [pixel]\n"\
-                "#   2 Y_IMAGE                Object position along y                                    [pixel]\n"\
-                "#   3 FLUX_APER              Flux vector within fixed circular aperture(s)              [count]\n"\
-                "#   4 FLUXERR_APER           RMS error vector for aperture flux(es)                     [count]\n"\
-                "#   5 FLUX_MAX               Peak flux above background                                 [count]\n"\
-                "#   6 ELONGATION             A_IMAGE/B_IMAGE                                                   \n"\
-                "#   7 ELLIPTICITY            1 - B_IMAGE/A_IMAGE                                               \n"\
-                "#   8 CLASS_STAR             S/G classifier output                                             \n"\
-                "#   9 BACKGROUND             Background at centroid position                            [count]\n"\
-                "#  10 FWHM_IMAGE             FWHM assuming a gaussian core                              [pixel]\n"\
-                "#  11 FLAGS                  Extraction flags                                                  \n"\
-                "#  12 MAG_APER               Fixed aperture magnitude vector                            [mag]  \n"\
-                "#  13 MAGERR_APER            RMS error vector for fixed aperture mag.                   [mag]  \n"\
-                "#  14 X_TEMP                 Object position along x                                    [pixel]\n"\
-                "#  15 Y_TEMP                 Object position along y                                    [pixel]\n"\
-                "#  16 RA                     Fixed aperture magnitude vector                            [deg]  \n"\
-                "#  17 DEC                    RMS error vector for fixed aperture mag.                   [deg]  \n"\
-                "#  18 probability            machine learning predict probability.                             \n"\
-                "#  19 OT FLAG                1: resi not match temp; 0:resi match temp.                       \n"\
-                "#  20 stamp image name       the concatenate of 3 stamp image from obj, temp, resi.           \n"
             
         self.catFormate="%.4f,%.4f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.4f,%.4f,%f,%f,%.3f,%d,%s\n"
     
@@ -77,29 +56,6 @@ class OT2Classify(object):
                 rstParms = np.concatenate((parms, predProbs), axis=1)
         
         return rstParms
-    
-    def doUpload(self, path, fnames, ftype, serverIP):
-        
-        try:
-            turl = "%s/gwebend/commonFileUpload.action"%(serverIP)
-            
-            sendTime = datetime.strftime(datetime.now(), "%Y%m%d%H%M%S")
-            values = {'fileType': ftype, 'sendTime': sendTime}
-            files = []
-            
-            for tfname in fnames:
-                tpath = "%s/%s"%(path, tfname)
-                files.append(('fileUpload', (tfname,  open(tpath,'rb'), 'text/plain')))
-            
-            #print(values)
-            #print(files)
-            msgSession = requests.Session()
-            r = msgSession.post(turl, files=files, data=values)
-            
-            self.log.info(r.text)
-        except Exception as e:
-            tstr = traceback.format_exc()
-            self.log.error(tstr)
         
     def doClassifyAndUpload(self, subImgPath, totFile, fotFile, 
                           fullImgPath, newImg, tmpImg, resImg, origName, serverIP, 
@@ -121,21 +77,23 @@ class OT2Classify(object):
             
             tParms2 = self.doClassifyFile(subImgPath, fotFile)
             if tParms2.shape[0]>0:
-                tParms2 = tParms2[(tParms2[:,6]<maxMEllip) & (tParms2[:,17]>=prob)]
+                tParms2 = tParms2[tParms2[:,6]<maxMEllip]
                 if tParms2.shape[0]>0:
                     tflags2 = np.zeros((tParms2.shape[0],1)) #OT FLAG 
                     tParms2 = np.concatenate((tParms2, tflags2), axis=1)
             
-            if tParms1.shape[0]>0 and tParms2.shape[0]>0 and tParms2.shape[0]<25:
+            if tParms1.shape[0]>0 and tParms2.shape[0]>0:
                 tParms = np.concatenate((tParms1, tParms2), axis=0)
             elif tParms1.shape[0]>0:
                 tParms = tParms1
-            elif tParms2.shape[0]>0 and tParms2.shape[0]<25:
+            elif tParms2.shape[0]>0:
                 tParms = tParms2
             else:
                 tParms = np.array([])
                 
             if tParms.shape[0]>0:
+                tParms = tParms[tParms[:,17]>=prob]
+            if tParms.shape[0]>0 and tParms.shape[0]<25:
                 tSubImgs, tParms = getWindowImgs(fullImgPath, newImg, tmpImg, resImg, tParms, 100)
                 if tParms.shape[0]>0:
                     self.log.info("after classified, %s total get %d sub images"%(origName, tSubImgs.shape[0]))
@@ -189,8 +147,8 @@ class OT2Classify(object):
                     
             if tParms.shape[0]==0:
                 self.log.info("after classified, no OT candidate left")
-            if tParms2.shape[0]>=25:
-                self.log.error("too more matched OT candidate, skip upload matched to db: after classified, %s total get %d matchend sub images"%(origName, tParms2.shape[0]))
+            if tParms.shape[0]>=25:
+                self.log.error("too more OT candidate, skip upload2db: after classified, %s total get %d sub images"%(origName, tParms.shape[0]))
             os.system("rm -rf %s"%(fullImgPath))
         
         except Exception as e:
