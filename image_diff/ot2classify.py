@@ -20,7 +20,7 @@ class OT2Classify(object):
         self.modelPath="%s/tools/mlmodel/%s"%(dataRoot,self.modelName)
         self.modelPath2="%s/tools/mlmodel/%s"%(dataRoot,self.modelName2)
         
-        self.imgSize = 68
+        self.imgSize = 64
         self.imgSize2 = 8
         self.pbb_threshold = 0.5
         self.model = load_model(self.modelPath)
