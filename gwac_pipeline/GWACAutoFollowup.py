@@ -224,6 +224,7 @@ class GWACAutoFollowup:
             self.log.error(" send trigger msg error ")
             self.log.error(str(e))
     
+    #usage: self.sendImage('/data/path/of/img','imgPath.png')
     def sendImage(self, imgPath, imgName):
         print(imgPath)
         try:
@@ -232,7 +233,7 @@ class GWACAutoFollowup:
             fullPath = "%s/%s"%(imgPath, imgName)
             msgSession = requests.Session()
             #mediaType:image,voice,video,file
-            data = {'chatId':'gwac004','mediaType':'image'}
+            data = {'chatId':'gwac005','mediaType':'image'}
             files = {"fileUpload" : (imgName, open(fullPath, "rb"), "image/jpeg")}
             r=msgSession.post(msgURL, data, files=files)
             
