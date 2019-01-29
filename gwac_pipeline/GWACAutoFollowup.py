@@ -219,10 +219,30 @@ class GWACAutoFollowup:
             
             msgSession = requests.Session()
             msgSession.get(turl, timeout=10, verify=False)
+            msgSession.close()
         except Exception as e:
             self.log.error(" send trigger msg error ")
             self.log.error(str(e))
     
+    #usage: self.sendImage('/data/path/of/img','imgPath.png')
+    def sendImage(self, imgPath, imgName):
+        print(imgPath)
+        try:
+            msgURL = "http://%s/gwebend/sendTrigger2WChart.action"%(self.webServerIP2)
+            
+            fullPath = "%s/%s"%(imgPath, imgName)
+            msgSession = requests.Session()
+            #mediaType:image,voice,video,file
+            data = {'chatId':'gwac005','mediaType':'image'}
+            files = {"fileUpload" : (imgName, open(fullPath, "rb"), "image/jpeg")}
+            r=msgSession.post(msgURL, data, files=files)
+            
+            #self.log.debug(r.text)
+            msgSession.close()
+        except Exception as e:
+            self.log.error("send trigger msg error ")
+            self.log.error(str(e))
+            
     #tobs=[{'filter':['R','B'],'expTime':40,'frameCount':1},{'filter':['R'],'expTime':40,'frameCount':2}]
     def sendObservationCommand(self, sciObj, observes=[],autoLoop=1,lastExpTime=-1, magdiff=0):
 
@@ -503,5 +523,8 @@ if __name__ == '__main__':
 
     gwacAutoFollowUp = GWACAutoFollowup()
     gwacAutoFollowUp.start()
+    #tpath=r'E:'
+    #tname='aa.png'
+    #gwacAutoFollowUp.sendImage(tpath, tname)
     
 
