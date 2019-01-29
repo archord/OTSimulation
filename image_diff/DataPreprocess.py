@@ -867,9 +867,10 @@ def saveImgs(imgs, tpath, zoomScale=4):
         tTempImg = zscale_image(X[1])
         tResiImg = zscale_image(X[2])
         
-        tobjImg = scipy.ndimage.zoom(tobjImg, zoomScale, order=0)
-        tTempImg = scipy.ndimage.zoom(tTempImg, zoomScale, order=0)
-        tResiImg = scipy.ndimage.zoom(tResiImg, zoomScale, order=0)
+        if zoomScale!=1:
+            tobjImg = scipy.ndimage.zoom(tobjImg, zoomScale, order=0)
+            tTempImg = scipy.ndimage.zoom(tTempImg, zoomScale, order=0)
+            tResiImg = scipy.ndimage.zoom(tResiImg, zoomScale, order=0)
         xspace = np.ones((tobjImg.shape[0],10), np.uint8)*255
         timg = np.concatenate((tobjImg, xspace, tTempImg, xspace, tResiImg), axis=1)
         

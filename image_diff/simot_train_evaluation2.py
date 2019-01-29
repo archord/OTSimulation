@@ -130,7 +130,26 @@ def modelCompare():
     tModelNamePart1 = "64_100_fot10w_%s_dropout"%(dateStr)
     tModelNamePart2 = "8_100_fot10w_%s_dropout"%(dateStr)
     #realDataTest(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
-    realDataTest2(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
+    #realDataTest2(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
+    realDataPng(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
+    
+def realDataPng(realOtPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2):
+    
+    X,Y,s2n = getRealData(realOtPath, workPath, tSampleNamePart)
+    
+    subNum = 10000
+    X = X[:subNum]
+    Y = Y[:subNum]
+    s2n = s2n[:subNum]
+    print(X.shape)
+    print(Y.shape)
+    print(s2n.shape)
+    
+    img10000 = X
+    print("\n\n***********************")
+    print("img10000: %d"%(img10000.shape[0]))
+    saveImgs(img10000, "img10000", zoomScale=1)
+    
     
 def realDataTest2(realOtPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2):
     
