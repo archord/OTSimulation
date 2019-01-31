@@ -10,6 +10,7 @@ from gwac_util import zscale_image
 import traceback
 import scipy.ndimage
 from PIL import Image
+from random import random
 
 '''
 preMethod: 
@@ -615,6 +616,227 @@ def readStampFromFits(filename, size=12):
         rst = data[minIdx:maxIdx,minIdx:maxIdx]
         
     return rst
+    
+def getElongData(realOtPath, destPath, elongMin=0.7, elongMax=1.0):
+    
+    timgbinPath = '%s/REAL_ELONG_DATA_bin_e%.0f.npz'%(destPath,elongMin*10)
+    #if os.path.exists(timgbinPath):
+    if False:
+        print("bin file exist, read from %s"%(timgbinPath))
+        #timgbin = np.load(timgbinPath)
+        #imgs = timgbin['imgs']
+        #parms = timgbin['parms']
+    else:
+    
+        imgs = np.array([])
+        parms = np.array([])
+        
+        tdirs = os.listdir(realOtPath)
+        tdirs.sort()
+        
+        for i, fname in enumerate(tdirs):
+            
+            try:
+                if fname.find('bad')>-1 and i>10009:
+                    tpath21 = "%s/%s"%(realOtPath, fname)
+                    print("%d:%s"%(i,tpath21))
+                    data1 = np.load(tpath21)
+                    otImg = data1['imgs']
+                    prop = data1['parms']
+                    
+                    tIdx = (prop[:,6]>elongMin) & (prop[:,6]<elongMax)
+                    otImg = otImg[tIdx]
+                    prop = prop[tIdx]
+                    
+                    if prop.shape[0]>0 and len(otImg.shape)==4:
+                        if imgs.shape[0]==0:
+                            imgs = otImg
+                            parms = prop
+                        else:
+                            imgs = np.concatenate((imgs, otImg), axis=0)
+                            parms = np.concatenate((parms, prop), axis=0)
+                    print(imgs.shape)
+                    if imgs.shape[0]>10000:
+                        timgbinPath = '%s/REAL_ELONG_DATA_bin_e%.0f_%04d_%07d.npz'%(destPath,elongMin*10, i, imgs.shape[0])
+                        np.savez_compressed(timgbinPath, imgs=imgs, parms=parms)
+                        print("save bin fiel to %s"%(timgbinPath))
+                        imgs = np.array([])
+                        parms = np.array([])
+            except Exception as e:
+                tstr = traceback.format_exc()
+                print(tstr)
+                
+        print("total get %d ELONGATION"%(imgs.shape[0]))
+        
+        timgbinPath = '%s/REAL_ELONG_DATA_bin_e%.0f_%04d_%07d.npz'%(destPath,elongMin*10, i, imgs.shape[0])
+        np.savez_compressed(timgbinPath, imgs=imgs, parms=parms)
+        print("save bin fiel to %s"%(timgbinPath))
+    return timgbinPath
+
+def shuffleData(X, Y, s2n):
+    
+    XY = []
+    for i in range(Y.shape[0]):
+        XY.append((X[i],Y[i],s2n[i]))
+    XY = np.array(XY)
+    np.random.shuffle(XY)
+    
+    X = []
+    Y = []
+    s2n = []
+    for i in range(XY.shape[0]):
+        X.append(XY[i][0])
+        Y.append(XY[i][1])
+        s2n.append(XY[i][2])
+    X = np.array(X)
+    Y = np.array(Y)
+    s2n = np.array(s2n)
+    
+    return X, Y, s2n
+        
+def getFinalTestData(totPath, fotPath1, fotPath2, realDataPath, destPath, imgSize=64, transMethod='none'):
+    
+    timgbinPath = '%s/FINAL_TEST_ADD_REAL_DATA_bin_%s.npz'%(destPath, transMethod)
+    if os.path.exists(timgbinPath):
+        print("bin file exist, read from %s"%(timgbinPath))
+        timgbin = np.load(timgbinPath)
+        X = timgbin['X']
+        Y = timgbin['Y']
+        s2n = timgbin['s2n']
+    else:
+        
+        dateStr = '20190122'
+        tSampleNamePart = "64_fot10w_%s"%(dateStr)
+        X0,Y0,s2n0 = getRealData(realDataPath, destPath, tSampleNamePart)    
+        tIdx = [370,389,419,451,459,557,559,579,3463,5238,7010,7131,7460,7748,9139,9698,12605,13183,20547,20554,20558,20561,20566,20568,20575,20586,20589,20642,20644,20646,20648,20717,20726,20730,20734,20736,20739,20746,20768,20771,20868,20871,20884,20885]
+        tIdx = np.array(tIdx)
+        X0 = X0[tIdx]
+        Y0 = Y0[tIdx]
+        s2n0 = s2n0[tIdx]
+    
+        totImgs = np.array([])
+        tprops = np.array([])        
+        totBins = os.listdir(totPath)
+        totBins.sort()
+        
+        rNum = int(random()*100)+5
+        tnum = len(totBins)
+        for i in range(tnum-rNum, tnum-rNum+5):
+            
+            try:
+                tpath21 = "%s/%s"%(totPath, totBins[i])
+                print("%d:%s"%(i,tpath21))
+                data1 = np.load(tpath21)
+                otImg = data1['tot']
+                prop = data1['ts2n']
+                
+                otImg = getImgStamp(otImg, size=imgSize, padding = 1, transMethod='none')
+                ots2n = prop
+                
+                if totImgs.shape[0]==0:
+                    totImgs = otImg
+                    tprops = ots2n
+                else:
+                    totImgs = np.concatenate((totImgs, otImg), axis=0)
+                    tprops = np.concatenate((tprops, ots2n), axis=0)
+                #break
+            except Exception as e:
+                tstr = traceback.format_exc()
+                print(tstr)
+                
+        otSize = totImgs.shape[0]
+        y = np.ones(otSize)
+        tY = np.array([np.logical_not(y), y]).transpose()
+        totImgs, tY, tprops = shuffleData(totImgs, tY, tprops)
+        
+        fotImgs1 = np.array([])
+        fprops1 = np.array([])
+        fotBins1 = ['REAL_ELONG_DATA_bin_e7_1946_0005173.npz','REAL_ELONG_DATA_bin_e7_1521_0010009.npz']
+        fotBins1Sel = ['REAL_ELONG_DATA_bin_e7_1946_0005173Sel.txt','REAL_ELONG_DATA_bin_e7_1521_0010009Sel.txt']
+        
+        for i in range(0, 2):
+            
+            try:
+                tpath21 = "%s/%s"%(fotPath1, fotBins1[i])
+                print("%d:%s"%(i,tpath21))
+                data1 = np.load(tpath21)
+                otImg = data1['imgs']
+                prop = data1['parms']
+                
+                idxFile  = "%s/%s"%(fotPath1, fotBins1Sel[i])
+                tidx = np.loadtxt(idxFile, dtype=np.int)
+                otImg=otImg[tidx]
+                prop=prop[tidx]
+                
+                otImg = getImgStamp(otImg, size=imgSize, padding = 1, transMethod='none')
+                ots2n = 1.087/prop[:,12].astype(np.float)
+                
+                if fotImgs1.shape[0]==0:
+                    fotImgs1 = otImg
+                    fprops1 = ots2n
+                else:
+                    fotImgs1 = np.concatenate((fotImgs1, otImg), axis=0)
+                    fprops1 = np.concatenate((fprops1, ots2n), axis=0)
+                #break
+            except Exception as e:
+                tstr = traceback.format_exc()
+                print(tstr)
+                
+        otSize = fotImgs1.shape[0]
+        y = np.zeros(otSize)
+        fY1 = np.array([np.logical_not(y), y]).transpose()
+        
+        fotImgs2 = np.array([])
+        fprops2 = np.array([])
+        fotBins2 = os.listdir(fotPath2)
+        fotBins2.sort()
+        
+        rNum = int(random()*500)+50
+        tnum = len(fotBins2)
+        for i in range(tnum-rNum, tnum-rNum+40):
+            
+            try:
+                tname = fotBins2[i]
+                if tname.find('fot')>-1:
+                    tpath21 = "%s/%s"%(fotPath2, tname)
+                    print("%d:%s"%(i,tpath21))
+                    data1 = np.load(tpath21)
+                    otImg = data1['imgs']
+                    prop = data1['parms']
+                    
+                    otImg = getImgStamp(otImg, size=imgSize, padding = 1, transMethod='none')
+                    ots2n = 1.087/prop[:,12].astype(np.float)
+                    
+                    if fotImgs2.shape[0]==0:
+                        fotImgs2 = otImg
+                        fprops2 = ots2n
+                    else:
+                        fotImgs2 = np.concatenate((fotImgs2, otImg), axis=0)
+                        fprops2 = np.concatenate((fprops2, ots2n), axis=0)
+                    #break
+            except Exception as e:
+                tstr = traceback.format_exc()
+                print(tstr)
+                
+        otSize = fotImgs2.shape[0]
+        y = np.zeros(otSize)
+        fY2 = np.array([np.logical_not(y), y]).transpose()
+        fotImgs2, fY2, fprops2 = shuffleData(fotImgs2, fY2, fprops2)
+        
+        print("number: tot=%d, fot1=%d, fot2=%d"%(totImgs.shape[0],fotImgs1.shape[0],fotImgs2.shape[0]))
+        totImgs, tY, tprops = totImgs[0:2000], tY[0:2000], tprops[0:2000]
+        fotImgs1, fY1, fprops1 = fotImgs1[0:1000], fY1[0:1000], fprops1[0:1000]
+        fotImgs2, fY2, fprops2 = fotImgs2[0:1000], fY2[0:1000], fprops2[0:1000]
+        
+        fotImgs1[-len(X0):]=X0
+        
+        X = np.concatenate((totImgs, fotImgs1, fotImgs2), axis=0)
+        Y = np.concatenate((tY, fY1, fY2), axis=0)
+        s2n = np.concatenate((tprops, fprops1, fprops2), axis=0)
+            
+        np.savez_compressed(timgbinPath, X=X, Y=Y, s2n=s2n)
+        print("save bin fiel to %s"%(timgbinPath))
+    return X, Y, s2n
     
 def getRealData(realOtPath, destPath, tNamePart, imgSize=64, transMethod='none'):
     

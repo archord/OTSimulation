@@ -143,8 +143,10 @@ def draw2(tpath):
     tResiImg = zscale_image(X[2])
     
     padding2 = 1
-    startX2 = 46-padding2
-    endX2 = 54-padding2
+    #startX2 = 46-padding2
+    #endX2 = 54-padding2
+    startX2 = 44-padding2
+    endX2 = 56-padding2
     tobjImg2 = tobjImg[startX2:endX2,startX2:endX2]
     tTempImg2 = tTempImg[startX2:endX2,startX2:endX2]
     tResiImg2 = tResiImg[startX2:endX2,startX2:endX2]
@@ -179,7 +181,7 @@ def draw2(tpath):
     timg = np.concatenate((tobjImg1, xspace, tTempImg1, xspace, tResiImg1), axis=1)
     Image.fromarray(timg).save("%s_zoom32.png"%(tpath[:-4]))
     
-    tzoom = 16
+    tzoom = 14
     tobjImg2 = scipy.ndimage.zoom(tobjImg2, tzoom, order=0)
     tTempImg2 = scipy.ndimage.zoom(tTempImg2, tzoom, order=0)
     tResiImg2 = scipy.ndimage.zoom(tResiImg2, tzoom, order=0)
@@ -192,7 +194,9 @@ if __name__ == "__main__":
     tpath1 = "image/bad_sample190121.npz"
     tpath2 = "image/tot_sample190121.npz"
     tpath3 = "image/fot_sample190121.npz"
+    tpath4 = "image/bad_sample190131.npz"
     
-    draw2(tpath1)
-    draw2(tpath2)
-    draw2(tpath3)
+    #draw2(tpath1)
+    #draw2(tpath2)
+    #draw2(tpath3)
+    draw2(tpath4)

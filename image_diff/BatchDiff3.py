@@ -436,13 +436,13 @@ class BatchImageDiff(object):
                 if badParms.shape[0]>0:
                     fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
-            '''
+            
             if badPixProps2.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps2, size)
                 if badParms.shape[0]>0:
                     fotpath = '%s/%s_badimg2.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
-                    
+            '''        
             resultFlag = True
         else:
             tmsgStr = "%s.fit resi image has %d tot objects, maybe wrong"%(oImgPre, totProps.shape[0])

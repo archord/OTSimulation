@@ -10,8 +10,9 @@ import keras
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Activation, Flatten, Input
 from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, Concatenate, Cropping2D
-from DataPreprocess import getData2, getRealData, saveImgs
+from DataPreprocess import getData2, getRealData, saveImgs, getElongData
 from gwac_util import zscale_image
+import traceback
     
 def createModel1():
     
@@ -129,27 +130,75 @@ def modelCompare():
     tSampleNamePart = "64_fot10w_%s"%(dateStr)
     tModelNamePart1 = "64_100_fot10w_%s_dropout"%(dateStr)
     tModelNamePart2 = "8_100_fot10w_%s_dropout"%(dateStr)
-    #realDataTest(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
-    #realDataTest2(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
     realDataPng(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
+    #realDataTest2(realDataPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
+    #realDataPng2(fotpath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2)
+    
+def realDataPng2(realOtPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2):
+    
+    #binPath = getElongData(realOtPath, workPath, elongMin=0.5, elongMax=0.7)
+    #binPath = getElongData(realOtPath, workPath, elongMin=0.7, elongMax=1.0)
+    #binPath = '/home/xy/Downloads/myresource/deep_data2/simot/train_20190122/REAL_ELONG_DATA_bin_e7.npz'
+    ''' '''
+    tpath = '/home/xy/Downloads/myresource/deep_data2/simot/train_20190122'
+    
+    
+    bins = ['REAL_ELONG_DATA_bin_e7_0284_0010010',
+       'REAL_ELONG_DATA_bin_e7_0624_0010033',
+       'REAL_ELONG_DATA_bin_e7_0972_0010072',
+       'REAL_ELONG_DATA_bin_e7_1521_0010009',
+       'REAL_ELONG_DATA_bin_e7_1946_0005173']
+       
+    for tbin in bins:
+        binPath = '%s/%s.npz'%(tpath, tbin)
+        print(binPath)
+        timgbin = np.load(binPath)
+        imgs = timgbin['imgs']
+        parms = timgbin['parms']
+        print("\n\n***********************")
+        print("img10000: %d"%(imgs.shape[0]))
+        saveImgs(imgs, "imgBadFotElong07/%s"%(tbin), zoomScale=1)
     
 def realDataPng(realOtPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2):
     
     X,Y,s2n = getRealData(realOtPath, workPath, tSampleNamePart)
     
-    subNum = 10000
-    X = X[:subNum]
-    Y = Y[:subNum]
-    s2n = s2n[:subNum]
     print(X.shape)
     print(Y.shape)
     print(s2n.shape)
     
-    img10000 = X
-    print("\n\n***********************")
-    print("img10000: %d"%(img10000.shape[0]))
-    saveImgs(img10000, "img10000", zoomScale=1)
+    tIdx = [370,389,419,451,459,557,559,579,3463,5238,7010,7131,7460,7748,9139,9698,12605,13183,20547,20554,20558,20561,20566,20568,20575,20586,20589,20642,20644,20646,20648,20717,20726,20730,20734,20736,20739,20746,20768,20771,20868,20871,20884,20885]
+    tIdx = np.array(tIdx)
+
+    X = X[tIdx]
+    Y = Y[tIdx]
+    s2n = s2n[tIdx]
+    print(X.shape)
+    print(Y.shape)
+    print(s2n.shape)
     
+    falseImg = X
+    falseS2n = s2n
+    falsePred = Y
+    print("\n\n***********************")
+    print("model1 True, model2 False: %d"%(falseImg.shape[0]))
+    for i in range(falseImg.shape[0]):
+        objWidz = zscale_image(falseImg[i][0])
+        tmpWidz = zscale_image(falseImg[i][1])
+        resiWidz = zscale_image(falseImg[i][2])
+        if objWidz.shape[0] == 0:
+            objWidz = falseImg[i][0]
+        if tmpWidz.shape[0] == 0:
+            tmpWidz = falseImg[i][1]
+        if resiWidz.shape[0] == 0:
+            resiWidz = falseImg[i][2]
+        plt.clf()
+        fig, axes = plt.subplots(1, 3, figsize=(6, 2))
+        axes.flat[0].imshow(objWidz, interpolation = "nearest", cmap='gray')
+        axes.flat[1].imshow(tmpWidz, interpolation = "nearest", cmap='gray')
+        axes.flat[2].imshow(resiWidz, interpolation = "nearest", cmap='gray')
+        axes.flat[1].set_title("pbb=%.2f,s2n=%.2f"%(falsePred[i][1], falseS2n[i]))
+        plt.show()
     
 def realDataTest2(realOtPath, workPath, tSampleNamePart, tModelNamePart1, tModelNamePart2):
     
