@@ -54,7 +54,9 @@ def getLastLine(fname):
 def getIpList():
     
     ipPrefix   =  '172.28.2.'
-    
+    #ips=['172.28.2.31','172.28.2.33']
+    ips=['172.28.2.33']
+    '''
     ips = []
     #for i in range(2,5):
     #    for j in range(1,6):
@@ -62,6 +64,7 @@ def getIpList():
         for j in range(2,4):
             ip = "%s%d%d"%(ipPrefix, i,j)
             ips.append(ip)
+    '''
     return ips
     
 def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr, dataClient):
@@ -108,6 +111,8 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr, data
                 print("last line is: %s, restart from next dir"%(continueFileName))
                 continue
         
+        if dateStr<'190115' or dateStr>'190125':
+           continue
         #logfile0.write("%s\n"%(tdir))
         logfile0.write("%s\n"%(dateStr))
         logfile0.flush()
