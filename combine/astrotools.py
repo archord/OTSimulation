@@ -43,7 +43,7 @@ class AstroTools(object):
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s") #set format of logger
         logging.Formatter.converter = time.gmtime #convert time in logger to UCT
         #filehandler = logging.FileHandler("%s/otSim.log"%(self.destDir), 'w+')
-        filehandler = logging.FileHandler("%s/otSim.log"%(self.rootPath), 'w+')
+        filehandler = logging.FileHandler("%s/otSim.log"%(os.getcwd()), 'w+')
         filehandler.setFormatter(formatter) #add format to log file
         self.log.addHandler(filehandler) #link log file to logger
         if self.verbose:

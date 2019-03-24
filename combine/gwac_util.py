@@ -352,13 +352,27 @@ def selectTempOTs(fname, tpath):
 #  30 FLAGS                  Extraction flags                                          
 #  39 MAG_APER               Fixed aperture magnitude vector                            [mag]
 #  40 MAGERR_APER            RMS error vector for fixed aperture mag.                   [mag]
+
+#   1 X_IMAGE                Object position along x                                    [pixel]
+#   2 Y_IMAGE                Object position along y                                    [pixel]
+#   3 FLUX_APER              Flux vector within fixed circular aperture(s)              [count]
+#   4 FLUXERR_APER           RMS error vector for aperture flux(es)                     [count]
+#   5 FLUX_MAX               Peak flux above background                                 [count]
+#   6 ELONGATION             A_IMAGE/B_IMAGE                                           
+#   7 ELLIPTICITY            1 - B_IMAGE/A_IMAGE                                       
+#   8 CLASS_STAR             S/G classifier output                                     
+#   9 BACKGROUND             Background at centroid position                            [count]
+#  10 FWHM_IMAGE             FWHM assuming a gaussian core                              [pixel]
+#  11 FLAGS                  Extraction flags                                          
+#  12 MAG_APER               Fixed aperture magnitude vector                            [mag]
+#  13 MAGERR_APER            RMS error vector for fixed aperture mag.                   [mag]
     tdata = np.loadtxt("%s/%s"%(tpath, fname))
     origSize = tdata.shape
 
     maxEllipticity = 0.1
-    mag = tdata[:,38]
-    elpct = tdata[:,15]
-    fwhm = tdata[:,18]
+    mag = tdata[:,11]
+    elpct = tdata[:,6]
+    fwhm = tdata[:,9]
     
     mag1 = sigma_clip(mag, sigma=2.5, iters=3)
     minMag = np.min(mag1)
@@ -374,12 +388,12 @@ def selectTempOTs(fname, tpath):
     ds9RegionName = "%s/%s_filter_ds9.reg"%(tpath, fname[:fname.index(".")])
     with open(ds9RegionName, 'w') as fp1:
         for tobj in tdata:
-           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%ld-%.2f} font=\"times 10\"\n"%
-           (tobj[3], tobj[4], 4.0, tobj[0], tobj[38]))
+           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 10\"\n"%
+           (tobj[0], tobj[1], 4.0, tobj[11]))
                
     ots = []
     for tobj in tdata:
-        ots.append((tobj[3],tobj[4],tobj[38],1.087/tobj[39]))        
+        ots.append((tobj[0],tobj[1],tobj[11],1.087/tobj[12]))        
     
     outCatName = "%ss.cat"%(fname[:fname.index(".")])
     outCatPath = "%s/%s"%(tpath, outCatName)
@@ -394,18 +408,18 @@ def selectTempOTs(fname, tpath):
 def filtByEllipticity(fname, tpath, maxEllip=0.5):
     
     tdata = np.loadtxt("%s/%s"%(tpath, fname))
-    elpct = tdata[:,15]
+    elpct = tdata[:,6]
     tdata = tdata[elpct<maxEllip]
     
     ds9RegionName = "%s/%sfe.reg"%(tpath, fname[:fname.index(".")])
     with open(ds9RegionName, 'w') as fp1:
         for tobj in tdata:
-           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%ld-%.2f-%.2f} font=\"times 10\"\n"%
-           (tobj[3], tobj[4], 4.0, tobj[0], tobj[38], tobj[15]))
+           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 10\"\n"%
+           (tobj[0], tobj[1], 4.0, tobj[11]))
                
     ots = []
     for tobj in tdata:
-        ots.append((tobj[3],tobj[4],tobj[38],1.087/tobj[39]))     
+        ots.append((tobj[0],tobj[1],tobj[11],1.087/tobj[12]))     
     
     outCatName = "%sfe.cat"%(fname[:fname.index(".")])
     outCatPath = "%s/%s"%(tpath, outCatName)
@@ -427,7 +441,7 @@ def filtOTs(fname, tpath, darkMagRatio=0.03, brightMagRatio=0.03,fSize=200, imgS
     if tdata.shape[1]==4:
         mag = tdata[:,2]
     else:
-        mag = tdata[:,38]
+        mag = tdata[:,11]
     mag = np.sort(mag)
     maxMag = mag[int((1-darkMagRatio)*tdata.shape[0])]
     minMag = mag[int(brightMagRatio*tdata.shape[0])]
@@ -441,10 +455,10 @@ def filtOTs(fname, tpath, darkMagRatio=0.03, brightMagRatio=0.03,fSize=200, imgS
             tmag = obj[2]
             ts2n = obj[3]
         else:
-            tx = obj[3]
-            ty = obj[4]
-            tmag = obj[38]
-            ts2n = 1.087/obj[39]
+            tx = obj[0]
+            ty = obj[1]
+            tmag = obj[11]
+            ts2n = 1.087/obj[12]
         if tx>minX and tx <maxX and ty>minY and ty<maxY and tmag<maxMag and tmag>minMag:
             tobjs.append([tx, ty, tmag, ts2n])
             
