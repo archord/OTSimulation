@@ -150,6 +150,12 @@ class BatchImageSim(object):
         np.savetxt(savePath, tdata1, fmt='%.5f',delimiter=' ')
         
         return saveName
+    
+    def reSaveData(self, tpath):
+        tdata1 = np.loadtxt(tpath)
+        tdata2 = tdata1[:,2:4]
+        
+        np.savetxt(tpath, tdata2, fmt='%.5f',delimiter=' ')
         
     def catTrans(self, objCat):
         
@@ -178,6 +184,8 @@ class BatchImageSim(object):
         else:
             self.log.error("cat align failed.")
         
+        self.reSaveData(catOutPath)
+        
         fitsPath2 = "%s/%s"%(self.tmpDir, self.templateImg)
         catOutPath2 = "%s/%s"%(self.tmpDir, saveName2)
         
@@ -196,6 +204,7 @@ class BatchImageSim(object):
         else:
             self.log.error("cat align failed.")
             
+        self.reSaveData(catOutPath2)
         transFile = self.savePosXY(self.tmpDir, objCat, saveName2)
         
         return transFile
@@ -285,6 +294,9 @@ class BatchImageSim(object):
             tmplFieldId = fits.getval("%s/%s"%(self.templateDir, self.templateImg), 'FIELD_ID', 0) #getval getheader getdata
             
             for i, imgName in enumerate(tfiles[1:]):
+                
+                #if i<460:
+                #    continue
                 
                 starttime = datetime.now()
                 self.log.info("align %d: %s"%(i, imgName))
@@ -417,15 +429,14 @@ class BatchImageSim(object):
                 if tfile.find('mon_objt_190116')>0:
                     tfiles.append(tfile[:33])
             
-            os.system("rm -rf %s/*"%(self.templateDir))
-            tmpImgName = tfiles[0]
-            os.system("cp %s/%s %s/%s"%(srcFitDir, tmpImgName, self.templateDir, self.templateImg))
             sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']
             fpar='sex_diff.par'
-            self.tmpImgCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf=sexConf)
             
             imgSimClass = ImageSimulation(self.tmpDir)
             for i, imgName in enumerate(tfiles[1:]):
+                
+                #if i<460:
+                #    continue
                 
                 starttime = datetime.now()
                 self.log.info("\n\n**********\nsimulate %d: %s"%(i, imgName))
@@ -442,8 +453,6 @@ class BatchImageSim(object):
                     continue
                 
                 os.system("cp %s/%s.fit %s/%s"%(srcFitDir, imgpre, self.tmpDir, self.objectImg))
-                os.system("cp %s/%s %s/%s"%(self.templateDir, self.tmpImgCat, self.tmpDir, self.tmpImgCat))
-                os.system("cp %s/%s %s/%s"%(self.templateDir, self.templateImg, self.tmpDir, self.templateImg))
                 
                 #sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
                 sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']
@@ -474,50 +483,52 @@ class BatchImageSim(object):
                     tposmagFile=posmagFile
                     os.system("cp %s/%s %s/%s"%(self.templateDir, posmagFile, self.tmpDir, posmagFile))
                     
-                simFile, simPosFile, simDeltaXYA, tmpOtImgs = imgSimClass.simulateImage1(osn32f, self.objectImg, 
+                simFile, simPosFile, tmpOtImgs = imgSimClass.simulateImage1(osn32f, self.objectImg, 
                                                                                          osn16sf, self.objectImg, posmagFile=tposmagFile)
                 self.objectImgSim = simFile
                 self.objectImgSimCatAdd = simPosFile
-                                
-                self.simTmpResi, runSuccess = self.tools.runHotpants(self.objectImgSim, self.templateImg, self.tmpDir)
-                if not runSuccess:
-                    self.log.info("%s.fit sim diff error..."%(imgpre))
-                    continue
-                
-                sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
-                #self.objectImgSimCat = self.tools.runSextractor(self.objectImgSim, self.tmpDir, self.tmpDir, sexConf=sexConf)
-                self.simTmpResiCat = self.tools.runSextractor(self.simTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf=sexConf)
-                
-                #simTmpResiCatEf = filtByEllipticity(self.simTmpResiCat, self.tmpDir, maxEllip=0.5)
-                #mchFile, nmhFile = self.tools.runSelfMatch(self.tmpDir, simTmpResiCatEf, 16)
-                #simTmpResiCatEf_sn32 = nmhFile
-                #simTmpResiCatEf_sn32 = simTmpResiCatEf
-                
-                #mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, self.objectImgSimCatAdd, simTmpResiCatEf, 5)
-                mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, self.objectImgSimCatAdd, self.simTmpResiCat, 5)
-                
-                tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgSimCatAdd))
-                tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.simTmpResiCat))
-                tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
-                self.log.info("sim add %d, diff find %d, sim match diff %d, find percentage %.2f%%"%
-                    (tdata1.shape[0], tdata2.shape[0],tdata3.shape[0],tdata3.shape[0]*100.0/tdata1.shape[0]))
                 
                 #destFitDir, destCatAddDir
                 os.system("cp %s/%s %s/%s.fit"%(self.tmpDir, self.objectImgSim, destFitDir, imgpre))
-                os.system("cp %s/%s %s/%s_simResi.fit"%(self.tmpDir, self.simTmpResi, destFitDir, imgpre))
                 os.system("cp %s/%s %s/%s.cat"%(self.tmpDir, self.objectImgSimCatAdd, destCatAddDir, imgpre))
-                os.system("cp %s/%s %s/%s_simResi.cat"%(self.tmpDir, self.simTmpResiCat, destCatAddDir, imgpre))
                 
                 if i==0 or (not os.path.exists("%s/%s"%(self.templateDir,posmagFile))):
                     os.system("cp %s/%s %s/%s"%(self.tmpDir, self.objectImgSimCatAdd, self.templateDir, posmagFile))
-                
-                tgrid = 4
-                tsize = 500
-                tzoom = 2
-                timg = getThumbnail(self.tmpDir, self.simTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
-                timg = scipy.ndimage.zoom(timg, tzoom, order=0)
-                preViewPath = "%s/%s_resi.jpg"%(self.preViewSimResiDir, imgpre)
-                Image.fromarray(timg).save(preViewPath)
+                    
+                if i%20==1 or i>=len(tfiles)-3:
+                                
+                    self.simTmpResi, runSuccess = self.tools.runHotpants(self.objectImgSim, self.templateImg, self.tmpDir)
+                    if not runSuccess:
+                        self.log.info("%s.fit sim diff error..."%(imgpre))
+                        continue
+                    
+                    sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+                    #self.objectImgSimCat = self.tools.runSextractor(self.objectImgSim, self.tmpDir, self.tmpDir, sexConf=sexConf)
+                    self.simTmpResiCat = self.tools.runSextractor(self.simTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf=sexConf)
+                    
+                    #simTmpResiCatEf = filtByEllipticity(self.simTmpResiCat, self.tmpDir, maxEllip=0.5)
+                    #mchFile, nmhFile = self.tools.runSelfMatch(self.tmpDir, simTmpResiCatEf, 16)
+                    #simTmpResiCatEf_sn32 = nmhFile
+                    #simTmpResiCatEf_sn32 = simTmpResiCatEf
+                    
+                    #mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, self.objectImgSimCatAdd, simTmpResiCatEf, 5)
+                    mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, self.objectImgSimCatAdd, self.simTmpResiCat, 5)
+                    
+                    tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgSimCatAdd))
+                    tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.simTmpResiCat))
+                    tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
+                    self.log.info("sim add %d, diff find %d, sim match diff %d, find percentage %.2f%%"%
+                        (tdata1.shape[0], tdata2.shape[0],tdata3.shape[0],tdata3.shape[0]*100.0/tdata1.shape[0]))
+                    os.system("cp %s/%s %s/%s_simResi.fit"%(self.tmpDir, self.simTmpResi, destFitDir, imgpre))
+                    os.system("cp %s/%s %s/%s_simResi.cat"%(self.tmpDir, self.simTmpResiCat, destCatAddDir, imgpre))
+                                    
+                    tgrid = 4
+                    tsize = 500
+                    tzoom = 2
+                    timg = getThumbnail(self.tmpDir, self.simTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+                    timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+                    preViewPath = "%s/%s_resi.jpg"%(self.preViewSimResiDir, imgpre)
+                    Image.fromarray(timg).save(preViewPath)
                 
                 endtime = datetime.now()
                 runTime = (endtime - starttime).seconds
@@ -542,7 +553,7 @@ def run1():
         os.system("mkdir -p %s"%(dataDest0))
     
     srcPath00='/data2/G003_031_190116/f_20620425'
-    dateStr='20190324'
+    dateStr='20190325'
     camName='G031'
     curSkyId='123'
     
@@ -580,7 +591,7 @@ def run1():
     tsim = BatchImageSim(srcPath00, dataDest, tools, camName, curSkyId)
     
     tsim.log.info("\n\n***************\nstart run Sextractor..\n")
-    tsim.getCats(srcPath00, dCatDir)
+    #tsim.getCats(srcPath00, dCatDir)
     
     tsim.log.info("\n\n***************\nstart align image..\n")
     tsim.imgAlign()
@@ -588,8 +599,8 @@ def run1():
     tsim.log.info("\n\n***************\nstart sim image..\n")
     tsim.imgSimulate(alignFitsDir, simFitsDir, simCatAddDir)
 
-    tsim.log.info("\n\n***************\nstart diff image..\n")
-    tsim.imgDiff(alignFitsDir, resiFitDir)
+    #tsim.log.info("\n\n***************\nstart diff image..\n")
+    #tsim.imgDiff(alignFitsDir, resiFitDir)
     
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py > nohup.log&
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py

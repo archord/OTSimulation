@@ -523,6 +523,32 @@ class AstroTools(object):
         
         return h, xshift, yshift, xrms, yrms
     
+    def getMatchPosHmg2(self, srcDir, oiFile, tiFile):
+        
+        tdata1 = np.loadtxt("%s/%s"%(srcDir, oiFile))
+        tdata2 = np.loadtxt("%s/%s"%(srcDir, tiFile))
+        
+        pos1 = tdata1[:,0:2]
+        pos2 = tdata2[:,0:2]
+        
+        dataOi = pos1
+        dataTi = pos2
+            
+        h, tmask = cv2.findHomography(dataOi, dataTi, cv2.RANSAC, 0.1) #0, RANSAC , LMEDS
+        
+        dataTi2 = cv2.perspectiveTransform(np.array([dataOi]), h)
+        dataTi2 = dataTi2[0]
+        
+        tmean, trms, tmax, tmin = self.evaluatePos(dataOi, dataTi2)
+        tmean2, trms2, tmax2, tmin2 = self.evaluatePos(dataTi, dataTi2, True)
+        
+        xshift = tmean[0]
+        yshift = tmean[1]
+        xrms = trms2[0]
+        yrms = trms2[1]
+        
+        return h, xshift, yshift, xrms, yrms
+    
     def imageAlign2(self, srcDir, oiFile, tiFile, mchPair):
     
         starttime = datetime.now()

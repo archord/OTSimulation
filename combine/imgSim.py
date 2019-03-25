@@ -91,67 +91,22 @@ class ImageSimulation(object):
         return tpos
     
     '''
-    仿真星等占比：
-    15.5~16：40%
-    14.5~15.5：30%
-    13.5~14.5：20%
-    12~13.5：10%
+    4136, 4096
     '''
-    def randomOTAPos(self, objCat, minMag=12, maxMag=19):
+    def randomOTAPos(self, xrange=[50,4086], yrange=[50,4046], simNum=2000, minMag=16, maxMag=18, magbin=0.5):
         
-        minDis = 8
-        maxDis = 12
-        
-        objOTs = np.loadtxt("%s/%s"%(self.tmpDir, objCat))
-        
-        #过滤部分亮星
-        tmag = objOTs[:, objOTs.shape[1]-2]
-        tmaxMag = np.max(tmag)
-        objOTs = objOTs[tmag>tmaxMag-3.5]
-        
-        posA = self.getPos(minDis, maxDis)
-        posNum = len(posA)
+        binNum=math.ceil((maxMag-minMag)/magbin)
+        binSimNum = math.ceil(simNum/binNum)
         
         ots = []
-        deltaXY = []
-        for tobj in objOTs:
-            rmsLevel = random()
-            if rmsLevel<0.2:
-                rmag = maxMag - random()
-            elif rmsLevel<0.4:
-                rmag = maxMag - 1 - random()
-            elif rmsLevel<0.6:
-                rmag = maxMag - 2 - random()
-            elif rmsLevel<0.8:
-                rmag = maxMag - 3 - random()
-            else:
-                rmag = maxMag - 4 - random()
-            '''
-            if rmsLevel<0.4:
-                rmag = maxMag - random()
-            elif rmsLevel<0.7:
-                rmag = maxMag - 1 - random()
-            elif rmsLevel<0.9:
-                rmag = maxMag - 2 - random()
-            else:
-                rmag = maxMag - 3 - random()
-                '''
-            '''    
-            if rmsLevel<0.4:
-                rmag = maxMag - random() *0.5
-            elif rmsLevel<0.7:
-                rmag = maxMag - 0.5 - random()
-            elif rmsLevel<0.9:
-                rmag = maxMag - 1.5 - random()
-            else:
-                rmag = maxMag - 2.5 - 1.5*random()
-            '''    
-            rposIdx = randint(0, posNum-1)
-            rpos = posA[rposIdx]
-            deltaXY.append(rpos)
-            ots.append((tobj[0]+rpos[0],tobj[1]+rpos[1],rmag))
+        for i in range(binNum):
+            for tnum in range(binSimNum):
+                rmag = minMag + i*0.5 + random()*0.5
+                rx = randint(xrange[0], xrange[1])
+                ry = randint(yrange[0], yrange[1])
+                ots.append((rx, ry,rmag))
             
-        return ots, deltaXY
+        return ots
     
     
     def addStar(self, image,psft,posa,flux_ratio=1.):
@@ -186,9 +141,8 @@ class ImageSimulation(object):
         
         if len(posmagFile)>0:
             otAs = np.loadtxt("%s/%s"%(self.tmpDir, posmagFile))
-            deltaXY = []
         else:
-            otAs, deltaXY = self.randomOTAPos(objCat)
+            otAs = self.randomOTAPos()
         
         destImg = "%s/%s"%(self.tmpDir, objImg)
     
@@ -252,7 +206,7 @@ class ImageSimulation(object):
          
         print("simulateImageByAddStar1 done.")
         
-        return outfile, posfile, deltaXY, self.otImgs
+        return outfile, posfile, self.otImgs
 
     #仿真图像，用于残差图和观测图像对齐时拟合用
     def simulateImage2(self, objImg, tmpCat, tmpImg, tmpOtNum=1, tempStarMag=10.,
