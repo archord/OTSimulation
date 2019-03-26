@@ -372,7 +372,7 @@ class BatchImageSim(object):
             
             for i, imgName in enumerate(tfiles[1:]):
 
-                if i%50!=1 and i<400:                
+                if i%50!=1 and i<len(tfiles)-3:                
                     continue
                 
                 starttime = datetime.now()
@@ -417,7 +417,33 @@ class BatchImageSim(object):
             print(str(e))
             tstr = traceback.format_exc()
             print(tstr)
-            
+
+    def magCali(self, objCat):
+        
+        tmpCat = "ucac4.mag"
+        tmpCatP = "%s/%s"%(self.tmpDir, tmpCat)
+        objCatP = "%s/%s"%(self.tmpDir, objCat)
+        os.system("cp /data3/simulationTest/20190322/xlp/useful/ucac4.mag %s"%(tmpCatP))
+        
+        tdata1 = np.loadtxt(tmpCatP)
+        np.savetxt(tmpCatP, tdata1[:,0:3], fmt='%.5f',delimiter=' ')
+        
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, objCat, tmpCat, 1)
+        
+        tdata1 = np.loadtxt(objCatP)
+        tdata2 = np.loadtxt(tmpCatP)
+        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair)).astype(np.int)
+        tIdx1 = tIdx1 - 1
+        
+        tdata1 = tdata1[tIdx1[:,0]][:]
+        tdata2 = tdata2[tIdx1[:,1]][:]
+        tdata1[:,11] = tdata2[:,2]
+        
+        saveName = "%s_cali.cat"%(objCat.split(".")[0])
+        np.savetxt("%s/%s"%(self.tmpDir, saveName), tdata1, fmt='%.5f',delimiter=' ')
+        
+        return saveName
+    
     def imgSimulate(self, srcFitDir, destFitDir, destCatAddDir):
         
         try:
@@ -428,6 +454,12 @@ class BatchImageSim(object):
             for tfile in tfiles0:
                 if tfile.find('mon_objt_190116')>0:
                     tfiles.append(tfile[:33])
+            
+            tmpImgPath = "%s/%s"%(destFitDir, tfiles[0])
+            if not os.path.exists(tmpImgPath):
+                os.system("cp %s/%s %s"%(srcFitDir, tfiles[0], tmpImgPath))
+            
+            os.system("cp %s/%s %s/%s"%(srcFitDir, tfiles[0], self.templateDir, self.templateImg))
             
             sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']
             fpar='sex_diff.par'
@@ -460,7 +492,9 @@ class BatchImageSim(object):
                 mchFile16, nmhFile16 = self.tools.runSelfMatch(self.tmpDir, self.objectImgCat, 16)
                 self.osn16 = nmhFile16
                 
-                osn16s = selectTempOTs(self.osn16, self.tmpDir)
+                objCali = self.magCali(self.osn16)
+                
+                osn16s = selectTempOTs(objCali, self.tmpDir)
                 tdata = np.loadtxt("%s/%s"%(self.tmpDir, osn16s))
                 if len(tdata.shape)<2 or tdata.shape[0]<100:
                     self.log.error("%s has too little stars, break this run"%(self.objectImg))
@@ -495,8 +529,9 @@ class BatchImageSim(object):
                 if i==0 or (not os.path.exists("%s/%s"%(self.templateDir,posmagFile))):
                     os.system("cp %s/%s %s/%s"%(self.tmpDir, self.objectImgSimCatAdd, self.templateDir, posmagFile))
                     
-                if i%20==1 or i>=len(tfiles)-3:
-                                
+                if i%50==1 or i>=len(tfiles)-3:
+                    
+                    os.system("cp %s/%s %s/%s"%(self.templateDir, self.templateImg, self.tmpDir, self.templateImg))
                     self.simTmpResi, runSuccess = self.tools.runHotpants(self.objectImgSim, self.templateImg, self.tmpDir)
                     if not runSuccess:
                         self.log.info("%s.fit sim diff error..."%(imgpre))
@@ -594,7 +629,7 @@ def run1():
     #tsim.getCats(srcPath00, dCatDir)
     
     tsim.log.info("\n\n***************\nstart align image..\n")
-    tsim.imgAlign()
+    #tsim.imgAlign()
     
     tsim.log.info("\n\n***************\nstart sim image..\n")
     tsim.imgSimulate(alignFitsDir, simFitsDir, simCatAddDir)

@@ -58,9 +58,15 @@ class ImageSimulation(object):
             return []
         tmpOtNum = np.min([tmpOTs.shape[0],otNum])
         randomIdx = np.random.randint(0, tmpOTs.shape[0], size=tmpOtNum)
+        
         otImgs = []
+        tempSize = 10
         for tobj in tmpOTs[randomIdx]:
-            star,backsky = self.getPsfTemp(timgData,(tobj[0],tobj[1]))
+            star,backsky = self.getPsfTemp(timgData,(tobj[0],tobj[1]),(tempSize,tempSize))
+            if star.shape[0]!=tempSize or star.shape[1]!=tempSize:
+                print("generate template_PSF error")
+                print(star.shape)
+                continue
             star = star - backsky
             star[star<0] = 0
             flux_ratio = 10**((tobj[2]-10)/2.5)
@@ -72,20 +78,13 @@ class ImageSimulation(object):
         #np.savez_compressed("/run/shm/gwacsim/otImgs.npz", otImgs=otImgs, bkgs=bkgs)
         return otImgs
     
-    def getPos(self, minDis, maxDis):
-        
-        tval1 = int(math.sqrt(minDis))
-        tval2 = -1* tval1
-        
+    def getPos(self, maxDis):
+                
         tpos = []
         for tx in range(-1*maxDis, maxDis, 1):
-            if tx>tval2 and tx <tval1:
-                continue
             for ty in range(-1*maxDis, maxDis, 1):
-                if ty>tval2 and ty <tval1:
-                    continue
                 tdis = math.sqrt(tx*tx+ty*ty)
-                if tdis>minDis and tdis<maxDis:
+                if tdis<maxDis:
                     tpos.append((tx,ty))
                     
         return tpos
@@ -93,7 +92,7 @@ class ImageSimulation(object):
     '''
     4136, 4096
     '''
-    def randomOTAPos(self, xrange=[50,4086], yrange=[50,4046], simNum=2000, minMag=16, maxMag=18, magbin=0.5):
+    def randomOTAPos(self, xrange=[100,4000], yrange=[100,4000], simNum=2000, minMag=16, maxMag=18, magbin=0.5):
         
         binNum=math.ceil((maxMag-minMag)/magbin)
         binSimNum = math.ceil(simNum/binNum)
@@ -105,6 +104,21 @@ class ImageSimulation(object):
                 rx = randint(xrange[0], xrange[1])
                 ry = randint(yrange[0], yrange[1])
                 ots.append((rx, ry,rmag))
+        
+        maxDis = 5
+        posA = self.getPos(maxDis)
+        posNum = len(posA)
+        
+        galaxy = np.loadtxt("/data3/simulationTest/20190322/xlp/useful/G031_mon_objt_190116T20320226.glaxyradec2xy")
+        for i in range(galaxy.shape[0]):
+            rmag = minMag + random()*2
+            ctrX = galaxy[i][0]
+            ctrY = galaxy[i][1]
+            if ctrX>4000 or ctrX<100 or ctrY>4000 or ctrY<100:
+                continue
+            rposIdx = randint(0, posNum-1)
+            rpos = posA[rposIdx]
+            ots.append((ctrX+rpos[0],ctrY+rpos[1],rmag))
             
         return ots
     
@@ -143,6 +157,8 @@ class ImageSimulation(object):
             otAs = np.loadtxt("%s/%s"%(self.tmpDir, posmagFile))
         else:
             otAs = self.randomOTAPos()
+            tdata = np.array(otAs)
+            np.savetxt("%s/tRandPosAdd.cat"%(self.tmpDir), tdata, fmt='%.5f',delimiter=' ')
         
         destImg = "%s/%s"%(self.tmpDir, objImg)
     
