@@ -576,6 +576,57 @@ class BatchImageSim(object):
             tstr = traceback.format_exc()
             print(tstr)
             
+    def imgCombine(self, srcFitDir, destFitDir):
+        
+        try:
+            tfiles0 = os.listdir(srcFitDir)
+            tfiles0.sort()
+            
+            tfiles = []
+            for tfile in tfiles0:
+                if tfile.find('mon_objt_190116')>0:
+                    tfiles.append(tfile[:33])
+            
+            cmbNum = 5
+            tnum = len(tfiles)-1
+            totalCmb = int(tnum/cmbNum)
+            print("total cmb %d"%(totalCmb))
+            for i in range(totalCmb):
+                
+                starttime = datetime.now()
+                self.log.info("\n\n**********\nsimulate %d: %s"%(i, tfiles[i*cmbNum+1]))
+                
+                imgs = []
+                for j in range(1,cmbNum+1):
+                    tname = tfiles[i*cmbNum+j]
+                    self.log.info("read %d, %s"%(i*cmbNum+j, tname))
+                    tdata1 = fits.getdata("%s/%s"%(srcFitDir, tname)) #first image is template
+                    imgs.append(tdata1)
+                imgArray = np.array(imgs)
+                print(imgArray.shape)
+                imgCmb = np.median(imgArray,axis=0)
+                print(imgCmb.shape)
+                fits.writeto("%s/%s"%(destFitDir, tfiles[i*cmbNum+1]), imgCmb)
+                
+                tgrid = 4
+                tsize = 500
+                tzoom = 2
+                timg = getThumbnail(destFitDir, tfiles[i*cmbNum+1], stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+                timg = scipy.ndimage.zoom(timg, tzoom, order=0)
+                preViewPath = "%s/%s_cmb.jpg"%(destFitDir, tfiles[i*cmbNum+1].split('.')[0])
+                Image.fromarray(timg).save(preViewPath)
+                    
+                endtime = datetime.now()
+                runTime = (endtime - starttime).seconds
+                self.log.info("sim: %s use %d seconds"%(tfiles[i*cmbNum+1], runTime))
+                
+                #break
+        
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
+            
 def run1():
     
     #toolPath = os.getcwd()
@@ -596,6 +647,7 @@ def run1():
     
     dCatDir="%s/dcats"%(dataDest)
     simFitsDir="%s/simFits"%(dataDest)
+    cmbFitsDir="%s/cmbFits"%(dataDest)
     alignFitsDir="%s/alignFits"%(dataDest)
     alignCatsDir="%s/alignCats"%(dataDest)
     resiFitDir="%s/resiFit"%(dataDest)
@@ -608,6 +660,8 @@ def run1():
         os.system("mkdir -p %s"%(dCatDir))
     if not os.path.exists(simFitsDir):
         os.system("mkdir -p %s"%(simFitsDir))
+    if not os.path.exists(cmbFitsDir):
+        os.system("mkdir -p %s"%(cmbFitsDir))
     if not os.path.exists(alignFitsDir):
         os.system("mkdir -p %s"%(alignFitsDir))
     if not os.path.exists(alignCatsDir):
@@ -632,10 +686,13 @@ def run1():
     #tsim.imgAlign()
     
     tsim.log.info("\n\n***************\nstart sim image..\n")
-    tsim.imgSimulate(alignFitsDir, simFitsDir, simCatAddDir)
+    #tsim.imgSimulate(alignFitsDir, simFitsDir, simCatAddDir)
 
-    #tsim.log.info("\n\n***************\nstart diff image..\n")
+    tsim.log.info("\n\n***************\nstart diff image..\n")
     #tsim.imgDiff(alignFitsDir, resiFitDir)
+    
+    tsim.log.info("\n\n***************\nstart combine image..\n")
+    tsim.imgCombine(simFitsDir, cmbFitsDir)
     
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py > nohup.log&
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py
