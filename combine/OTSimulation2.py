@@ -13,7 +13,7 @@ from astropy.wcs import WCS
 from astropy.time import Time
 from astropy.io import fits
 
-from gwac_util import getThumbnail, genPSFView, getWindowImgs, getLastLine, selectTempOTs, filtOTs, filtByEllipticity
+from gwac_util import getThumbnail, genPSFView, getWindowImgs, getLastLine, selectTempOTs, filtOTs, filtByEllipticity, getDs9Reg
 from imgSim import ImageSimulation
 from astrotools import AstroTools
             
@@ -801,6 +801,187 @@ class BatchImageSim(object):
             tstr = traceback.format_exc()
             print(tstr)
         
+    def simSextractor(self, srcFitDir, destFitDir,sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']):
+        
+        try:
+            if not os.path.exists(destFitDir):
+                os.system("mkdir -p %s"%(destFitDir))
+                
+            tfiles0 = os.listdir(srcFitDir)
+            tfiles0.sort()
+            
+            tfiles = []
+            for tfile in tfiles0:
+                tfiles.append(tfile)
+                        
+            #os.system("cp /data3/simulationTest/20190325/simCatAdd/G031_mon_objt_190116T20321726.cat %s/%s"%
+            #    (self.templateDir, self.templateImgCat))
+                
+            tdata1 = np.loadtxt("/data3/simulationTest/20190325/simCatAdd/G031_mon_objt_190116T20321726.cat")
+            
+            tdata2 = tdata1[:2000]
+            tdata3 = tdata1[2000:]
+            
+            tempName1 = "ti_star.cat"
+            tempName2 = "ti_galaxy.cat"
+            np.savetxt("%s/%s"%(self.templateDir, tempName1), tdata2, fmt='%.5f',delimiter=' ')
+            np.savetxt("%s/%s"%(self.templateDir, tempName2), tdata3, fmt='%.5f',delimiter=' ')
+        
+        
+            fpar='sex_diff.par'
+            
+            for i, imgName in enumerate(tfiles):
+                
+                starttime = datetime.now()
+                self.log.info("\n\n**********\nsextractor %d: %s"%(i, imgName))
+                
+                os.system("rm -rf %s/*"%(self.tmpDir))
+                imgpre= imgName.split(".")[0]
+                os.system("cp %s/%s.fit %s/%s"%(srcFitDir, imgpre, self.tmpDir, self.objectImg))
+                os.system("cp %s/%s %s/%s"%(self.templateDir, tempName1, self.tmpDir, tempName1))
+                os.system("cp %s/%s %s/%s"%(self.templateDir, tempName2, self.tmpDir, tempName2))
+                
+                self.objectImgCat = self.tools.runSextractor(self.objectImg, self.tmpDir, self.tmpDir, fpar, sexConf=sexConf)
+                os.system("cp %s/%s %s/%s.cat"%(self.tmpDir, self.objectImgCat, destFitDir, imgpre))
+                
+                mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, tempName1, self.objectImgCat, 1)
+                
+                os.system("cp %s/%s %s/%s_starmch.cat"%(self.tmpDir, mchFile, destFitDir, imgpre))
+                os.system("cp %s/%s %s/%s_starnmh.cat"%(self.tmpDir, nmhFile, destFitDir, imgpre))
+                
+                mchReg = getDs9Reg(mchFile, self.tmpDir)
+                nmhReg = getDs9Reg(nmhFile, self.tmpDir)
+                
+                if len(mchReg)>0:
+                    os.system("cp %s/%s %s/%s_starmch.reg"%(self.tmpDir, mchReg, destFitDir, imgpre))
+                if len(nmhReg)>0:
+                    os.system("cp %s/%s %s/%s_starnmh.reg"%(self.tmpDir, nmhReg, destFitDir, imgpre))
+                    
+                mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, tempName2, self.objectImgCat, 1)
+                
+                os.system("cp %s/%s %s/%s_galaxymch.cat"%(self.tmpDir, mchFile, destFitDir, imgpre))
+                os.system("cp %s/%s %s/%s_galaxynmh.cat"%(self.tmpDir, nmhFile, destFitDir, imgpre))
+                
+                mchReg = getDs9Reg(mchFile, self.tmpDir)
+                nmhReg = getDs9Reg(nmhFile, self.tmpDir)
+                
+                if len(mchReg)>0:
+                    os.system("cp %s/%s %s/%s_galaxymch.reg"%(self.tmpDir, mchReg, destFitDir, imgpre))
+                if len(nmhReg)>0:
+                    os.system("cp %s/%s %s/%s_galaxynmh.reg"%(self.tmpDir, nmhReg, destFitDir, imgpre))
+                
+                endtime = datetime.now()
+                runTime = (endtime - starttime).seconds
+                self.log.info("sextractor: %s use %d seconds"%(imgName, runTime))
+                
+                #break
+        
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
+        
+    def batchSimSextractor(self, srcDir, destDir):
+        
+        try:
+            
+            tfiles0 = os.listdir(srcDir)
+            tfiles0.sort()
+            
+            tpaths = []
+            for tfile in tfiles0:
+                if len(tfile)==3:
+                    tnum = int(tfile)
+                    if tnum>0:
+                        tpaths.append(tfile)
+            
+            sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','1.8','-ANALYSIS_THRESH','1.8']
+            for tpath in tpaths:
+                sDirs = "%s/%s"%(srcDir, tpath)
+                dDirs = "%s/3/%s"%(destDir, tpath)
+                self.simSextractor(sDirs, dDirs, sexConf)
+            
+            sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.9','-ANALYSIS_THRESH','2.9']
+            for tpath in tpaths:
+                sDirs = "%s/%s"%(srcDir, tpath)
+                dDirs = "%s/5/%s"%(destDir, tpath)
+                self.simSextractor(sDirs, dDirs, sexConf)
+                
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
+            
+    def simStatistic(self, srcFitDir, destFitDir):
+        
+        try:
+            if not os.path.exists(destFitDir):
+                os.system("mkdir -p %s"%(destFitDir))
+                
+            tfiles0 = os.listdir(srcFitDir)
+            tfiles0.sort()
+            
+            tfiles = []
+            for tfile in tfiles0:
+                tfiles.append(tfile)
+                        
+            os.system("cp /data3/simulationTest/20190325/simCatAdd/G031_mon_objt_190116T20321726.cat %s/%s"%
+                (self.templateDir, self.templateImgCat))
+            
+            sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']
+            fpar='sex_diff.par'
+            
+            for i, imgName in enumerate(tfiles[1:]):
+                
+                starttime = datetime.now()
+                self.log.info("\n\n**********\nstatistic %d: %s"%(i, imgName))
+                
+                os.system("rm -rf %s/*"%(self.tmpDir))
+                imgpre= imgName.split(".")[0]
+                os.system("cp %s/%s.fit %s/%s"%(srcFitDir, imgpre, self.tmpDir, self.objectImgCat))
+                os.system("cp %s/%s.fit %s/%s"%(self.templateDir, self.templateImgCat, self.tmpDir, self.templateImgCat))
+                
+                mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, self.objectImgCat, self.templateImgCat, 1)
+                
+                mchReg = getDs9Reg(mchFile, self.tmpDir)
+                nmhReg = getDs9Reg(nmhFile, self.tmpDir)
+                
+                os.system("cp %s/%s %s/%s_mch.cat"%(self.tmpDir, mchFile, destFitDir, imgpre))
+                os.system("cp %s/%s %s/%s_nmh.cat"%(self.tmpDir, nmhFile, destFitDir, imgpre))
+                os.system("cp %s/%s %s/%s"%(self.tmpDir, mchReg, destFitDir, mchReg))
+                os.system("cp %s/%s %s/%s"%(self.tmpDir, nmhReg, destFitDir, nmhReg))
+                
+                endtime = datetime.now()
+                runTime = (endtime - starttime).seconds
+                self.log.info("statistic: %s use %d seconds"%(imgName, runTime))
+                
+                #break
+        
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
+            
+    def batchSimStatistic(self, srcDir, destDir):
+        
+        try:
+            
+            tfiles0 = os.listdir(srcDir)
+            tfiles0.sort()
+            
+            tpaths = []
+            for tfile in tfiles0:
+                if len(tfile)==3:
+                    tpaths.append(tfile)
+            for tpath in tpaths:
+                sDirs = "%s/%s"%(srcDir, tpath)
+                dDirs = "%s/%s"%(destDir, tpath)
+                self.simStatistic(sDirs, dDirs)
+            
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
         
 def run1():
     
@@ -825,6 +1006,7 @@ def run1():
     cmbFitsDir="%s/cmbFits"%(dataDest)
     cmbFitsDir2="%s/cmbFits2"%(dataDest)
     cmbDiffDir="%s/cmbDiff"%(dataDest)
+    cmbDiffCatDir="%s/cmbDiffCat"%(dataDest)
     alignFitsDir="%s/alignFits"%(dataDest)
     alignCatsDir="%s/alignCats"%(dataDest)
     resiFitDir="%s/resiFit"%(dataDest)
@@ -857,6 +1039,8 @@ def run1():
         os.system("mkdir -p %s"%(simCatAddDir))
     if not os.path.exists(cmbDiffDir):
         os.system("mkdir -p %s"%(cmbDiffDir))
+    if not os.path.exists(cmbDiffCatDir):
+        os.system("mkdir -p %s"%(cmbDiffCatDir))
             
     tsim = BatchImageSim(srcPath00, dataDest, tools, camName, curSkyId)
     
@@ -877,7 +1061,10 @@ def run1():
     #tsim.batchCombine(alignFitsDir, cmbFitsDir2)
     
     tsim.log.info("\n\n***************\nstart diff simCombine image..\n")
-    tsim.batchSimCombineDiff(cmbFitsDir, cmbDiffDir)
+    #tsim.batchSimCombineDiff(cmbFitsDir, cmbDiffDir)
+    
+    tsim.log.info("\n\n***************\nstart diff simCombine image..\n")
+    tsim.batchSimSextractor(cmbDiffDir, cmbDiffCatDir)
     
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py > nohup.log&
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py

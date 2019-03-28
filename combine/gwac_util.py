@@ -479,27 +479,30 @@ def filtOTs(fname, tpath, darkMagRatio=0.03, brightMagRatio=0.03,fSize=200, imgS
 def getDs9Reg(fname, tpath):
     
     tdata = np.loadtxt("%s/%s"%(tpath, fname))
+    
+    if tdata.shape[0]>0:
+        tobjs = []
+        for obj in tdata:
+            
+            if tdata.shape[1]==3:
+                tx = obj[0]
+                ty = obj[1]
+                tmag = obj[2]
+            else:
+                tx = obj[0]
+                ty = obj[1]
+                tmag = obj[11]
                 
-    tobjs = []
-    for obj in tdata:
-        
-        if tdata.shape[1]==3:
-            tx = obj[0]
-            ty = obj[1]
-            tmag = obj[2]
-        else:
-            tx = obj[3]
-            ty = obj[4]
-            tmag = obj[38]
-            
-        tobjs.append([tx, ty, tmag])
-            
-    ds9RegionName = "%s.reg"%(fname[:fname.index(".")])
-    ds9RegionPath = "%s/%s"%(tpath, ds9RegionName)
-    with open(ds9RegionPath, 'w') as fp1:
-        for tobj in tobjs:
-           fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 10\"\n"%
-           (tobj[0], tobj[1], 4.0, tobj[2]))
+            tobjs.append([tx, ty, tmag])
+                
+        ds9RegionName = "%s.reg"%(fname[:fname.index(".")])
+        ds9RegionPath = "%s/%s"%(tpath, ds9RegionName)
+        with open(ds9RegionPath, 'w') as fp1:
+            for tobj in tobjs:
+               fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 10\"\n"%
+               (tobj[0], tobj[1], 4.0, tobj[2]))
+    else:
+        ds9RegionName=""
            
     return ds9RegionName
     
