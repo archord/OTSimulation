@@ -14,7 +14,7 @@ def simStatistic1(srcFitDir, destFitDir):
     
     try:
         if not os.path.exists(destFitDir):
-            os.system("mkdir -p %s"%(destFitDir))
+            os.system("mkdir %s"%(destFitDir))
             
         tfiles0 = os.listdir(srcFitDir)
         tfiles0.sort()
@@ -100,7 +100,7 @@ def simStatistic2(srcFitDir, destFitDir, start, end):
     
     try:
         if not os.path.exists(destFitDir):
-            os.system("mkdir -p %s"%(destFitDir))
+            os.system("mkdir %s"%(destFitDir))
             
         cmbNum = int(srcFitDir[-3:])
         sigma = int(srcFitDir[-5])
@@ -147,31 +147,33 @@ def simStatistic2(srcFitDir, destFitDir, start, end):
         print(starAll.shape)
         print(galaxyAll.shape)
         
+        binNum = 4
         magCount1 = []
-        for i in range(10):
+        for i in range(binNum):
             magCount1.append(0)
         
         for tmag in starAll:
-            tIdx = int((tmag - 16)*10/2)
-            if tIdx>9:
-                tIdx=9
+            tIdx = int((tmag - 16)*binNum/2)
+            #print(tIdx)
+            if tIdx>binNum-1:
+                tIdx=binNum-1
             if tIdx<0:
                 tIdx=0
             magCount1[tIdx] = magCount1[tIdx] +1
             
         magCount2 = []
-        for i in range(10):
+        for i in range(binNum):
             magCount2.append(0)
         
         for tmag in galaxyAll:
-            tIdx = int((tmag - 16)*10/2)
-            if tIdx>9:
-                tIdx=9
+            tIdx = int((tmag - 16)*binNum/2)
+            if tIdx>binNum-1:
+                tIdx=binNum-1
             if tIdx<0:
                 tIdx=0
             magCount2[tIdx] = magCount2[tIdx] +1
             
-        tbins = np.linspace(16.1, 17.9, 10)
+        tbins = np.linspace(16.1, 17.9, binNum)
         magCount1 = np.array(magCount1)/starAll.shape[0]
         magCount2 = np.array(magCount2)/galaxyAll.shape[0]
         plt.figure(figsize=(8,4))
@@ -188,7 +190,75 @@ def simStatistic2(srcFitDir, destFitDir, start, end):
         tstr = traceback.format_exc()
         print(tstr)
         
-def batchSimStatistic(srcDir, destDir):
+def simStatistic3(srcFitDir, destFitDir, start, end):
+    
+    try:
+        if not os.path.exists(destFitDir):
+            os.system("mkdir %s"%(destFitDir))
+            
+        cmbNum = int(srcFitDir[-3:])
+        sigma = int(srcFitDir[-5])
+        tfiles0 = os.listdir(srcFitDir)
+        tfiles0.sort()
+        
+        tfiles = []
+        for tfile in tfiles0:
+            tfiles.append(tfile)
+        
+        totalNum = len(tfiles)        
+        starAll = np.array([])
+        for i in range(totalNum):
+            
+            if i<start or i>end:
+                continue
+            
+            imgName = tfiles[i]
+            
+            imgpre= imgName.split(".")[0]
+            tname0 = "%s/%s.cat"%(srcFitDir,imgpre)
+            
+            tdata = np.loadtxt(tname0)
+            tdataMag = tdata[:,2]
+            
+            if starAll.shape[0]==0:
+                starAll = tdataMag
+            else:
+                starAll=np.concatenate((starAll, tdataMag), axis =0)
+                
+        print(starAll.shape)  
+        starAll=starAll-0.0000001          
+        binNum = 4
+        magCount1 = []
+        for i in range(binNum):
+            magCount1.append(0)
+        
+        for tmag in starAll:
+            tIdx = int((tmag - 16)*binNum/2)
+            #print(tIdx)
+            if tIdx>binNum-1:
+                tIdx=binNum-1
+            if tIdx<0:
+                tIdx=0
+            magCount1[tIdx] = magCount1[tIdx] +1
+            
+        #tbins = np.linspace(16.1, 17.9, binNum)
+        tbins = np.linspace(16.0, 18, binNum+1)
+        magCount1 = np.array(magCount1)/starAll.shape[0]
+        plt.figure(figsize=(8,4))
+        #plt.plot(tbins, magCount1, 'r*-', label='star %d'%(starAll.shape[0]/totalNum))
+        plt.hist(starAll, bins=tbins,rwidth=0.8)
+        plt.grid()
+        plt.xticks(tbins)
+        plt.legend(loc='upper right')
+        plt.title('combine %d, %s sigma histogram'%(cmbNum, sigma))
+        plt.savefig('%s/combine_%03d_sigma%s_hisGalaxy.png'%(destFitDir, cmbNum, sigma)) 
+    
+    except Exception as e:
+        print(str(e))
+        tstr = traceback.format_exc()
+        print(tstr)
+        
+def batchSimStatistic1(srcDir, destDir):
     
     try:
         
@@ -216,6 +286,7 @@ def batchSimStatistic(srcDir, destDir):
 def batchSimStatistic2(srcDir, destDir):
     
     try:
+        '''
         sDirs1 = "%s/3/005"%(srcDir)
         sDirs2 = "%s/3/025"%(srcDir)
         sDirs3 = "%s/3/125"%(srcDir)
@@ -226,6 +297,10 @@ def batchSimStatistic2(srcDir, destDir):
         simStatistic2(sDirs3, destDir, 0, 14)
         simStatistic2(sDirs4, destDir, 0, 14)
         simStatistic2(sDirs5, destDir, 0, 14)
+        '''
+        sDirs5 = "%s/5/600"%(srcDir)
+        simStatistic3(sDirs5, destDir, 0, 14)
+        
         
     except Exception as e:
         print(str(e))
