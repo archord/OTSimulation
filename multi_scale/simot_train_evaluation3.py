@@ -14,12 +14,6 @@ from keras import backend as K
 from DataPreprocess import getData2, getRealData, saveImgs, getElongData
 from gwac_util import zscale_image
 import traceback
-
-
-#model.add(Lambda(antirectifier))
-def grayInverse(x):
-    imgMax = K.max(x, axis=(2,3), keepdims=True)
-    return imgMax - x
     
 def createModel():
     
@@ -47,19 +41,10 @@ def createModel():
     model2 = MaxPooling2D(pool_size =(2, 2))(model2)
     model2 = Flatten()(model2)
     
-    model3 = Cropping2D(cropping=26,data_format='channels_first')(input0) #12*12
-    model3 = Lambda(grayInverse)(model3)
-    model3 = Conv2D(18, (3, 3), padding='same', activation='relu')(model3)
-    model3 = Conv2D(18, (3, 3), padding='same', activation='relu')(model3)
-    model3 = MaxPooling2D(pool_size =(2, 2))(model3)
-    model3 = Conv2D(24, (2, 2), padding='same', activation='relu')(model3)
-    model3 = Conv2D(36, (2, 2), padding='same', activation='relu')(model3)
-    model3 = MaxPooling2D(pool_size =(2, 2))(model3)
-    model3 = Flatten()(model3)
+    conc = Concatenate()([model1, model2])
     
-    conc = Concatenate()([model1, model2, model3])
-    out = Dense(200, activation='relu')(conc)
-    out = Dense(100, activation='relu')(out)
+    out = Dense(64, activation='relu')(conc)
+    out = Dense(64, activation='relu')(out)
     out = Dropout(0.5)(out)
     out = Dense(2, activation='softmax')(out)
     
@@ -86,84 +71,30 @@ def train(totpath, fotpath, workPath, tSampleNamePart, tModelNamePart):
     optimizer = keras.optimizers.Adam(lr=0.00001, beta_1=0.9, beta_2=0.999,decay=0.0)
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     
-    model.fit(X_train, Y_train, batch_size=128, epochs=100, validation_split=0.2)
-    modelName = "model_RealFOT_3branch2_%s.h5"%(tModelNamePart)
-    model.save("%s/%s"%(workPath, modelName))
+    for i in range(3):
+        model.fit(X_train, Y_train, batch_size=128, epochs=50, validation_split=0.2)
+        modelName = "model_RealFOT_%s_1.h5"%(tModelNamePart, (i+1))
+        model.save("%s/%s"%(workPath, modelName))
+        
 
 def doAll():
     
-    fotpath = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120/all"
+    fotpath = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120"
     totpath = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_20190120"
-    realDataPath = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120/20190116tot"
     
     #dateStr = datetime.strftime(datetime.now(), "%Y%m%d")
-    dateStr = '20190401'
+    dateStr = '20190402'
     workPath = "/home/xy/Downloads/myresource/deep_data2/simot/train_%s"%(dateStr)
     if not os.path.exists(workPath):
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    tSampleNamePart = "64_fot10w_%s"%(dateStr)
-    tModelNamePart = "64_100_fot10w_%s_dropout"%(dateStr)
+    tSampleNamePart = "branch2_100w_%s"%(dateStr)
+    tModelNamePart = "branch2_dropout_%s"%(dateStr)
     #tModelNamePart = "8_100_fot10w_%s_dropout"%(dateStr)
     train(totpath, fotpath, workPath, tSampleNamePart, tModelNamePart)
     test(totpath, fotpath, workPath, tSampleNamePart, tModelNamePart)
     
-def count():
-    
-    fotpath = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120/all"
-    totpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/rest_data_20190120"
-    totpath2 = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120/20190116tot"
-    badpath1 = "/home/xy/Downloads/myresource/deep_data2/simot/multi_scale_20190120/20190116bad"
-    
-    bad1 = 0
-    bad2 = 0
-    fot = 0
-    tot1 = 0
-    tot2 = 0
-    
-    print(totpath1)
-    tdirs = os.listdir(totpath1)
-    for tfile in tdirs:
-        tp0 = "%s/%s"%(totpath1, tfile)
-        tdata = np.load(tp0)
-        tot1 += tdata['tot'].shape[0]
-        
-    print(fotpath)
-    tdirs = os.listdir(fotpath)
-    tdirs.sort()
-    
-    badImgfiles = []
-    fotImgfiles = []
-    for tfile in tdirs:
-        if tfile.find('bad')>-1:
-            badImgfiles.append(tfile)
-        elif tfile.find('fot')>-1:
-            fotImgfiles.append(tfile)
-    for tfile in badImgfiles:
-        tp0 = "%s/%s"%(fotpath, tfile)
-        tdata = np.load(tp0)
-        bad2 += tdata['imgs'].shape[0]
-    for tfile in fotImgfiles:
-        tp0 = "%s/%s"%(fotpath, tfile)
-        tdata = np.load(tp0)
-        fot += tdata['imgs'].shape[0]
-   
-    print(totpath2)
-    tdirs = os.listdir(totpath2)
-    for tfile in tdirs:
-        tp0 = "%s/%s"%(totpath2, tfile)
-        tdata = np.load(tp0)
-        tot2 += tdata['imgs'].shape[0]
-    
-    print(badpath1)
-    tdirs = os.listdir(badpath1)
-    for tfile in tdirs:
-        tp0 = "%s/%s"%(badpath1, tfile)
-        tdata = np.load(tp0)
-        bad1 += tdata['imgs'].shape[0]
-    
-    print("bad1=%d,bad2=%d,tot1=%d,tot2=%d,fot=%d"%(bad1, bad2, tot1, tot2, fot))
     
 def test(totpath, fotpath, workPath, tSampleNamePart, tModelNamePart):
     
@@ -180,7 +111,7 @@ def test(totpath, fotpath, workPath, tSampleNamePart, tModelNamePart):
     
     from keras.models import load_model
     K.set_image_data_format('channels_first')
-    modelName = "model_RealFOT_3branch2_%s.h5"%(tModelNamePart)
+    modelName = "model_RealFOT_%s.h5"%(tModelNamePart)
     model = load_model("%s/%s"%(workPath, modelName))
     Y_pred = model.predict(X_test)
     pbb_threshold = 0.5
