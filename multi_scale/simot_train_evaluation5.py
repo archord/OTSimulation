@@ -10,6 +10,7 @@ from keras.layers import Dense, Dropout, Activation, Flatten, Input
 from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, Concatenate, Cropping2D, Lambda
 from keras import backend as K
 import traceback
+from keras.models import load_model
 
 def createModel():
     
@@ -56,18 +57,22 @@ def doAll():
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    tModelNamePart = "80w_%s_dropout_train1"%(dateStr) #944376
+    tModelNamePart = "80w_%s_dropout_train2"%(dateStr) #944376
     train(workPath, tModelNamePart)
    
 def train(workPath, tModelNamePart):
     
     dataPath = "%s/data"%(workPath)
     
+    modelName = "model_80w_20190403_dropout_train1_09.h5"
+    model = load_model("%s/%s"%(workPath, modelName))
+    K.set_value(model.optimizer.lr, 0.000001)
+    '''
     model = createModel()    
     #optimizer = keras.optimizers.SGD(lr=0.0001, decay=1e-6, momentum=0.9, nesterov=True)
     optimizer = keras.optimizers.Adam(lr=0.00001, beta_1=0.9, beta_2=0.999,decay=0.0)
     model.compile(loss='mean_squared_error', optimizer=optimizer)
-    
+    '''
     for i in range(1,10):
         tpath = "%s/train%d.npz"%(dataPath, i)
         print(tpath)
