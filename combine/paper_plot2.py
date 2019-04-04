@@ -60,7 +60,7 @@ def magStatistic1(srcDir, destDir):
         binNum = 10
         yticks = np.linspace(0, 1.0, 11)
         
-        fig, axes = plt.subplots(1,2,figsize=(16,6))
+        fig, axes = plt.subplots(1,2,figsize=(20,8))
         axs= axes.ravel()
         
         d005 = "%s/3/005"%(srcDir)
@@ -134,17 +134,17 @@ def magStatistic1(srcDir, destDir):
         axs[0].set_ylabel('ratio')
         axs[0].set_xlabel('image combine number')
         
-        axs[1].plot(x, y21, '*-', label='3 sigma')
+        axs[1].plot(x, y12, '*-', label='3 sigma')
         axs[1].plot(x, y22, '>-', label='5 sigma')
         axs[1].grid()
         axs[1].set_xticks(x)
         #axs[1].set_yticks(yticks)
         #axs[0].set_ylim((0, 1))
         axs[1].set_xticklabels(xlabel)
-        axs[1].legend(loc='upper right', framealpha=0.4)
-        axs[1].set_title('detect ratio of 2000')
-        axs[1].set_ylabel('ratio')
-        axs[1].set_xlabel('image combine number')
+        axs[1].legend(loc='upper left', framealpha=0.9)
+        #axs[1].set_title('detect ratio of 2000')
+        axs[1].set_ylabel('Detection Percentage (R<18mag)')
+        axs[1].set_xlabel('Frame of Images to be Stacked')
         
         plt.savefig('%s/RealDetectRatio.png'%(destDir)) 
         
