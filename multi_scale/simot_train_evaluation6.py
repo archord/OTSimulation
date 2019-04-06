@@ -7,21 +7,21 @@ from datetime import datetime
 import keras
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Activation, Flatten, Input
-from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, Concatenate, Cropping2D, Lambda
+from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, Concatenate, Cropping2D, Lambda, concatenate
 from keras import backend as K
 import traceback
 from keras.models import load_model
 from gwac_util import zscale_image
 import matplotlib.pyplot as plt
 
-def createModel():
+def createModel2():
     
     K.set_image_data_format('channels_first')
     #K.set_image_dim_ordering('th')
     
     input0 = Input(shape=(3, 64, 64))
     
-    model1 = Cropping2D(cropping=28,data_format='channels_first')(input0) #8*8
+    model1 = Cropping2D(cropping=26,data_format='channels_first')(input0) #12*12
     model1 = Conv2D(18, (3, 3), padding='same', activation='relu')(model1)
     model1 = Conv2D(18, (3, 3), padding='same', activation='relu')(model1)
     model1 = MaxPooling2D(pool_size =(2, 2))(model1)
@@ -30,13 +30,14 @@ def createModel():
     model1 = MaxPooling2D(pool_size =(2, 2))(model1)
     model1 = Flatten()(model1)
     
-    model2 = Conv2D(18, (5, 5), activation='relu')(input0) #64*64
-    model2 = MaxPooling2D(pool_size =(3, 3))(model2)
-    model2 = Conv2D(36, (4, 4), padding='same', activation='relu')(model2)
-    model2 = Conv2D(36, (4, 4), padding='same', activation='relu')(model2)
+    model2 = Cropping2D(cropping=16,data_format='channels_first')(input0) #32*32
+    model2 = Conv2D(8, (4, 4), padding='same', activation='relu')(model2)
     model2 = MaxPooling2D(pool_size =(2, 2))(model2)
-    model2 = Conv2D(64, (3, 3), padding='same', activation='relu')(model2)
-    model2 = Conv2D(64, (3, 3), padding='same', activation='relu')(model2)
+    model2 = Conv2D(18, (3, 3), padding='same', activation='relu')(model2)
+    model2 = Conv2D(18, (3, 3), padding='same', activation='relu')(model2)
+    model2 = MaxPooling2D(pool_size =(2, 2))(model2)
+    model2 = Conv2D(24, (2, 2), padding='same', activation='relu')(model2)
+    model2 = Conv2D(36, (2, 2), padding='same', activation='relu')(model2)
     model2 = MaxPooling2D(pool_size =(2, 2))(model2)
     model2 = Flatten()(model2)
     
@@ -49,6 +50,38 @@ def createModel():
     model0 = Model(inputs=input0, outputs=out)
         
     return model0
+    
+def createModel():
+    
+    K.set_image_data_format('channels_first')
+    #K.set_image_dim_ordering('th')
+    
+    input0 = Input(shape=(3, 64, 64))
+    
+    model1 = Cropping2D(cropping=26,data_format='channels_first')(input0) #12*12
+    
+    model2 = Cropping2D(cropping=14,data_format='channels_first')(input0) #36*36
+    #model2 = Conv2D(8, (4, 4), padding='same', activation='relu')(model2)
+    model2 = MaxPooling2D(pool_size =(3, 3))(model2)
+    conc = concatenate([model1, model2], axis=1)
+    
+    conc = Conv2D(18, (3, 3), padding='same', activation='relu')(conc)
+    conc = Conv2D(18, (3, 3), padding='same', activation='relu')(conc)
+    conc = MaxPooling2D(pool_size =(2, 2))(conc)
+    conc = Conv2D(24, (2, 2), padding='same', activation='relu')(conc)
+    conc = Conv2D(36, (2, 2), padding='same', activation='relu')(conc)
+    conc = MaxPooling2D(pool_size =(2, 2))(conc)
+    conc = Flatten()(conc)
+    
+    out = Dense(64, activation='relu')(conc)
+    out = Dense(64, activation='relu')(out)
+    out = Dropout(0.5)(out)
+    out = Dense(2, activation='softmax')(out)
+    
+    model0 = Model(inputs=input0, outputs=out)
+        
+    return model0
+    
                 
 def doAll():
     
@@ -59,14 +92,14 @@ def doAll():
         os.system("mkdir %s"%(workPath))
     print("work path is %s"%(workPath))
     
-    tModelNamePart = "80w_%s_dropout_train2"%(dateStr) #944376
+    tModelNamePart = "80w_%s_dropout_train10"%(dateStr) #944376
     train(workPath, tModelNamePart)
-    test(workPath, tModelNamePart)
+    #test(workPath, tModelNamePart)
    
 def train(workPath, tModelNamePart):
     
     dataPath = "%s/data"%(workPath)
-    
+    '''
     modelName = "model_80w_20190403_dropout_train1_09.h5"
     model = load_model("%s/%s"%(workPath, modelName))
     K.set_value(model.optimizer.lr, 0.00001)
@@ -75,16 +108,19 @@ def train(workPath, tModelNamePart):
     #optimizer = keras.optimizers.SGD(lr=0.0001, decay=1e-6, momentum=0.9, nesterov=True)
     optimizer = keras.optimizers.Adam(lr=0.00001, beta_1=0.9, beta_2=0.999,decay=0.0)
     model.compile(loss='mean_squared_error', optimizer=optimizer)
-    '''
-    for i in range(1,10):
-        tpath = "%s/train%d.npz"%(dataPath, i)
-        print(tpath)
-        tdata = np.load(tpath)
-        X = tdata['X']
-        Y = tdata['Y']
-        model.fit(X, Y, batch_size=128, epochs=20, validation_split=0.1)
-        modelName = "model_%s_%02d.h5"%(tModelNamePart, i)
-        model.save("%s/%s"%(workPath, modelName))
+
+    for j in range(4):
+        for i in range(1,10):
+            tpath = "%s/train%d.npz"%(dataPath, i)
+            print(tpath)
+            tdata = np.load(tpath)
+            X = tdata['X']
+            Y = tdata['Y']
+            #model.fit(X, Y, batch_size=128, epochs=20, validation_split=0.1, shuffle=True)
+            #model.fit(X, Y, batch_size=128, epochs=20, validation_split=0.1)
+            model.fit(X, Y, batch_size=128, epochs=20, shuffle=True)
+            modelName = "model_%s_%02d.h5"%(tModelNamePart, j*10+i)
+            model.save("%s/%s"%(workPath, modelName))
 
 def test(workPath, tModelNamePart):
     
