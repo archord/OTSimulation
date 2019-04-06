@@ -15,7 +15,37 @@ from astropy.io import fits
 from keras.models import load_model
 
 from astrotools import AstroTools
-          
+       
+def getDs9Reg(fname, tpath):
+    
+    tdata = np.loadtxt("%s/%s"%(tpath, fname))
+    
+    if tdata.shape[0]>0 and len(tdata.shape)==2:
+        tobjs = []
+        for obj in tdata:
+            
+            if tdata.shape[1]==3:
+                tx = obj[0]
+                ty = obj[1]
+                tmag = obj[2]
+            else:
+                tx = obj[0]
+                ty = obj[1]
+                tmag = obj[11]
+                
+            tobjs.append([tx, ty, tmag])
+                
+        ds9RegionName = "%s.reg"%(fname[:fname.index(".")])
+        ds9RegionPath = "%s/%s"%(tpath, ds9RegionName)
+        with open(ds9RegionPath, 'w') as fp1:
+            for tobj in tobjs:
+               fp1.write("image;circle(%.2f,%.2f,%.2f) # color=green width=1 text={%.2f} font=\"times 10\"\n"%
+               (tobj[0], tobj[1], 4.0, tobj[2]))
+    else:
+        ds9RegionName=""
+           
+    return ds9RegionName
+   
 def getWindowImg(img, ctrPos, size):
     
     imgSize = img.shape
@@ -249,7 +279,7 @@ class BatchImageSim(object):
         self.transHGs = []
         
         
-    def recognition(self, fname, catPath, objDir, diffDir, dpath, cmbNum):
+    def recognition1(self, fname, catPath, objDir, diffDir, dpath, cmbNum):
         
         try:
             if not os.path.exists(dpath):
@@ -307,12 +337,40 @@ class BatchImageSim(object):
             tstr = traceback.format_exc()
             print(tstr)
         
+    def recognition(self, fname, catPath, objDir, diffDir, dpath, cmbNum):
+        
+        try:
+            if not os.path.exists(dpath):
+                os.system("mkdir -p %s"%(dpath))
+            
+            imgpre= fname.split(".")[0]
+            totFileName = "%s/%s_tot.cat"%(dpath, imgpre)
+            totParms = np.loadtxt(totFileName)
+            
+            if totParms.shape[0]>0 and len(totParms.shape)==2:
+                os.system("rm -rf %s/*"%(self.tmpDir))
+                os.system("cp %s/%s_tot.cat %s/%s"%(dpath, imgpre, self.tmpDir, self.objectImgCat))
+                os.system("cp %s/%s %s/%s"%(self.templateDir, self.templateImgCat, self.tmpDir, self.templateImgCat))
+                
+                mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, self.objectImgCat, self.templateImgCat, 1)
+                
+                os.system("cp %s/%s %s/%s_starmch2.cat"%(self.tmpDir, mchFile, dpath, imgpre))
+                os.system("cp %s/%s %s/%s_starnmh2.cat"%(self.tmpDir, nmhFile, dpath, imgpre))
+                
+                tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
+                tdata3 = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
+                self.log.info("recognize True %d, match %d, noMatch %d"%
+                      (totParms.shape[0], tdata2.shape[0], tdata3.shape[0] ))
+                
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
+            
     def batchRecognition(self, objDir, diffDir, diffCatDir, otRcgDir):
         
-        tdata1 = np.loadtxt("/data3/simulationTest/20190325/simCatAdd/G031_mon_objt_190116T20321726.cat")
-        tdata2 = tdata1[:2000]
-        tempName1 = "ti_star.cat"
-        np.savetxt("%s/%s"%(self.templateDir, tempName1), tdata2, fmt='%.5f',delimiter=' ')
+        os.system("cp /data3/simulationTest/20190325/simCatAdd/G031_mon_objt_190116T20321726.cat %s/%s"%
+                  (self.templateDir, self.templateImgCat))
             
         try:
             
@@ -339,6 +397,28 @@ class BatchImageSim(object):
                     for tcat in cats:
                         if len(tcat)==len('G031_mon_objt_190116T20334726_cmb005.cat'):
                             self.recognition(tcat, spath2, objDir2, diffDir2, dpath2, cmbNum)
+                    
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
+            
+    def genRegFile(self, otRcgDir):
+        
+        try:
+            
+            s2ns = os.listdir(otRcgDir)
+            for s2n in s2ns:
+                spath1 = '%s/%s'%(otRcgDir, s2n)
+                
+                cmbNums = os.listdir(spath1)
+                for cmbNum in cmbNums:
+                    spath2 = '%s/%s'%(spath1, cmbNum)
+                    cats = os.listdir(spath2)
+                    for tcat in cats:
+                        if tcat[-3:]!='reg':
+                            print(tcat)
+                            getDs9Reg(tcat, spath2)
                     
         except Exception as e:
             print(str(e))
@@ -375,6 +455,7 @@ def run1():
         
     tsim.log.info("\n\n***************\nstart recognition diff OTs..\n")
     tsim.batchRecognition(objDir, diffDir, diffCatDir, otRcgDir)
+    tsim.genRegFile(otRcgDir)
     
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py > nohup.log&
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py

@@ -20,7 +20,7 @@ def getAllData(srcFitDir, start, end):
         
         tfiles = []
         for tfile in tfiles0:
-            if len(tfile)==len('G031_mon_objt_190116T20334726_cmb005.cat'):
+            if len(tfile)==len('G031_mon_objt_190116T20323226_cmb400_starmch.cat') and tfile[-11:]=='starmch.cat':
                 tfiles.append(tfile)
         
         totalNum = len(tfiles)        
@@ -34,17 +34,18 @@ def getAllData(srcFitDir, start, end):
             
             imgName = tfiles[i]
             imgpre= imgName.split(".")[0]
-            tname1 = "%s/%s_starmch.cat"%(srcFitDir,imgpre)
+            tname1 = "%s/%s.cat"%(srcFitDir,imgpre)
             
             starmch = np.loadtxt(tname1)
-            starmchMag = starmch[:,2]
-            
-            if starmchMag.shape[0]>1:
-                if starAll.shape[0]==0:
-                    starAll = starmchMag
-                else:
-                    starAll=np.concatenate((starAll, starmchMag), axis =0)
-                tnum += 1
+            if starmch.shape[0]>0 and len(starmch.shape)==2:
+                starmchMag = starmch[:,2]
+                #print(starmch.shape)
+                if starmchMag.shape[0]>1:
+                    if starAll.shape[0]==0:
+                        starAll = starmchMag
+                    else:
+                        starAll=np.concatenate((starAll, starmchMag), axis =0)
+                    tnum += 1
                 
         return starAll, tnum
     except Exception as e:
@@ -75,10 +76,8 @@ def magStatistic1(srcDir, destDir):
     
         binNum = 10
         tbins = np.linspace(16.1, 17.9, binNum)
-        yticks = np.linspace(0, 1, 11)
-        labelBins = np.linspace(16.1, 18.9, 15)
         
-        fig, axes = plt.subplots(1,2,figsize=(20,8))
+        fig, axes = plt.subplots(1,2,figsize=(16,6))
         axs= axes.ravel()
         
         d005 = "%s/3/005"%(srcDir)
@@ -88,8 +87,8 @@ def magStatistic1(srcDir, destDir):
         d400 = "%s/3/400"%(srcDir)
         dsim = "%s/5/600"%(srcDir)
         
-        data005, tnum005 = getAllData(d005,25, 70)
-        data025, tnum025 = getAllData(d025, 3, 14)
+        data005, tnum005 = getAllData(d005, 5, 50)
+        data025, tnum025 = getAllData(d025, 2, 8)
         data125, tnum125 = getAllData(d125, 0, 14)
         data200, tnum200 = getAllData(d200, 0, 14)
         data400, tnum400 = getAllData(d400, 0, 14)
@@ -114,12 +113,11 @@ def magStatistic1(srcDir, destDir):
         axs[0].plot(tbins, bin200, '*-', label='200 frame/combine')
         axs[0].plot(tbins, bin400, '>-', label='400 frame/combine')
         axs[0].grid()
-        axs[0].set_xticks(labelBins)
-        axs[0].set_yticks(yticks)
-        axs[0].legend(loc='upper right', framealpha=0.9)
-        #axs[0].set_title('%s sigma detect ratio from 2000 simulated stars'%(3))
-        axs[0].set_ylabel('Detection Percentage')
-        axs[0].set_xlabel('Magnitude(R)')
+        axs[0].set_xticks(tbins)
+        axs[0].legend(loc='upper right', framealpha=0.4)
+        axs[0].set_title('%s sigma detect ratio from 2000 simulated stars'%(3))
+        axs[0].set_ylabel('recognition ratio')
+        axs[0].set_xlabel('magnitude(R)')
         
         d005 = "%s/5/005"%(srcDir)
         d025 = "%s/5/025"%(srcDir)
@@ -127,8 +125,8 @@ def magStatistic1(srcDir, destDir):
         d200 = "%s/5/200"%(srcDir)
         d400 = "%s/5/400"%(srcDir)
         
-        data005, tnum005 = getAllData(d005,25, 70)
-        data025, tnum025 = getAllData(d025, 3, 14)
+        data005, tnum005 = getAllData(d005,5, 50)
+        data025, tnum025 = getAllData(d025, 2, 8)
         data125, tnum125 = getAllData(d125, 0, 14)
         data200, tnum200 = getAllData(d200, 0, 14)
         data400, tnum400 = getAllData(d400, 0, 14)
@@ -151,12 +149,11 @@ def magStatistic1(srcDir, destDir):
         axs[1].plot(tbins, bin200, '*-', label='200 frame/combine')
         axs[1].plot(tbins, bin400, '>-', label='400 frame/combine')
         axs[1].grid()
-        axs[1].set_xticks(labelBins)
-        axs[1].set_yticks(yticks)
-        axs[1].legend(loc='upper right', framealpha=0.9)
-        #axs[1].set_title('%s sigma detect ratio from 2000 simulated stars'%(5))
-        axs[1].set_ylabel('Detection Percentage')
-        axs[1].set_xlabel('Magnitude(R)')
+        axs[1].set_xticks(tbins)
+        axs[1].legend(loc='upper right', framealpha=0.4)
+        axs[1].set_title('%s sigma detect ratio from 2000 simulated stars'%(5))
+        axs[1].set_ylabel('recognition ratio')
+        axs[1].set_xlabel('magnitude(R)')
         
         plt.savefig('%s/DetectRatio.png'%(destDir)) 
         
@@ -167,7 +164,7 @@ def magStatistic1(srcDir, destDir):
         
 def run1():
     
-    srcPath = 'cmbDiffCat'
+    srcPath = 'otrcg'
     destPath = "draw"
     
     if not os.path.exists(destPath):
