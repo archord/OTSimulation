@@ -14,7 +14,7 @@ from keras.models import load_model
 from gwac_util import zscale_image
 import matplotlib.pyplot as plt
 
-def createModel2():
+def createModel():
     
     K.set_image_data_format('channels_first')
     #K.set_image_dim_ordering('th')
@@ -25,7 +25,7 @@ def createModel2():
     model1 = Conv2D(18, (3, 3), padding='same', activation='relu')(model1)
     model1 = Conv2D(18, (3, 3), padding='same', activation='relu')(model1)
     model1 = MaxPooling2D(pool_size =(2, 2))(model1)
-    model1 = Conv2D(24, (2, 2), padding='same', activation='relu')(model1)
+    model1 = Conv2D(36, (2, 2), padding='same', activation='relu')(model1)
     model1 = Conv2D(36, (2, 2), padding='same', activation='relu')(model1)
     model1 = MaxPooling2D(pool_size =(2, 2))(model1)
     model1 = Flatten()(model1)
@@ -33,11 +33,11 @@ def createModel2():
     model2 = Cropping2D(cropping=16,data_format='channels_first')(input0) #32*32
     model2 = Conv2D(8, (4, 4), padding='same', activation='relu')(model2)
     model2 = MaxPooling2D(pool_size =(2, 2))(model2)
-    model2 = Conv2D(18, (3, 3), padding='same', activation='relu')(model2)
-    model2 = Conv2D(18, (3, 3), padding='same', activation='relu')(model2)
+    model2 = Conv2D(20, (3, 3), padding='same', activation='relu')(model2)
+    model2 = Conv2D(20, (3, 3), padding='same', activation='relu')(model2)
     model2 = MaxPooling2D(pool_size =(2, 2))(model2)
-    model2 = Conv2D(24, (2, 2), padding='same', activation='relu')(model2)
-    model2 = Conv2D(36, (2, 2), padding='same', activation='relu')(model2)
+    model2 = Conv2D(40, (2, 2), padding='same', activation='relu')(model2)
+    model2 = Conv2D(40, (2, 2), padding='same', activation='relu')(model2)
     model2 = MaxPooling2D(pool_size =(2, 2))(model2)
     model2 = Flatten()(model2)
     
@@ -51,7 +51,7 @@ def createModel2():
         
     return model0
     
-def createModel():
+def createModel2():
     
     K.set_image_data_format('channels_first')
     #K.set_image_dim_ordering('th')
