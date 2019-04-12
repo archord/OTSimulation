@@ -27,11 +27,14 @@ def doAll():
     tModelNamePart = "80w_%s_dropout_train10"%(dateStr) #944376
     
     destName = 'refine1'
+    buildMisMatchSample(workPath, destName, tModelNamePart)
+    '''
     for i in range(1,10):
         imgsFile = 'train%d'%(i)
         #outMisMatch(workPath, imgsFile, destName, tModelNamePart)
         correctMisMatch(workPath, imgsFile, destName, tModelNamePart)
         #break
+    '''
    
 def outMisMatch(workPath, imgsFile, destName, tModelNamePart):
     
@@ -117,33 +120,79 @@ def correctMisMatch(workPath, imgsFile, destName, tModelNamePart):
     print(tpath)
             
     tdata = np.load(tpath)
-    Y_test = tdata['Y']
-    print(Y_test.shape)
+    Y = tdata['Y']
+    print(Y.shape)
     
-    srcPath0 = "%s/%s/%s/0"%(dataPath, destName, imgsFile)
-    srcPath1 = "%s/%s/%s/1"%(dataPath, destName, imgsFile)
+    srcPath10 = "%s/%s/orig/%s/0"%(dataPath, destName, imgsFile)
+    srcPath11 = "%s/%s/orig/%s/1"%(dataPath, destName, imgsFile)
+    srcPath20 = "%s/%s/correct/%s/0"%(dataPath, destName, imgsFile)
+    srcPath21 = "%s/%s/correct/%s/1"%(dataPath, destName, imgsFile)
     
-    imgs0 = os.listdir(srcPath0)
+    imgs0 = os.listdir(srcPath10)
     imgs0.sort()
     tNum0 = 0
     for timg in imgs0:
         tIdx = int(timg[:-4])
-        Y_test[tIdx][1]=1
-        Y_test[tIdx][0]=0
-        tNum0+=1
+        tpath = "%s/%s"%(srcPath20, timg)
+        if os.path.exists(tpath):
+            Y[tIdx][1]=1
+            Y[tIdx][0]=0
+            tNum0+=1
         
-    imgs1 = os.listdir(srcPath1)
+    imgs1 = os.listdir(srcPath11)
     imgs1.sort()
     tNum1 = 0
     for timg in imgs1:
         tIdx = int(timg[:-4])
-        Y_test[tIdx][1]=0
-        Y_test[tIdx][0]=1
-        tNum1+=1
+        tpath = "%s/%s"%(srcPath21, timg)
+        if not os.path.exists(tpath):
+            Y[tIdx][1]=0
+            Y[tIdx][0]=1
+            tNum1+=1
     
-    print("%s, F2T:%d, T2F:%d"%(imgsFile, tNum0, tNum1))
+    print("%s, F2T:%d,%d, T2F:%d,%d"%(imgsFile, len(imgs0), tNum0, len(imgs1), tNum1))
     tpath2 = "%s/%s_Y%s.npz"%(dataPath, imgsFile, destName)
-    np.savez_compressed(tpath2, Y=Y_test)
+    np.savez_compressed(tpath2, Y=Y)
+    
+def buildMisMatchSample(workPath, destName, tModelNamePart):
+    
+    tx = []
+    ty = []
+    ts2n = []
+    tNum0 = 0
+        
+    for i in range(1,10):
+        imgsFile = 'train%d'%(i)
+        dataPath = "%s/data"%(workPath)
+        tpath = "%s/%s.npz"%(dataPath, imgsFile)
+        print(tpath)
+                
+        tdata = np.load(tpath)
+        X = tdata['X']
+        s2n = tdata['s2n']
+        print(X.shape)
+        
+        tlables = [0,1]
+        for tlb in tlables:
+            srcPath10 = "%s/%s/orig/%s/%d"%(dataPath, destName, imgsFile, tlb)
+            srcPath20 = "%s/%s/correct/%s/%d"%(dataPath, destName, imgsFile, tlb)
+            imgs0 = os.listdir(srcPath10)
+            imgs0.sort()
+            for timg in imgs0:
+                tIdx = int(timg[:-4])
+                tx.append(X[tIdx])
+                ts2n.append(s2n[tIdx])
+                tpath = "%s/%s"%(srcPath20, timg)
+                if os.path.exists(tpath):
+                    ty.append((0,1))
+                else:
+                    ty.append((1,0))
+                tNum0+=1
+        
+    
+    print("%s, %d"%(destName, tNum0))
+    tpath2 = "%s/%s_allMisMatch.npz"%(dataPath, destName)
+    np.savez_compressed(tpath2, X=np.array(tx), Y=np.array(ty), s2n=np.array(ts2n))
             
 if __name__ == "__main__":
     
