@@ -27,7 +27,7 @@ def doAll():
     tModelNamePart = "80w_%s_dropout_train10"%(dateStr) #944376
     
     destName = 'refine1'
-    buildMisMatchSample(workPath, destName, tModelNamePart)
+    buildMisMatchSample2(workPath, destName, tModelNamePart)
     '''
     for i in range(1,10):
         imgsFile = 'train%d'%(i)
@@ -194,6 +194,48 @@ def buildMisMatchSample(workPath, destName, tModelNamePart):
     tpath2 = "%s/%s_allMisMatch.npz"%(dataPath, destName)
     np.savez_compressed(tpath2, X=np.array(tx), Y=np.array(ty), s2n=np.array(ts2n))
             
+def buildMisMatchSample2(workPath, destName, tModelNamePart):
+    
+    tx = []
+    ty = []
+    origy = []
+    ts2n = []
+    tNum0 = 0
+        
+    for i in range(1,10):
+        imgsFile = 'train%d'%(i)
+        dataPath = "%s/data"%(workPath)
+        tpath = "%s/%s.npz"%(dataPath, imgsFile)
+        print(tpath)
+                
+        tdata = np.load(tpath)
+        X = tdata['X']
+        s2n = tdata['s2n']
+        print(X.shape)
+        
+        tlables = [0,1]
+        for tlb in tlables:
+            srcPath10 = "%s/%s/orig/%s/%d"%(dataPath, destName, imgsFile, tlb)
+            srcPath20 = "%s/%s/correct/%s/%d"%(dataPath, destName, imgsFile, tlb)
+            imgs0 = os.listdir(srcPath10)
+            imgs0.sort()
+            for timg in imgs0:
+                tIdx = int(timg[:-4])
+                tx.append(X[tIdx])
+                ts2n.append(s2n[tIdx])
+                tpath = "%s/%s"%(srcPath20, timg)
+                if os.path.exists(tpath):
+                    ty.append((0,1))
+                else:
+                    ty.append((1,0))
+                origy.append(tlb)
+                tNum0+=1
+        
+    
+    print("%s, %d"%(destName, tNum0))
+    tpath2 = "%s/%s_allMisMatch2.npz"%(dataPath, destName)
+    np.savez_compressed(tpath2, X=np.array(tx), Y=np.array(ty), s2n=np.array(ts2n), origY=np.array(origy))
+    
 if __name__ == "__main__":
     
     doAll()
