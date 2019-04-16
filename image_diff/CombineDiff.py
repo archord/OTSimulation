@@ -16,6 +16,7 @@ import requests
 
 from gwac_util import getThumbnail, genPSFView, getWindowImgs, getLastLine, selectTempOTs, filtOTs, filtByEllipticity, getDs9Reg
 from astrotools import AstroTools
+from ot2classify import OT2Classify
             
 class BatchImageSim(object):
     def __init__(self, dataRoot, dataDest, tools, camName, skyName): 
@@ -62,6 +63,8 @@ class BatchImageSim(object):
         
         self.tools = tools
         self.log = tools.log
+        self.modelName='model_80w_20190403_branch3_train12_79.h5'
+        self.ot2Classifier = OT2Classify(self.toolPath, self.log, self.modelName)
         
         self.initReg(0)
 
@@ -155,15 +158,15 @@ class BatchImageSim(object):
         else:
             self.log.error("cat align failed.")
         
-        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, catOutPath))
-        tdata3 = np.concatenate((tdata, tdata2[:,2:4]), axis=1)
+        tdata2 = np.loadtxt(catOutPath)
+        tdata3 = np.concatenate((tdata, txy, tdata2[:,2:4]), axis=1)
         saveName3 = "%s_trans.cat"%(tpre)
         savePath = "%s/%s"%(self.tmpDir, saveName3)
         np.savetxt(savePath, tdata3, fmt='%.5f',delimiter=' ')
         
         return saveName3
         
-    def diff(self, srcDir, destDir, tmpFit, objFits):
+    def diff(self, srcDir, destDir, tmpFit, objFits, reverse=False):
                 
         try:
             if not os.path.exists(destDir):
@@ -200,7 +203,10 @@ class BatchImageSim(object):
                     self.log.info("%s.fit diff error..."%(imgpre))
                     continue
         
-                os.system("cp %s/%s %s/diffResi/%s.fit"%(self.tmpDir, self.objTmpResi, destDir, imgpre))
+                if reverse:
+                    os.system("cp %s/%s %s/diffResi/%s_r.fit"%(self.tmpDir, self.objTmpResi, destDir, imgpre))
+                else:
+                    os.system("cp %s/%s %s/diffResi/%s.fit"%(self.tmpDir, self.objTmpResi, destDir, imgpre))
                 
                 
                 tgrid = 4
@@ -208,13 +214,16 @@ class BatchImageSim(object):
                 tzoom = 2
                 timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
                 timg = scipy.ndimage.zoom(timg, tzoom, order=0)
-                preViewPath = "%s/preview/%s_resi.jpg"%(destDir, imgpre)
+                if reverse:
+                    preViewPath = "%s/preview/%s_resi_r.jpg"%(destDir, imgpre)
+                else:
+                    preViewPath = "%s/preview/%s_resi.jpg"%(destDir, imgpre)
                 Image.fromarray(timg).save(preViewPath)
                 
                 fpar='sex_diff.par'
                 sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
                 resiCat = self.tools.runSextractor(self.objTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf)
-                resiCatTrans = self.getRaDec(self, resiCat)
+                resiCatTrans = self.getRaDec(resiCat)
                 
                 objProps = np.loadtxt("%s/%s"%(self.tmpDir, resiCatTrans))
                 tstr = "%s,  resi objs %d"%(imgName, objProps.shape[0])
@@ -229,10 +238,13 @@ class BatchImageSim(object):
                         #tXY = totParms[:,0:2]
                         #tRaDec = self.wcs.all_pix2world(tXY, 1)
                         #totParms = np.concatenate((totParms, tRaDec), axis=1)
-                        fotpath = '%s/subImgs/%s.npz'%(self.destDir, imgpre)
+                        if reverse:
+                            fotpath = '%s/subImgs/%s_r.npz'%(destDir, imgpre)
+                        else:
+                            fotpath = '%s/subImgs/%s.npz'%(destDir, imgpre)
                         np.savez_compressed(fotpath, imgs=totSubImgs, parms=totParms)
                         
-                        self.classifyAndUpload(imgName)
+                        self.classifyAndUpload(destDir, imgName, reverse=reverse)
                         
                 endtime = datetime.now()
                 runTime = (endtime - starttime).seconds
@@ -245,7 +257,7 @@ class BatchImageSim(object):
             tstr = traceback.format_exc()
             print(tstr)
     
-    def classifyAndUpload(self, imgName):
+    def classifyAndUpload(self, destDir, imgName, reverse=False):
         
         oImgPre = imgName[:imgName.index(".")]
         upDir = "%s/%s"%(self.tmpUpload, oImgPre)
@@ -256,23 +268,27 @@ class BatchImageSim(object):
         os.system("cp %s/%s %s/%s"%(self.tmpDir, self.templateImg, upDir, self.templateImg))
         os.system("cp %s/%s %s/%s"%(self.tmpDir, self.objTmpResi, upDir, self.objTmpResi))
         
-        totImgsName = '%s.npz'%(oImgPre)
+        if reverse:
+            totImgsName = '%s_r.npz'%(oImgPre)
+        else:
+            totImgsName = '%s.npz'%(oImgPre)
         fotImgsName = ''
 
-        self.ot2Classifier.doClassifyAndUpload('%s/subImgs'%(self.destDir), totImgsName, fotImgsName, 
+        self.ot2Classifier.doClassifyAndUpload('%s/subImgs'%(destDir), totImgsName, fotImgsName, 
                           upDir, self.objectImg, self.templateImg, self.objTmpResi, 
-                          imgName, self.tools.serverIP)
+                          imgName, self.tools.serverIP, reverse=reverse)
                           
-    def batchDiff(self, srcDir, destDir, pattern='_2_c.fit'):
+    def batchDiff(self, srcDir, destDir, pattern='_2_c.fit', reverse=False):
         
         tfiles0 = os.listdir(srcDir)
         tfiles0.sort()
+        if reverse:
+            tfiles0.reverse()
 
         objFieldId = ''
         tfiles1 = []
         tfileds = []
         uniqueFields = []
-        #G021_mon_objt_190412T11473163_2_c_c_c_c_c.fit 
         for tfile in tfiles0:
             if tfile.find(pattern)>-1:
                 tfieldId = fits.getval("%s/%s"%(srcDir, tfile), 'FIELD_ID', 0)
@@ -292,7 +308,7 @@ class BatchImageSim(object):
                 tmpFit = tfiles[0]
                 objFits = tfiles[1:]
                 self.log.info('field %s, total %d'%(tfieldId, len(objFits)))
-                self.diff(srcDir, destDir, tmpFit, objFits)
+                self.diff(srcDir, destDir, tmpFit, objFits, reverse=reverse)
         
     def process(self, srcDir, destDir):
         
@@ -317,8 +333,19 @@ class BatchImageSim(object):
                     os.system("mkdir -p %s"%(diffResiDir))
                     
                 self.log.info(sDirs)
+                #G021_mon_objt_190412T11473163_2_c_c_c_c_c.fit 
                 self.batchDiff(sDirs, dDirs, pattern='_2_c.fit')
-                break
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c.fit')
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c.fit')
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c.fit')
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c_c.fit')
+                
+                self.batchDiff(sDirs, dDirs, pattern='_2_c.fit', reverse=True)
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c.fit', reverse=True)
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c.fit', reverse=True)
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c.fit', reverse=True)
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c_c.fit', reverse=True)
+                #break
             
         except Exception as e:
             print(str(e))

@@ -6,6 +6,7 @@ import traceback
 from datetime import datetime
 import scipy.ndimage
 from PIL import Image
+import keras
 from keras.models import load_model
 from DataPreprocess import getImgStamp
 from gwac_util import zscale_image, getWindowImgs
@@ -20,7 +21,7 @@ class OT2Classify(object):
         
         self.imgSize = 64
         self.pbb_threshold = 0.5
-        self.model = load_model(self.modelPath)
+        self.model = load_model(self.modelPath,custom_objects={'concatenate':keras.layers.concatenate})
         self.log = log
         
         self.theader="#   1 X_IMAGE                Object position along x                                    [pixel]\n"\
@@ -49,10 +50,10 @@ class OT2Classify(object):
     def doClassifyFile(self, tpath, fname):
     
         rstParms = np.array([])
-        tpath = "%s/%s"%(tpath, fname)
-        if os.path.exists(tpath):
+        tpath0 = "%s/%s"%(tpath, fname)
+        if len(fname)>0 and os.path.exists(tpath0):
                 
-            tdata1 = np.load(tpath)
+            tdata1 = np.load(tpath0)
             timgs32 = tdata1['imgs']
             parms = tdata1['parms']
             #fs2n = 1.087/props[:,12].astype(np.float)
@@ -62,6 +63,7 @@ class OT2Classify(object):
                 preY = self.model.predict(timgs, batch_size=128)
                 
                 predProbs = preY[:, 1]
+                predProbs = predProbs.reshape([predProbs.shape[0],1])
                 rstParms = np.concatenate((parms, predProbs), axis=1)
         
         return rstParms
@@ -91,7 +93,7 @@ class OT2Classify(object):
         
     def doClassifyAndUpload(self, subImgPath, totFile, fotFile, 
                           fullImgPath, newImg, tmpImg, resImg, origName, serverIP, 
-                          prob=0.01, maxNEllip=0.6, maxMEllip=0.5):
+                          prob=0.01, maxNEllip=0.6, maxMEllip=0.5, reverse=False):
 
         self.log.debug("start new thread classifyAndUpload %s"%(origName))        
         
@@ -102,26 +104,12 @@ class OT2Classify(object):
             
             tParms1 = self.doClassifyFile(subImgPath, totFile)
             if tParms1.shape[0]>0:
-                tParms1 = tParms1[tParms1[:,6]<maxNEllip]
+                tParms1 = tParms1[(tParms1[:,6]<maxMEllip) & (tParms1[:,17]>=prob)]
                 if tParms1.shape[0]>0:
                     tflags1 = np.ones((tParms1.shape[0],1)) #OT FLAG 
                     tParms1 = np.concatenate((tParms1, tflags1), axis=1)
             
-            tParms2 = self.doClassifyFile(subImgPath, fotFile)
-            if tParms2.shape[0]>0:
-                tParms2 = tParms2[(tParms2[:,6]<maxMEllip) & (tParms2[:,17]>=prob)]
-                if tParms2.shape[0]>0:
-                    tflags2 = np.zeros((tParms2.shape[0],1)) #OT FLAG 
-                    tParms2 = np.concatenate((tParms2, tflags2), axis=1)
-            
-            if tParms1.shape[0]>0 and tParms2.shape[0]>0 and tParms2.shape[0]<25:
-                tParms = np.concatenate((tParms1, tParms2), axis=0)
-            elif tParms1.shape[0]>0:
-                tParms = tParms1
-            elif tParms2.shape[0]>0 and tParms2.shape[0]<25:
-                tParms = tParms2
-            else:
-                tParms = np.array([])
+            tParms = tParms1
                 
             if tParms.shape[0]>0:
                 tSubImgs, tParms = getWindowImgs(fullImgPath, newImg, tmpImg, resImg, tParms, 100)
@@ -153,13 +141,16 @@ class OT2Classify(object):
                         spaceLine = spaceLine.reshape(spaceLine.shape[0], spaceLine.shape[1],1).repeat(3,2)
                         sub2Con = np.concatenate((objWidz, spaceLine, tmpWidz, spaceLine, resiWidz), axis=1)
                         
-                        tImgName = "%s_%05d.jpg"%(nameBase,i)
+                        if reverse:
+                            tImgName = "%s_%05d_r.jpg"%(nameBase,i)
+                        else:
+                            tImgName = "%s_%05d.jpg"%(nameBase,i)
                         timgNames.append(tImgName)
                         savePath = "%s/%s"%(fullImgPath, tImgName)
                         Image.fromarray(sub2Con).save(savePath)
                         i = i+1
             
-                    catName = tImgName = "%s.cat"%(nameBase)
+                    catName = "%s.cat"%(nameBase)
                     catPath = "%s/%s"%(fullImgPath, catName)
                     fp0 = open(catPath, 'w')
                     #fp0.write(self.theader)
@@ -172,13 +163,11 @@ class OT2Classify(object):
                         i=i+1
                     fp0.close()
                     
-                    self.doUpload(fullImgPath,[catName],'diffot1',serverIP)
-                    self.doUpload(fullImgPath,timgNames,'diffot1img',serverIP)
+                    self.doUpload(fullImgPath,[catName],'cmbot1',serverIP)
+                    self.doUpload(fullImgPath,timgNames,'cmbot1img',serverIP)
                     
             if tParms.shape[0]==0:
                 self.log.info("after classified, no OT candidate left")
-            if tParms2.shape[0]>=25:
-                self.log.error("too more matched OT candidate, skip upload matched to db: after classified, %s total get %d matchend sub images"%(origName, tParms2.shape[0]))
             os.system("rm -rf %s"%(fullImgPath))
         
         except Exception as e:
