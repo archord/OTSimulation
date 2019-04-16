@@ -15,7 +15,6 @@ from astropy.io import fits
 import requests
 
 from gwac_util import getThumbnail, genPSFView, getWindowImgs, getLastLine, selectTempOTs, filtOTs, filtByEllipticity, getDs9Reg
-from imgSim import ImageSimulation
 from astrotools import AstroTools
             
 class BatchImageSim(object):
@@ -59,42 +58,12 @@ class BatchImageSim(object):
         self.selTemplateNum = 10 # 10 3
         self.maxFalseNum = 5
         
-        self.sendUrl = "http://172.28.8.8/gbackend/regOrigImg.action"
+        self.sendUrl = "http://172.28.8.8/gwebend/regOrigImg.action"
         
         self.tools = tools
         self.log = tools.log
         
         self.initReg(0)
-                
-        
-        self.dCatDir="%s/dcats"%(dataDest)
-        self.simFitsDir="%s/simFits"%(dataDest)
-        self.alignFitsDir="%s/alignFits"%(dataDest)
-        self.alignCatsDir="%s/alignCats"%(dataDest)
-        self.resiFitDir="%s/resiFit"%(dataDest)
-        self.resiCatDir="%s/resiCat"%(dataDest)
-        self.preViewDir="%s/preview"%(dataDest)
-        self.preViewSimResiDir="%s/previewSimResi"%(dataDest)
-        self.simCatAddDir="%s/simCatAdd"%(dataDest)
-    
-        if not os.path.exists(self.dCatDir):
-            os.system("mkdir -p %s"%(self.dCatDir))
-        if not os.path.exists(self.simFitsDir):
-            os.system("mkdir -p %s"%(self.simFitsDir))
-        if not os.path.exists(self.alignFitsDir):
-            os.system("mkdir -p %s"%(self.alignFitsDir))
-        if not os.path.exists(self.alignCatsDir):
-            os.system("mkdir -p %s"%(self.alignCatsDir))
-        if not os.path.exists(self.resiFitDir):
-            os.system("mkdir -p %s"%(self.resiFitDir))
-        if not os.path.exists(self.resiCatDir):
-            os.system("mkdir -p %s"%(self.resiCatDir))
-        if not os.path.exists(self.preViewDir):
-            os.system("mkdir -p %s"%(self.preViewDir))
-        if not os.path.exists(self.preViewSimResiDir):
-            os.system("mkdir -p %s"%(self.preViewSimResiDir))
-        if not os.path.exists(self.simCatAddDir):
-            os.system("mkdir -p %s"%(self.simCatAddDir))
 
     def sendMsg(self, tmsg):
         
@@ -134,19 +103,20 @@ class BatchImageSim(object):
         try:
             with fits.open(objPath,memmap=False) as ft:
                 theader = ft[0].header
+                #theader = fits.getheader(objPath, 0)
                 groupId = theader['GROUP_ID']
                 unitID = theader['UNIT_ID']
                 camID = theader['CAM_ID']
                 gridID = theader['GRID_ID']
                 fieldID = theader['FIELD_ID']
-                tdate = theader.header['DATE-OBS']
-                ttime = theader.header['TIME-OBS']
+                tdate = theader['DATE-OBS']
+                ttime = theader['TIME-OBS']
                 genTime = "%sT%s"%(tdate, ttime)
                 imgName = objFits
                 imgPath = tpath
                 
-                values = {'groupId': groupId, 'unitID': unitID, 'camID': camID,
-                          'gridID': gridID, 'fieldID': fieldID, 'genTime': genTime, 
+                values = {'groupId': groupId, 'unitId': unitID, 'camId': camID,
+                          'gridId': gridID, 'fieldId': fieldID, 'genTime': genTime, 
                           'imgName': imgName, 'imgPath': imgPath}
                 print(values)
                 r = requests.post(self.sendUrl, data=values)
@@ -261,26 +231,30 @@ class BatchImageSim(object):
         tfiles0.sort()
 
         objFieldId = ''
-        tfiles = []
+        tfiles1 = []
+        tfileds = []
+        uniqueFields = []
         #G021_mon_objt_190412T11473163_2_c_c_c_c_c.fit 
         for tfile in tfiles0:
             if tfile.find(pattern)>-1:
                 tfieldId = fits.getval("%s/%s"%(srcDir, tfile), 'FIELD_ID', 0)
-                if len(objFieldId)==0:
+                tfileds.append(tfieldId)
+                tfiles1.append(tfile)
+                if len(objFieldId)==0 or objFieldId != tfieldId:
                     objFieldId = tfieldId
-                if objFieldId == tfieldId:
-                    tfiles.append(tfile)
-                else:
-                    if len(tfiles)>=2:
-                        tfiles.sort()
-                        tmpFit = tfiles[0]
-                        objFits = tfiles[1:]
-                        self.diff(srcDir, destDir, tmpFit, objFits)
-                    
-                    objFieldId = tfieldId
-                    tfiles = []
-                    tfiles.append(tfile)
-                    
+                    uniqueFields.append(objFieldId)
+        
+        self.log.info(uniqueFields)
+        tfileds = np.array(tfileds)
+        tfiles1 = np.array(tfiles1)
+        for tf in uniqueFields:
+            tfiles =  tfiles1[tfileds==tf]
+            if len(tfiles)>=2:
+                tfiles.sort()
+                tmpFit = tfiles[0]
+                objFits = tfiles[1:]
+                self.log.info('field %s, total %d'%(tfieldId, len(objFits)))
+                self.diff(srcDir, destDir, tmpFit, objFits)
         
     def process(self, srcDir, destDir):
         
@@ -292,6 +266,18 @@ class BatchImageSim(object):
             for tfile in tfiles0:
                 sDirs = "%s/%s"%(srcDir, tfile)
                 dDirs = "%s/%s"%(destDir, tfile)
+                
+                subImgsDir="%s/subImgs"%(dDirs)
+                preViewDir="%s/preview"%(dDirs)
+                diffResiDir="%s/diffResi"%(dDirs)
+                
+                if not os.path.exists(subImgsDir):
+                    os.system("mkdir -p %s"%(subImgsDir))
+                if not os.path.exists(preViewDir):
+                    os.system("mkdir -p %s"%(preViewDir))
+                if not os.path.exists(diffResiDir):
+                    os.system("mkdir -p %s"%(diffResiDir))
+                    
                 self.log.info(sDirs)
                 self.batchDiff(sDirs, dDirs, pattern='_2_c.fit')
                 break
@@ -317,21 +303,7 @@ def run1():
     if not os.path.exists(dataDest0):
         os.system("mkdir -p %s"%(dataDest0))
         
-    
-    dataDest='%s/%s'%(dataDest0, dateStr)
-    
-    subImgsDir="%s/subImgs"%(dataDest)
-    preViewDir="%s/preview"%(dataDest)
-    diffResiDir="%s/diffResi"%(dataDest)
-    
-    if not os.path.exists(subImgsDir):
-        os.system("mkdir -p %s"%(subImgsDir))
-    if not os.path.exists(preViewDir):
-        os.system("mkdir -p %s"%(preViewDir))
-    if not os.path.exists(diffResiDir):
-        os.system("mkdir -p %s"%(diffResiDir))
-            
-    tsim = BatchImageSim(srcPath00, dataDest, tools, camName, curSkyId)
+    tsim = BatchImageSim(srcPath00, dataDest0, tools, camName, curSkyId)
     
     tsim.log.info("\n\n***************\nstart diff simCombine image..\n")
     tsim.process(srcPath00, dataDest0)
