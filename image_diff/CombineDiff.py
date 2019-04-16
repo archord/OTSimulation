@@ -125,7 +125,44 @@ class BatchImageSim(object):
             print(e)
         
         return True
-              
+            
+    def getRaDec(self, objCat):
+        
+        tpre= objCat.split(".")[0]
+        saveName = "%s_objxy.cat"%(tpre)
+        saveName1 = "%s_objsky.cat"%(tpre)
+        catOutPath = "%s/%s"%(self.tmpDir, saveName1)
+        fitsPath = "%s/%s"%(self.tmpDir, self.objectImg)
+        catInPath = "%s/%s"%(self.tmpDir, saveName)
+        
+        tdata = np.loadtxt("%s/%s"%(self.tmpDir, objCat))
+        txy = tdata[:,0:2]
+        savePath = "%s/%s"%(self.tmpDir, saveName)
+        np.savetxt(savePath, txy, fmt='%.5f',delimiter=' ')
+        
+        #tnx2sky <path of fits> <input file> <output file>
+        cmd = ['tnx2sky', fitsPath, catInPath, catOutPath]
+        self.log.debug(cmd)
+           
+        # run command
+        process=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        (stdoutstr,stderrstr) = process.communicate()
+        status = process.returncode
+        
+        if os.path.exists(catOutPath) and status==0:
+            self.log.debug("cat align success.")
+            self.log.debug("generate aligned file1 %s"%(saveName1))
+        else:
+            self.log.error("cat align failed.")
+        
+        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, catOutPath))
+        tdata3 = np.concatenate((tdata, tdata2[:,2:4]), axis=1)
+        saveName3 = "%s_trans.cat"%(tpre)
+        savePath = "%s/%s"%(self.tmpDir, saveName3)
+        np.savetxt(savePath, tdata3, fmt='%.5f',delimiter=' ')
+        
+        return saveName3
+        
     def diff(self, srcDir, destDir, tmpFit, objFits):
                 
         try:
@@ -177,8 +214,9 @@ class BatchImageSim(object):
                 fpar='sex_diff.par'
                 sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
                 resiCat = self.tools.runSextractor(self.objTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf)
+                resiCatTrans = self.getRaDec(self, resiCat)
                 
-                objProps = np.loadtxt("%s/%s"%(self.tmpDir, resiCat))
+                objProps = np.loadtxt("%s/%s"%(self.tmpDir, resiCatTrans))
                 tstr = "%s,  resi objs %d"%(imgName, objProps.shape[0])
                 self.log.info(tstr)
                 
@@ -188,9 +226,9 @@ class BatchImageSim(object):
                     
                     totSubImgs, totParms = getWindowImgs(self.tmpDir, self.objectImg, self.templateImg, self.objTmpResi, objProps, size)
                     if totParms.shape[0]>0:
-                        tXY = totParms[:,0:2]
-                        tRaDec = self.wcs.all_pix2world(tXY, 1)
-                        totParms = np.concatenate((totParms, tRaDec), axis=1)
+                        #tXY = totParms[:,0:2]
+                        #tRaDec = self.wcs.all_pix2world(tXY, 1)
+                        #totParms = np.concatenate((totParms, tRaDec), axis=1)
                         fotpath = '%s/subImgs/%s.npz'%(self.destDir, imgpre)
                         np.savez_compressed(fotpath, imgs=totSubImgs, parms=totParms)
                         
