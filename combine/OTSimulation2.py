@@ -977,20 +977,20 @@ def run1():
     #tsim.getCats(srcPath00, dCatDir)
     
     tsim.log.info("\n\n***************\nstart align image..\n")
-    #tsim.imgAlign()
+    tsim.imgAlign()
     
     tsim.log.info("\n\n***************\nstart sim image..\n")
     #tsim.imgSimulate(alignFitsDir, simFitsDir, simCatAddDir)
 
     tsim.log.info("\n\n***************\nstart diff image..\n")
-    #tsim.imgDiff(alignFitsDir, resiFitDir)
+    tsim.imgDiff(alignFitsDir, resiFitDir)
     
     tsim.log.info("\n\n***************\nstart combine image..\n")
     #tsim.batchCombine(simFitsDir, cmbFitsDir)
     #tsim.batchCombine(alignFitsDir, cmbFitsDir2)
     
     tsim.log.info("\n\n***************\nstart diff simCombine image..\n")
-    #tsim.batchSimCombineDiff(cmbFitsDir, cmbDiffDir)
+    tsim.batchSimCombineDiff(cmbFitsDir, cmbDiffDir)
     
     tsim.log.info("\n\n***************\nstart diff simCombine image..\n")
     tsim.batchSimSextractor(cmbDiffDir, cmbDiffCatDir)

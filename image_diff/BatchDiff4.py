@@ -359,7 +359,7 @@ class BatchImageDiff(object):
             return False
 
         os.system("cp %s/%s %s/%s.fit"%(self.tmpDir, self.objTmpResi, self.resiFitsDir, oImgPre))
-
+        '''
         tgrid = 1
         tsize = 4096
         tzoom = 1
@@ -369,6 +369,7 @@ class BatchImageDiff(object):
         Image.fromarray(timg).save(preViewPath)
         
         return
+        '''
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         resiCat = self.tools.runSextractor(self.objTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf)
@@ -543,8 +544,8 @@ class BatchImageDiff(object):
                         diffResult = self.diffImage()
                         if diffResult == False:
                             self.diffFalseNum = self.diffFalseNum+1
-                        #else:
-                        #    self.classifyAndUpload()
+                        else:
+                            self.classifyAndUpload()
                         #break
                     else:
                         if self.regFalseIdx+self.regFalseNum==i:
