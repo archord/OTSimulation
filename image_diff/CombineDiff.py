@@ -63,7 +63,8 @@ class BatchImageSim(object):
         
         self.tools = tools
         self.log = tools.log
-        self.modelName='model_80w_20190403_branch3_train12_79.h5'
+        #self.modelName='model_80w_20190403_branch3_train12_79.h5'
+        self.modelName='model_RealFOT_64_100_fot10w_20190122_dropout.h5'
         self.ot2Classifier = OT2Classify(self.toolPath, self.log, self.modelName)
         
         self.initReg(0)

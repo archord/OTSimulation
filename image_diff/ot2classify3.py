@@ -17,11 +17,18 @@ class OT2Classify(object):
         
         self.dataRoot=dataRoot
         self.modelName=modelName
+        self.modelName2='model_128_5_RealFOT_8_190111.h5'
+        self.modelName3='model_80w_20190403_branch3_train12_79.h5'
         self.modelPath="%s/tools/mlmodel/%s"%(dataRoot,self.modelName)
+        self.modelPath2="%s/tools/mlmodel/%s"%(dataRoot,self.modelName2)
+        self.modelPath3="%s/tools/mlmodel/%s"%(dataRoot,self.modelName3)
         
         self.imgSize = 64
+        self.imgSize2 = 8
         self.pbb_threshold = 0.5
-        self.model = load_model(self.modelPath,custom_objects={'concatenate':keras.layers.concatenate})
+        self.model3 = load_model(self.modelPath3,custom_objects={'concatenate':keras.layers.concatenate})
+        self.model = load_model(self.modelPath)
+        self.model2 = load_model(self.modelPath2)
         self.log = log
         
         self.theader="#   1 X_IMAGE                Object position along x                                    [pixel]\n"\
@@ -61,11 +68,19 @@ class OT2Classify(object):
             if timgs32.shape[0]>0:
                 timgs = getImgStamp(timgs32, size=self.imgSize, padding = 1, transMethod='none')
                 preY = self.model.predict(timgs, batch_size=128)
+                preY3 = self.model3.predict(timgs, batch_size=128)
+                
+                timgs2 = getImgStamp(timgs32, size=self.imgSize2, padding = 1, transMethod='none')
+                preY2 = self.model2.predict(timgs2, batch_size=128)
                 
                 predProbs = preY[:, 1]
+                predProbs2 = preY2[:, 1]
+                predProbs3 = preY3[:, 1]
+                predProbsJoin = ~((predProbs>self.pbb_threshold) & (predProbs2>self.pbb_threshold) & (predProbs3>self.pbb_threshold))
+                predProbs[predProbsJoin]=0
+                
                 predProbs = predProbs.reshape([predProbs.shape[0],1])
                 rstParms = np.concatenate((parms, predProbs), axis=1)
-                self.log.info("total %d subImgs, %d is valid and classified"%(timgs32.shape[0],timgs.shape[0]))
         
         return rstParms
     
@@ -105,14 +120,26 @@ class OT2Classify(object):
             
             tParms1 = self.doClassifyFile(subImgPath, totFile)
             if tParms1.shape[0]>0:
-                #tParms1 = tParms1[(tParms1[:,6]<maxMEllip) & (tParms1[:,17]>=prob)]
-                tParms1 = tParms1[tParms1[:,17]>=prob]
-                self.log.info("after classified, %s is true"%(tParms1.shape[0]))
+                tParms1 = tParms1[(tParms1[:,6]<maxMEllip) & (tParms1[:,17]>=prob)]
                 if tParms1.shape[0]>0:
                     tflags1 = np.ones((tParms1.shape[0],1)) #OT FLAG 
                     tParms1 = np.concatenate((tParms1, tflags1), axis=1)
             
-            tParms = tParms1
+            tParms2 = self.doClassifyFile(subImgPath, fotFile)
+            if tParms2.shape[0]>0:
+                tParms2 = tParms2[(tParms2[:,6]<maxMEllip) & (tParms2[:,17]>=prob)]
+                if tParms2.shape[0]>0:
+                    tflags2 = np.zeros((tParms2.shape[0],1)) #OT FLAG 
+                    tParms2 = np.concatenate((tParms2, tflags2), axis=1)
+            
+            if tParms1.shape[0]>0 and tParms2.shape[0]>0 and tParms2.shape[0]<25:
+                tParms = np.concatenate((tParms1, tParms2), axis=0)
+            elif tParms1.shape[0]>0:
+                tParms = tParms1
+            elif tParms2.shape[0]>0 and tParms2.shape[0]<25:
+                tParms = tParms2
+            else:
+                tParms = np.array([])
                 
             if tParms.shape[0]>0:
                 tSubImgs, tParms = getWindowImgs(fullImgPath, newImg, tmpImg, resImg, tParms, 100)
@@ -170,7 +197,9 @@ class OT2Classify(object):
                     self.doUpload(fullImgPath,timgNames,'cmbot1img',serverIP)
                     
             if tParms.shape[0]==0:
-                self.log.info("total %d resiObj, after classified, no OT candidate left"%(tParms1.shape[0]))
+                self.log.info("after classified, no OT candidate left")
+            if tParms2.shape[0]>=25:
+                self.log.error("too more matched OT candidate, skip upload matched to db: after classified, %s total get %d matchend sub images"%(origName, tParms2.shape[0]))
             os.system("rm -rf %s"%(fullImgPath))
         
         except Exception as e:
