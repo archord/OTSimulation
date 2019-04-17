@@ -17,7 +17,8 @@ class OT2Classify(object):
         
         self.dataRoot=dataRoot
         self.modelName=modelName
-        self.modelPath="%s/tools/mlmodel/%s"%(dataRoot,self.modelName)
+        self.modelName3='model_80w_20190403_branch3_train12_79.h5'
+        self.modelPath="%s/tools/mlmodel/%s"%(dataRoot,self.modelName3)
         
         self.imgSize = 64
         self.pbb_threshold = 0.5

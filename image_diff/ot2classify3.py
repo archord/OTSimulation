@@ -198,8 +198,6 @@ class OT2Classify(object):
                     
             if tParms.shape[0]==0:
                 self.log.info("after classified, no OT candidate left")
-            if tParms2.shape[0]>=25:
-                self.log.error("too more matched OT candidate, skip upload matched to db: after classified, %s total get %d matchend sub images"%(origName, tParms2.shape[0]))
             os.system("rm -rf %s"%(fullImgPath))
         
         except Exception as e:

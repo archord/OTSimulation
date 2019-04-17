@@ -167,6 +167,31 @@ class BatchImageSim(object):
         
         return saveName3
         
+    def makeTemplate(self):
+        
+        try:
+            starttime = datetime.now()
+            runSuccess = True
+            
+            sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
+            fpar='sex_diff.par'
+            tmplCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0)
+
+            objName = 'ti.fit'
+            bkgName = 'ti_bkg.fit'
+            self.badPixCat = self.tools.processBadPix(objName, bkgName, self.templateDir, self.templateDir)
+            
+            endtime = datetime.now()
+            runTime = (endtime - starttime).seconds
+            self.log.info("********** make template %s use %d seconds"%(self.origTmplImgName, runTime))
+            
+        except Exception as e:
+            runSuccess = False
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        
+        return runSuccess
+    
     def diff(self, srcDir, destDir, tmpFit, objFits, reverse=False):
                 
         try:
@@ -177,6 +202,7 @@ class BatchImageSim(object):
                 
             os.system("rm -rf %s/*"%(self.templateDir))
             os.system("cp %s/%s %s/%s"%(srcDir, tmpFit, self.templateDir, self.templateImg))
+            self.makeTemplate()
             
             for i, imgName in enumerate(objFits):
                 
@@ -198,6 +224,7 @@ class BatchImageSim(object):
                 
                 os.system("cp %s/%s.fit %s/%s"%(srcDir, imgpre, self.tmpDir, self.objectImg))
                 os.system("cp %s/%s %s/%s"%(self.templateDir, self.templateImg, self.tmpDir, self.templateImg))
+                os.system("cp %s/%s %s/%s"%(self.templateDir, self.badPixCat, self.tmpDir, self.badPixCat))
                 
                 self.objTmpResi, runSuccess = self.tools.runHotpants(self.objectImg, self.templateImg, self.tmpDir)
                 if not runSuccess:
@@ -221,13 +248,20 @@ class BatchImageSim(object):
                     preViewPath = "%s/preview/%s_resi.jpg"%(destDir, imgpre)
                 Image.fromarray(timg).save(preViewPath)
                 
+                
                 fpar='sex_diff.par'
                 sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+                self.objectImgCat = self.tools.runSextractor(self.objectImg, self.tmpDir, self.tmpDir, fpar, sexConf)
                 resiCat = self.tools.runSextractor(self.objTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf)
-                resiCatTrans = self.getRaDec(resiCat)
                 
+                mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, resiCat, self.objectImgCat, 1) #1 and 5 
+                badPixProps2 = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
+                mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, mchFile, self.badPixCat, 1) #1 and 5 
+                
+                badPixProps = np.loadtxt("%s/%s"%(self.tmpDir, self.badPixCat))
+                resiCatTrans = self.getRaDec(nmhFile)
                 objProps = np.loadtxt("%s/%s"%(self.tmpDir, resiCatTrans))
-                tstr = "%s,  resi objs %d"%(imgName, objProps.shape[0])
+                tstr = "%s,  resi objs %d, orgBadPix %d, nmBad %d"%(imgName, objProps.shape[0], badPixProps.shape[0], badPixProps2.shape[0])
                 self.log.info(tstr)
                 
                 #size = self.subImgSize
@@ -236,9 +270,6 @@ class BatchImageSim(object):
                     
                     totSubImgs, totParms = getWindowImgs(self.tmpDir, self.objectImg, self.templateImg, self.objTmpResi, objProps, size)
                     if totParms.shape[0]>0:
-                        #tXY = totParms[:,0:2]
-                        #tRaDec = self.wcs.all_pix2world(tXY, 1)
-                        #totParms = np.concatenate((totParms, tRaDec), axis=1)
                         if reverse:
                             fotpath = '%s/subImgs/%s_r.npz'%(destDir, imgpre)
                         else:
@@ -335,17 +366,20 @@ class BatchImageSim(object):
                     
                 self.log.info(sDirs)
                 #G021_mon_objt_190412T11473163_2_c_c_c_c_c.fit 
-                self.batchDiff(sDirs, dDirs, pattern='_2_c.fit')
                 self.batchDiff(sDirs, dDirs, pattern='_2_c_c.fit')
-                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c.fit')
-                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c.fit')
-                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c_c.fit')
-                
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c.fit', reverse=True)
+                '''
+                self.batchDiff(sDirs, dDirs, pattern='_2_c.fit')
                 self.batchDiff(sDirs, dDirs, pattern='_2_c.fit', reverse=True)
                 self.batchDiff(sDirs, dDirs, pattern='_2_c_c.fit', reverse=True)
                 self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c.fit', reverse=True)
                 self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c.fit', reverse=True)
                 self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c_c.fit', reverse=True)
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c.fit')
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c.fit')
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c.fit')
+                self.batchDiff(sDirs, dDirs, pattern='_2_c_c_c_c_c.fit')
+                '''
                 #break
             
         except Exception as e:
@@ -360,7 +394,7 @@ def run1():
     toolPath = '/home/gwac/img_diff_xy/image_diff'
     tools = AstroTools(toolPath)
     
-    dateStr='20190412'
+    dateStr='20190413'
     camName='G031'
     curSkyId='123'
     
