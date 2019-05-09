@@ -109,3 +109,4 @@ data
 *.reg
 *.png
 *.gz
+*.npz
