@@ -359,7 +359,7 @@ class BatchImageDiff(object):
             return False
 
         os.system("cp %s/%s %s/%s.fit"%(self.tmpDir, self.objTmpResi, self.resiFitsDir, oImgPre))
-        '''
+        
         tgrid = 1
         tsize = 4096
         tzoom = 1
@@ -367,7 +367,7 @@ class BatchImageDiff(object):
         #timg = scipy.ndimage.zoom(timg, tzoom, order=0)
         preViewPath = "%s/%s_resi.jpg"%(self.origPreViewDir, oImgPre)
         Image.fromarray(timg).save(preViewPath)
-        
+        '''
         return
         '''
         fpar='sex_diff.par'
@@ -594,7 +594,7 @@ def run1():
     skyId = 0
     ffId = 0
     tfiles = []
-    srcPath00='/data2/G003_031_190301'
+    srcPath00='/data2/G003_031_190201'
     dateStr='190301'
     camName='G031'
     curSkyId='123'
@@ -606,9 +606,10 @@ def run1():
         tfiles0 = os.listdir(srcPath00)
         tfiles0.sort()
         for tfile in tfiles0:
-            if tfile.find('mon_objt_190301T17')>0:
+            if tfile>='G031_mon_objt_190201T17001303.fit.fz' and tfile <='G031_mon_objt_190201T18595803.fit.fz':
                 tfiles.append(tfile[:33])
         
+        print("total has %d images"%(len(tfiles)))
         for i, timgName in enumerate(tfiles):
             
             tpath = "%s/%s.fz"%(srcPath00, timgName)
