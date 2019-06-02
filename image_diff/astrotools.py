@@ -29,7 +29,8 @@ class AstroTools(object):
         self.matchProgram="%s/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(rootPath)
         self.imgDiffProgram="%s/tools/hotpants/hotpants"%(rootPath)
         self.funpackProgram="%s/tools/cfitsio/funpack"%(rootPath)
-        self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
+        #self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
+        self.wcsProgram="solve-field"
         self.wcsProgramPC780="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/astrometry.net/bin/solve-field"
     
         os.environ['VER_DIR'] = self.varDir
@@ -117,7 +118,7 @@ class AstroTools(object):
         
         return mchFile, nmhFile, mchPair
     
-    def runWCS(self, srcDir, objCat, ra, dec, width=4096, height=4136):
+    def runWCS(self, srcDir, objCat, ra, dec, radius=10, width=4096, height=4136):
     
         self.log.info('Executing run_wcs ...')
         
@@ -125,7 +126,7 @@ class AstroTools(object):
         astronet_tweak_order = 3
         scale_low = 0.98
         scale_high = 1.02
-        astronet_radius = 10
+        astronet_radius = radius
         
         baseName = objCat.split('.')[0]
         srcPath = "%s/%s"%(srcDir, objCat)
