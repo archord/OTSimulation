@@ -11,28 +11,26 @@ class StarMatch(object):
         self.imgH = 4136
         #regionBorder=[minY,maxY,minX,maxX]
         self.regionBorder=[100,4000,100,4000]
-        
+        #self.regionBorder=[0,4096,0,4136]
+        '''
         self.regNum = 0
         self.regSize = 0
         self.regW = 0
         self.regH = 0
-        
-        self.regionStarNum = []
-        self.regionPos = []
-            
-    def getRegionIdx(self, x,y):
+        '''    
+    def getRegionIdx(self, x,y, regNum, regSize, regW, regH):
     
-        regX = math.floor((x-self.regionBorder[0])/self.regW)
-        regY = math.floor((y-self.regionBorder[2])/self.regH)
+        regX = math.floor((x-self.regionBorder[0])/regW)
+        regY = math.floor((y-self.regionBorder[2])/regH)
         if regX<0:
             regX=0
-        elif regX>=self.regSize:
-            regX = self.regSize-1
+        elif regX>=regSize:
+            regX = regSize-1
         if regY<0:
             regY=0
-        elif regY>=self.regSize:
-            regY = self.regSize-1
-        regIdx = regY*self.regSize+regX
+        elif regY>=regSize:
+            regY = regSize-1
+        regIdx = regY*regSize+regX
         
         return regIdx
                 
@@ -41,75 +39,81 @@ class StarMatch(object):
         pos = tdata[:,3:5]
         
         totalNum = pos.shape[0]
-        self.regNum = math.floor(totalNum/minRegionStarNum)
-        self.regSize = math.floor(math.sqrt(self.regNum))
-        self.regW = (self.regionBorder[1] - self.regionBorder[0])*1.0/self.regSize
-        self.regH = (self.regionBorder[3] - self.regionBorder[2])*1.0/self.regSize
+        regNum = math.floor(totalNum/minRegionStarNum)
+        regSize = math.floor(math.sqrt(regNum))
+        regW = (self.regionBorder[1] - self.regionBorder[0])*1.0/regSize
+        regH = (self.regionBorder[3] - self.regionBorder[2])*1.0/regSize
         
-        for i in self.regSize*self.regSize:
-            self.regionPos.append([])
-            self.regionStarNum.append(0)
+        regionStarNum = []
+        regionPos = []
+        for i in range(regSize*regSize):
+            regionPos.append([])
+            regionStarNum.append(0)
         
         for tp in pos:
             x = tp[0]
             y = tp[1]
             if x>=self.regionBorder[0] and x<=self.regionBorder[1] and y>=self.regionBorder[2] and y<=self.regionBorder[3]:
-                regIdx = self.getRegionIdx(x,y)
-                self.regionPos[regIdx].append((x,y))
-                self.regionStarNum[regIdx] += 1
-                
+                regIdx = self.getRegionIdx(x,y, regNum, regSize, regW, regH)
+                regionPos[regIdx].append((x,y))
+                regionStarNum[regIdx] += 1
+        
+        return regionPos, regionStarNum, regNum, regSize, regW, regH
     
     def getBright(self, tdata, starNum=100):
         
         mag = tdata[:,38]
         mag = np.sort(mag)
         maxMag = mag[starNum-1]
-        tdata = tdata[tdata[:,38]<maxMag]
+        brightStar = tdata[tdata[:,38]<=maxMag]
+        darkStar = tdata[tdata[:,38]>maxMag]
         
-        return tdata
+        return brightStar, darkStar
     
     def filterStar(self, tdata):
         
-        condition1 = tdata[:,3]>=self.regionBorder[0] & tdata[:,3]<=self.regionBorder[1] & \
-            tdata[:,4]>=self.regionBorder[2] & tdata[:,4]<=self.regionBorder[3]
+        condition1 = (tdata[:,3]>=self.regionBorder[0]) & (tdata[:,3]<=self.regionBorder[1]) & \
+            (tdata[:,4]>=self.regionBorder[2]) & (tdata[:,4]<=self.regionBorder[3])
         tdata = tdata[condition1]
         
         return tdata
     
-    def getSearchRegions(self, x, y):
+    def getSearchRegions(self, x, y, regNum, regSize, regW, regH):
         
-        searchRadius = self.regSize*2
+        searchRadius = regSize*2
+        x = x-self.regionBorder[0]
+        y = y-self.regionBorder[2]
         
         minx = x - searchRadius
         maxx = x + searchRadius
         miny = y - searchRadius
         maxy = y + searchRadius
         
-        minRegX = math.floor((minx-self.regionBorder[0])/self.regW)
-        minRegY = math.floor((miny-self.regionBorder[2])/self.regH)
-        maxRegX = math.floor((maxx-self.regionBorder[0])/self.regW)
-        maxRegY = math.floor((maxy-self.regionBorder[2])/self.regH)
+        minRegX = math.floor((minx-self.regionBorder[0])/regW)
+        minRegY = math.floor((miny-self.regionBorder[2])/regH)
+        maxRegX = math.floor((maxx-self.regionBorder[0])/regW)
+        maxRegY = math.floor((maxy-self.regionBorder[2])/regH)
         if minRegX<0:
             minRegX=0
-        elif minRegX>=self.regSize:
-            minRegX = self.regSize-1
+        elif minRegX>=regSize:
+            minRegX = regSize-1
         if minRegY<0:
             minRegY=0
-        elif minRegY>=self.regSize:
-            minRegY = self.regSize-1
+        elif minRegY>=regSize:
+            minRegY = regSize-1
         if maxRegX<0:
             maxRegX=0
-        elif maxRegX>=self.regSize:
-            maxRegX = self.regSize-1
+        elif maxRegX>=regSize:
+            maxRegX = regSize-1
         if maxRegY<0:
             maxRegY=0
-        elif maxRegY>=self.regSize:
-            maxRegY = self.regSize-1
+        elif maxRegY>=regSize:
+            maxRegY = regSize-1
             
         regIdxs = []
         for ty in range(minRegY, maxRegY+1):
             for tx in range(minRegX, maxRegX+1):
-                tidx = ty*self.regSize + tx
+                tidx = ty*regSize + tx
                 regIdxs.append(tidx)
         
         return regIdxs
@@ -121,13 +125,14 @@ class StarMatch(object):
         tdist = math.sqrt(tx*tx+ty*ty)
         return tdist
         
-    def getNearestN(self, x,y, num=10):
+    def getNearestN(self, x,y, regionPos, regNum, regSize, regW, regH, num=10):
         
-        regIdxs = self.getSearchRegions(x, y)
+        regIdxs = self.getSearchRegions(x, y, regNum, regSize, regW, regH)
+        print(regIdxs)
         
         stars = []
         for rid in regIdxs:
-            stars.extend(self.regionPos[rid])
+            stars.extend(regionPos[rid])
             
         tdistances = []
         for tstar in stars:
@@ -139,27 +144,39 @@ class StarMatch(object):
         
         return tdistances[:num]
     
-    def createMatchIdx(self, stars):
+    def createMatchIdx(self, stars, regionPos, regNum, regSize, regW, regH):
         
-        for ts in stars:
+        mchIdxs = []
+        for i, ts in enumerate(stars):
             x = ts[3]
             y = ts[4]
-            regIdx = self.getRegionIdx(x,y)
+            if i==68:
+                print('star %d, x %f, y %f'%(i,x,y))
+            nN = self.getNearestN(x,y, regionPos, regNum, regSize, regW, regH)
+            mchIdxs.append(nN)
+        
+        return mchIdxs
         
         
     def match(self, srcDir, oiFile, tiFile):
                   
         oiData = np.loadtxt("%s/%s"%(srcDir, oiFile))
         tiData = np.loadtxt("%s/%s"%(srcDir, tiFile))
+        print(oiData.shape)
+        print(tiData.shape)
         
         oiData = self.filterStar(oiData)
         tiData = self.filterStar(tiData)
         
-        regionPosOi, regionStarNumOi = self.createRegionIdx(oiData)
-        regionPosTi, regionStarNumTi = self.createRegionIdx(tiData)
+        brightStarTi, darkStarTi = self.getBright(tiData)
+        brightStarOi, darkStarOi = self.getBright(oiData)
         
-        brightStarOi = self.getBright(oiData)
-        brightStarTi = self.getBright(tiData)
+        regionPosTi, regionStarNumTi, regNumTi, regSizeTi, regWTi, regHTi = self.createRegionIdx(darkStarTi)
+        regionPosOi, regionStarNumOi, regNumOi, regSizeOi, regWOi, regHOi = self.createRegionIdx(darkStarOi)
+        
+        mchIdxsTi = self.createMatchIdx(brightStarTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi)
+        mchIdxsOi = self.createMatchIdx(brightStarOi, regionPosOi, regNumOi, regSizeOi, regWOi, regHOi)
+            
 
 def test():
     
@@ -167,7 +184,8 @@ def test():
     tfile1 = 'G031_mon_objt_190116T21430226.cat'
     tfile2 = 'G041_mon_objt_190101T21551991.cat'
     
-    match(tpath, tfile1, tfile2)
+    starMatch = StarMatch()
+    starMatch.match(tpath, tfile1, tfile2)
     
 if __name__ == "__main__":
         
