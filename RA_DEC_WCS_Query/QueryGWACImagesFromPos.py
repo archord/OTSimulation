@@ -187,7 +187,8 @@ def getSkyList(tools, otName, ra, dec, startDate, endDate):
         ')) as tmpl ' \
         'GROUP BY sky_id, date_str, cam_id ' \
         'ORDER BY sky_id, date_str, cam_id'%(startDate, endDate, otName)
-        
+    
+    print(sql1)
     tquery = QueryData()
     skyList = tquery.query(sql1)
     
@@ -257,7 +258,7 @@ def getWindowImgs(srcDir, objImg, x, y, size):
     objWid = getWindowImg(objData, (x, y), size)
     return objWid
 
-def getSubImages(skyListFile, otName):
+def getSubImages(storePath, skyListFile, otName):
     
     workPath = 'twork/%s'%(otName)
     os.system("rm -rf %s"%(workPath))
@@ -265,7 +266,6 @@ def getSubImages(skyListFile, otName):
         os.system("mkdir -p %s"%(workPath))
         
     size = 100
-    storePath = '/data/gwac_data/gwac_orig_fits'
     skyList = np.loadtxt(skyListFile, dtype='str', delimiter=',')
     
     for tsky in skyList:
@@ -283,7 +283,8 @@ def getSubImages(skyListFile, otName):
         
         print("%s/%s"%(tpath1,fname))
         
-        subImg = getWindowImgs(tpath1, fname, x, y, size)
+        #subImg = getWindowImgs(tpath1, fname, x, y, size)
+        subImg = getWindowImgs(storePath, fname, x, y, size)
         subImgz = zscale_image(subImg)
         subImgz = scipy.ndimage.zoom(subImgz, 4, order=0)
         
@@ -299,17 +300,19 @@ if __name__ == "__main__":
     
     tpath = '/data3/G004_044_190305'
     fname = 'G044_mon_objt_190305T13393793.fit'
-    x = 3340.1064	
-    y = 3500.967
-    ra0 = 109.57737
-    dec0 = 21.83166
-    otName = 'G190305_D00383'
+    x = 1644.03
+    y = 1700.2
+    ra0 = 203.81125
+    dec0 = 44.76603
+    otName = 'G190116_C19152'
     
     #runSuccess, ot2ReRa, ot2ReDec = reAstrometry(tools, tpath, fname, x, y, ra0, dec0, otName)
     
-    startDate = '2019-02-05' 
-    endDate = '2019-05-05'
-    #skyListFile = getSkyList(tools, otName, ra0, dec0, startDate, endDate)
+    startDate = '2018-12-17' 
+    endDate = '2019-01-17'
+    skyListFile = getSkyList(tools, otName, ra0, dec0, startDate, endDate)
     
+    #storePath = '/data/gwac_data/gwac_orig_fits' 
+    storePath = '/data2/G003_033_190603' 
     skyListFile ='G190305_D00383_skyList.txt'
-    getSubImages(skyListFile, otName)
+    #getSubImages(storePath, skyListFile, otName)

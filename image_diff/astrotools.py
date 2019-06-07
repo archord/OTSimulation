@@ -29,8 +29,8 @@ class AstroTools(object):
         self.matchProgram="%s/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(rootPath)
         self.imgDiffProgram="%s/tools/hotpants/hotpants"%(rootPath)
         self.funpackProgram="%s/tools/cfitsio/funpack"%(rootPath)
-        #self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
-        self.wcsProgram="solve-field"
+        self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
+        #self.wcsProgram="solve-field"
         self.wcsProgramPC780="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/astrometry.net/bin/solve-field"
     
         os.environ['VER_DIR'] = self.varDir

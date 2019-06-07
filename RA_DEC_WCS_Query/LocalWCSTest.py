@@ -256,11 +256,12 @@ def evaluatePos(srcDir, oiFile, tiFile, mchPair, isAbs=False):
     
 def test():
     
-    toolPath = '/home/gwac/img_diff_xy/image_diff'
+    #toolPath = '/home/gwac/img_diff_xy/image_diff'
+    toolPath = '/home/xy/Downloads/myresource/deep_data2/image_diff'
     tools = AstroTools(toolPath)
     
-    dataDest0 = "/data/gwac_diff_xy/data"
-    logDest0 = "/data/gwac_diff_xy/log"
+    dataDest0 = "/home/xy/gwac_diff_xy/data"
+    logDest0 = "/home/xy/gwac_diff_xy/log"
     
     if not os.path.exists(dataDest0):
         os.system("mkdir -p %s"%(dataDest0))
@@ -273,7 +274,8 @@ def test():
     skyId = 0
     ffId = 0
     tfiles = []
-    srcPath00='/data1/G004_041_190124'
+    #srcPath00='/data1/G004_041_190124'
+    srcPath00='/home/xy/Downloads/myresource/matchTest'
     dateStr='190124'
     camName='G041'
     curSkyId='123'
@@ -281,10 +283,12 @@ def test():
     dstDir='%s/%s'%(dataDest0, dateStr)
     tdiff = BatchImageDiff(srcPath00, dstDir, tools, camName, curSkyId)
     
-    tpath1 = '/data2/G003_034_190211'
-    tpath2 = '/data2/G003_034_190227'
-    fname1= 'G034_mon_objt_190211T12192603.fit.fz'
-    fname2='G034_mon_objt_190227T12304321.fit.fz'
+    #tpath1 = '/data2/G003_034_190211'
+    #tpath2 = '/data2/G003_034_190227'
+    tpath1 = '/home/xy/Downloads/myresource/matchTest' 
+    tpath2 = '/home/xy/Downloads/myresource/matchTest'
+    fname1= 'G034_mon_objt_190211T12192603.fit'
+    fname2='G044_mon_objt_190305T13070793.fit' 
     
     ra0, dec0 = -1000, -1000
     wcsfile1, ra_center1, dec_center1 = tdiff.getWCS(tpath1, fname1, ra0, dec0)
@@ -298,9 +302,10 @@ def test():
     os.system("%s %s/%s"%(tdiff.funpackProgram, tdiff.tmpDir, fname2))
             
     fpar='sex_diff.par'
-    sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+    #sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+    sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
     tcat1 = tools.runSextractor('G034_mon_objt_190211T12192603.fit', tdiff.tmpDir, tdiff.tmpDir, fpar, sexConf)
-    tcat2 = tools.runSextractor('G034_mon_objt_190227T12304321.fit', tdiff.tmpDir, tdiff.tmpDir, fpar, sexConf)
+    tcat2 = tools.runSextractor('G044_mon_objt_190305T13070793.fit', tdiff.tmpDir, tdiff.tmpDir, fpar, sexConf)
     
     tdata2 = np.loadtxt("%s/%s"%(tdiff.tmpDir, tcat2))
     tXY = tdata2[:,0:2]
@@ -314,8 +319,9 @@ def test():
     savePath = "%s/%s"%(tdiff.tmpDir, saveName)
     np.savetxt(savePath, tdata2, fmt='%.4f')
     
-    mchFile, nmhFile, mchPair = tools.runCrossMatch(tdiff.tmpDir, tcat1, saveName, 1)
-    evaluatePos(tdiff.tmpDir, tcat1, saveName, mchPair)
+    mchFile, nmhFile, mchPair = tools.runCrossMatch(tdiff.tmpDir, saveName, tcat1, 1)
+    evaluatePos(tdiff.tmpDir, saveName, tcat1, mchPair)
+    evaluatePos(tdiff.tmpDir, tcat2, tcat1, mchPair)
     
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021 &
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021
