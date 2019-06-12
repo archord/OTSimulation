@@ -2,7 +2,11 @@
 import numpy as np
 import os
 import math
-
+import cv2
+from scipy.spatial import KDTree
+import matplotlib.pyplot as plt
+import warnings
+from astropy.modeling import models, fitting
             
 class StarMatch(object):
     
@@ -78,9 +82,9 @@ class StarMatch(object):
         
         return tdata
     
-    def getSearchRegions(self, x, y, regNum, regSize, regW, regH):
+    def getSearchRegions(self, x, y, searchRadius, regNum, regSize, regW, regH):
         
-        searchRadius = regSize*2
+        #searchRadius = regSize*2
         x = x-self.regionBorder[0]
         y = y-self.regionBorder[2]
         
@@ -125,10 +129,10 @@ class StarMatch(object):
         tdist = math.sqrt(tx*tx+ty*ty)
         return tdist
         
-    def getNearestN(self, x,y, regionPos, regNum, regSize, regW, regH, num=10):
+    def getNearestN(self, x,y, searchRadius, regionPos, regNum, regSize, regW, regH, num=10):
         
-        regIdxs = self.getSearchRegions(x, y, regNum, regSize, regW, regH)
-        print(regIdxs)
+        regIdxs = self.getSearchRegions(x, y, searchRadius, regNum, regSize, regW, regH)
+        #print(regIdxs)
         
         stars = []
         for rid in regIdxs:
@@ -140,25 +144,307 @@ class StarMatch(object):
             tdistances.append((tstar[0], tstar[1], tdist))
         
         tdistances = np.array(tdistances)
+        #if tdistances.shape[0]>0:
         tdistances = tdistances[tdistances[:,2].argsort()]
+        tdistances = tdistances[:num]
         
-        return tdistances[:num]
+        return tdistances
     
-    def createMatchIdx(self, stars, regionPos, regNum, regSize, regW, regH):
+    def searchR(self, x,y, searchRadius, regionPos, regNum, regSize, regW, regH):
         
+        regIdxs = self.getSearchRegions(x, y, searchRadius, regNum, regSize, regW, regH)
+        #print(regIdxs)
+        
+        stars = []
+        for rid in regIdxs:
+            stars.extend(regionPos[rid])
+            
+        tdistances = []
+        for tstar in stars:
+            tdist = self.getLineDistance((x,y),tstar)
+            if tdist<=searchRadius:
+                tdistances.append((tstar[0], tstar[1], tdist))
+        
+        tdistances = np.array(tdistances)
+        if tdistances.shape[0]>0:
+            tdistances = tdistances[tdistances[:,2].argsort()]
+            tdistances = tdistances[0]
+        
+        return tdistances
+    
+    def createMatchIdx(self, stars, regionPos, regNum, regSize, regW, regH, num=10):
+        
+        searchRadius = regSize*2
+        
+        tXY = []
         mchIdxs = []
         for i, ts in enumerate(stars):
             x = ts[3]
             y = ts[4]
-            if i==68:
-                print('star %d, x %f, y %f'%(i,x,y))
-            nN = self.getNearestN(x,y, regionPos, regNum, regSize, regW, regH)
-            mchIdxs.append(nN)
+            #if i==68:
+            #    print('star %d, x %f, y %f'%(i,x,y))
+            nN = self.getNearestN(x,y, searchRadius, regionPos, regNum, regSize, regW, regH,num)
+            if len(nN)==num:
+                tXY.append((x,y))
+                mchIdxs.append(nN)
         
-        return mchIdxs
+        return tXY, mchIdxs
+    
+    def match(self, stars, regionPos, regNum, regSize, regW, regH, searchRadius = 1):
         
         
-    def match(self, srcDir, oiFile, tiFile):
+        tXY = []
+        mchIdxs = []
+        for i, ts in enumerate(stars):
+            x = ts[3]
+            y = ts[4]
+            #if i==68:
+            #    print('star %d, x %f, y %f'%(i,x,y))
+            nN = self.searchR(x,y, searchRadius, regionPos, regNum, regSize, regW, regH)
+            if nN.shape[0]>0:
+                tXY.append((x,y))
+                mchIdxs.append(nN)
+        
+        return tXY, mchIdxs
+    
+    def plotMatch(self, x0, y0, xs, ys):
+        
+        for i,tx in enumerate(xs):
+            x1 = xs[i]
+            y1 = ys[i]
+            plt.plot((x0,x1),(y0,y1))
+        plt.show()
+        
+    def distMatch2(self,oiData, tiData, maxMchDist=1, minMchNum=3):
+        
+        oiDist = oiData[:,2]
+        tiDist = tiData[:,2]
+        oIdx = 0
+        tIdx = 0
+        mchPairs = []
+        mchNum = 0
+        distError = 0
+        while oIdx<len(oiDist):
+            oiD = oiDist[oIdx]
+            while tIdx<len(tiDist):
+                tiD = tiDist[tIdx]
+                tdiff = math.fabs(oiD-tiD)
+                if tdiff<maxMchDist:
+                    mchPairs.append((oiData[oIdx],tiData[tIdx]))
+                    mchNum = mchNum +1
+                    distError += tdiff
+                    tIdx = tIdx+1
+                    #oIdx = oIdx+1
+                elif oiD<tiD:
+                    oIdx = oIdx+1
+                    break
+                elif oiD>tiD:
+                    tIdx = tIdx+1
+            if tIdx>=len(tiDist):
+                break
+        
+        meanError = 99
+        if mchNum>0:
+            meanError = distError/mchNum
+            #print("mchNum=%d,meanError=%f"%(mchNum,meanError))
+        isMchOk = True
+        if mchNum>2:
+            for i, mp in enumerate(mchPairs):
+                p1 = mchPairs[i]
+                if i==mchNum-1:
+                    p2 = mchPairs[0]
+                else:
+                    p2 = mchPairs[i+1]
+                op1 = p1[0]
+                tp1 = p1[1]
+                op2 = p2[0]
+                tp2 = p2[1]
+                tdist1 = self.getLineDistance((op1[0],op1[1]),(op2[0],op2[1]))
+                tdist2 = self.getLineDistance((tp1[0],tp1[1]),(tp2[0],tp2[1]))
+                tdiff = np.fabs(tdist1-tdist2)
+                if tdiff>maxMchDist:
+                    isMchOk = False
+            
+        return np.array(mchPairs), isMchOk
+                    
+    
+    def distMatch(self,oiData, tiData, maxMchDist=1, minMchNum=3):
+        
+        oiDist = oiData[:,2]
+        tiDist = tiData[:,2]
+
+        mchPairs = []
+        mchNum = 0
+        distError = 0
+        minDiff = maxMchDist
+        minDiffIdx = -1
+        for oi, oiD in enumerate(oiDist):
+            for ti, tiD in enumerate(tiDist):
+                tdiff = math.fabs(oiD-tiD)
+                if tdiff<minDiff:
+                    minDiff = tdiff
+                    minDiffIdx = ti
+            if minDiffIdx>-1:
+                mchPairs.append((oiData[oi],tiData[minDiffIdx]))
+                mchNum = mchNum +1
+                distError += minDiff
+                minDiff = maxMchDist
+                minDiffIdx = -1
+        
+        meanError = 99
+        if mchNum>0:
+            meanError = distError/mchNum
+            #print("mchNum=%d,meanError=%f"%(mchNum,meanError))
+        
+        isMchOk = True
+        if mchNum>2:
+            for i, mp in enumerate(mchPairs):
+                p1 = mchPairs[i]
+                if i==mchNum-1:
+                    p2 = mchPairs[0]
+                else:
+                    p2 = mchPairs[i+1]
+                op1 = p1[0]
+                tp1 = p1[1]
+                op2 = p2[0]
+                tp2 = p2[1]
+                tdist1 = self.getLineDistance((op1[0],op1[1]),(op2[0],op2[1]))
+                tdist2 = self.getLineDistance((tp1[0],tp1[1]),(tp2[0],tp2[1]))
+                tdiff = np.fabs(tdist1-tdist2)
+                if tdiff>maxMchDist:
+                    isMchOk = False
+            
+        return np.array(mchPairs), isMchOk
+    
+    def evaluatePos(self, pos1, pos2, isAbs=False):
+        
+        if isAbs:
+            posDiff = np.fabs(pos1 - pos2)
+        else:
+            posDiff = pos1 - pos2
+        tmean = np.mean(posDiff, axis=0)
+        tmax = np.max(posDiff, axis=0)
+        tmin = np.min(posDiff, axis=0)
+        trms = np.std(posDiff, axis=0)
+        xshift = tmean[0]
+        yshift = tmean[1]
+        xrms = trms[0]
+        yrms = trms[1]
+        
+        return xshift,yshift, xrms, yrms
+    
+    def posTrans2(self, posMchs, stars):
+        
+        dataOi = posMchs[0][0]
+        dataTi = posMchs[0][1]
+        xshift,yshift, xrms, yrms = self.evaluatePos(dataOi, dataTi)
+        print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+        
+        stars[:,3]= stars[:,3]+xshift
+        stars[:,4]= stars[:,4]+yshift
+        
+        
+    def posTrans2(self, posMchs, stars):
+        
+        #print(posMchs)
+        for i, tm in enumerate(posMchs):
+            if i==0:
+                dataOi = posMchs[i][0]
+                dataTi = posMchs[i][1]
+            else:
+                dataOi = np.concatenate([dataOi,posMchs[i][0]])
+                dataTi = np.concatenate([dataTi,posMchs[i][1]])
+        
+        print(dataOi.shape)
+        print(dataOi[:3])
+        plt.plot(dataOi[:,0],dataOi[:,1])
+        plt.show()
+        plt.plot(dataTi[:,0],dataTi[:,1])
+        plt.show()
+        
+        xshift,yshift, xrms, yrms = self.evaluatePos(dataOi, dataTi)
+        print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+        
+        dataTi2 = dataTi
+        dataOi2 = dataOi
+        
+        h, tmask = cv2.findHomography(dataOi2, dataTi2, cv2.RANSAC, 0.1) #0, RANSAC , LMEDS
+        
+        dataTi2 = cv2.perspectiveTransform(np.array([dataOi]), h)
+        dataTi2 = dataTi2[0]
+        xshift,yshift, xrms, yrms = self.evaluatePos(dataTi, dataTi2)
+        print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+    
+        starPoss = stars[:,3:5]
+        starPossTi = cv2.perspectiveTransform(np.array([starPoss]), h)
+        starPossTi = starPossTi[0]
+
+        xshift,yshift, xrms, yrms = self.evaluatePos(starPoss, starPossTi)
+        stars[:,3:5] = starPossTi
+        print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+        
+        return stars
+    
+    def posTrans(self, posMchs, stars):
+        
+        #print(posMchs)
+        for i, tm in enumerate(posMchs):
+            if i==0:
+                dataOi = posMchs[i][0]
+                dataTi = posMchs[i][1]
+            else:
+                dataOi = np.concatenate([dataOi,posMchs[i][0]])
+                dataTi = np.concatenate([dataTi,posMchs[i][1]])
+        
+        xshift,yshift, xrms, yrms = self.evaluatePos(dataOi, dataTi)
+        print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+        '''
+        minLen = dataTi.shape[0]
+        if minLen>dataOi.shape[0]:
+            minLen=dataOi.shape[0]
+        
+        dataTi2 = dataTi[:minLen]
+        dataOi2 = dataOi[:minLen]
+        '''
+        dataTi2 = dataTi
+        dataOi2 = dataOi
+        
+        oix = dataOi2[:,0]
+        oiy = dataOi2[:,1]
+        tix = dataTi2[:,0]
+        tiy = dataTi2[:,1]
+        
+        p_init = models.Polynomial2D(degree=1)
+        fit_p = fitting.LevMarLSQFitter()
+        
+        with warnings.catch_warnings():
+            # Ignore model linearity warning from the fitter
+            warnings.simplefilter('ignore')
+            tixp = fit_p(p_init, oix, oiy, tix)
+            tiyp = fit_p(p_init, oix, oiy, tiy)
+            
+            tix2 = tixp(oix, oiy)
+            tiy2 = tiyp(oix, oiy)
+        
+        dataTi2 = np.concatenate([tix2.reshape((tix2.shape[0],1)),tiy2.reshape((tix2.shape[0],1))],axis=1)
+        xshift,yshift, xrms, yrms = self.evaluatePos(dataTi, dataTi2)
+        print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+    
+        starPoss = stars[:,3:5]
+        oix = starPoss[:,0]
+        oiy = starPoss[:,1]
+        tix2 = tixp(oix, oiy)
+        tiy2 = tiyp(oix, oiy)
+        starPossTi = np.concatenate([tix2.reshape((tix2.shape[0],1)),tiy2.reshape((tix2.shape[0],1))],axis=1)
+
+        xshift,yshift, xrms, yrms = self.evaluatePos(starPoss, starPossTi)
+        stars[:,3:5] = starPossTi
+        print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+        
+        
+        return stars
+    
+    def doAll(self, srcDir, oiFile, tiFile):
                   
         oiData = np.loadtxt("%s/%s"%(srcDir, oiFile))
         tiData = np.loadtxt("%s/%s"%(srcDir, tiFile))
@@ -168,15 +454,67 @@ class StarMatch(object):
         oiData = self.filterStar(oiData)
         tiData = self.filterStar(tiData)
         
-        brightStarTi, darkStarTi = self.getBright(tiData)
-        brightStarOi, darkStarOi = self.getBright(oiData)
+        brightStarTi, darkStarTi = self.getBright(tiData,100)
+        brightStarOi, darkStarOi = self.getBright(oiData, 100)
         
         regionPosTi, regionStarNumTi, regNumTi, regSizeTi, regWTi, regHTi = self.createRegionIdx(darkStarTi)
         regionPosOi, regionStarNumOi, regNumOi, regSizeOi, regWOi, regHOi = self.createRegionIdx(darkStarOi)
         
-        mchIdxsTi = self.createMatchIdx(brightStarTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi)
-        mchIdxsOi = self.createMatchIdx(brightStarOi, regionPosOi, regNumOi, regSizeOi, regWOi, regHOi)
+        tiXY, mchIdxsTi = self.createMatchIdx(brightStarTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi)
+        oiXY, mchIdxsOi = self.createMatchIdx(brightStarOi, regionPosOi, regNumOi, regSizeOi, regWOi, regHOi)
+        
+        tarray = np.array(mchIdxsTi)
+        print(tarray.shape)
+        tDist = tarray[:,:,2]
+        print(tDist.shape)
+        tree = KDTree(tDist)
+        
+        totalMatchNum = 0
+        mchList = []
+        for i, oIdx in enumerate(mchIdxsOi):
+            td = oIdx[:,2]
+            mchIdx = tree.query_ball_point(td, 100)
             
+            if len(mchIdx)>0:
+                for tidx0 in mchIdx:
+                    tdata00 = tarray[tidx0]
+                    dm, isMchOk = self.distMatch(oIdx, tdata00)
+                    if len(dm)>2 and isMchOk:
+                        print("query %d match %d******************"%(i, len(mchIdx)))
+                        #print(dm)
+                        oxy0 = oiXY[i]
+                        omIdx = dm[:,0]
+                        tmIdx = dm[:,1]
+                        ox = omIdx[:,0]
+                        oy = omIdx[:,1]
+                        #self.plotMatch(oxy0[0],oxy0[1],ox,oy)
+                        txy0 = tiXY[tidx0]
+                        tx = tmIdx[:,0]
+                        ty = tmIdx[:,1]
+                        #self.plotMatch(txy0[0],txy0[1],tx,ty)
+                        totalMatchNum += 1
+                        
+                        opos = omIdx[:,0:2]
+                        tpos = tmIdx[:,0:2]
+                        oxy1 = np.concatenate([opos,[oxy0]])
+                        txy1 = np.concatenate([tpos,[txy0]])
+                        mchList.append((oxy1,txy1))
+                        break
+            #if len(mchList)>0:
+            #    break
+        print("totalMatchNum=%d"%(totalMatchNum))
+        darkStarOiTi = self.posTrans2(mchList, darkStarOi)
+        origXY, mchXY = self.match(darkStarOiTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi,1)
+        
+        mchXY = np.array(mchXY)
+        print(mchXY.shape)
+        print(mchXY[:3])
+        tdist = mchXY[:,2]
+        minD = np.min(tdist)
+        maxD = np.max(tdist)
+        avgD = np.mean(tdist)
+        print("minD=%f,maxD=%f,avgD=%f"%(minD, maxD, avgD))
+        print("origNum:%d, after:%d"%(darkStarOiTi.shape[0],mchXY.shape[0]))
 
 def test():
     
@@ -185,7 +523,7 @@ def test():
     tfile2 = 'G041_mon_objt_190101T21551991.cat'
     
     starMatch = StarMatch()
-    starMatch.match(tpath, tfile1, tfile2)
+    starMatch.doAll(tpath, tfile1, tfile2)
     
 if __name__ == "__main__":
         
