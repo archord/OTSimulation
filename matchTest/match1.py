@@ -64,6 +64,18 @@ class StarMatch(object):
         
         return regionPos, regionStarNum, regNum, regSize, regW, regH
     
+    def statisticRegions(self,regionPos, regionStarNum):
+        
+        tnum = 0
+        for tr in regionPos:
+            tnum += len(tr)
+        
+        tnum2 = 0
+        for trn in regionStarNum:
+            tnum2 += trn
+        
+        print("num1=%d, num2=%d"%(tnum, tnum2))
+    
     def getBright(self, tdata, starNum=100):
         
         mag = tdata[:,38]
@@ -85,8 +97,8 @@ class StarMatch(object):
     def getSearchRegions(self, x, y, searchRadius, regNum, regSize, regW, regH):
         
         #searchRadius = regSize*2
-        x = x-self.regionBorder[0]
-        y = y-self.regionBorder[2]
+        #x = x-self.regionBorder[0]
+        #y = y-self.regionBorder[2]
         
         minx = x - searchRadius
         maxx = x + searchRadius
@@ -142,11 +154,31 @@ class StarMatch(object):
         for tstar in stars:
             tdist = self.getLineDistance((x,y),tstar)
             tdistances.append((tstar[0], tstar[1], tdist))
-        
+            
         tdistances = np.array(tdistances)
+        '''
+        tpos=(2012.68,2616.21)
+        #tpos=(2095.35,2531.6)
+        if(self.getLineDistance((x,y),tpos)<1):
+            print("***************************")
+            print(regIdxs)
+            print(len(stars))
+            print(tdistances.shape)
+            ds9RegionName = "data/star21.reg"
+            self.saveReg(stars, ds9RegionName, radius=8, width=2, color='yellow')
+        tpos=(2095.35,2531.6)
+        if(self.getLineDistance((x,y),tpos)<1):
+            print("***************************")
+            print(regIdxs)
+            print(len(stars))
+            print(tdistances.shape)
+            ds9RegionName = "data/star22.reg"
+            self.saveReg(stars, ds9RegionName, radius=8, width=2, color='yellow')
+        '''    
         #if tdistances.shape[0]>0:
         tdistances = tdistances[tdistances[:,2].argsort()]
         tdistances = tdistances[:num]
+        
         
         return tdistances
     
@@ -183,6 +215,7 @@ class StarMatch(object):
             y = ts[4]
             #if i==68:
             #    print('star %d, x %f, y %f'%(i,x,y))
+            #oi:(2043.46,2548.93), ti:(2095.35, 2531.6)
             nN = self.getNearestN(x,y, searchRadius, regionPos, regNum, regSize, regW, regH,num)
             if len(nN)==num:
                 tXY.append((x,y))
@@ -332,17 +365,14 @@ class StarMatch(object):
         yrms = trms[1]
         
         return xshift,yshift, xrms, yrms
-    
-    def posTrans2(self, posMchs, stars):
+            
         
-        dataOi = posMchs[0][0]
-        dataTi = posMchs[0][1]
-        xshift,yshift, xrms, yrms = self.evaluatePos(dataOi, dataTi)
-        print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
+    def saveReg(self, pos, fname, radius=4, width=1, color='green'):
         
-        stars[:,3]= stars[:,3]+xshift
-        stars[:,4]= stars[:,4]+yshift
-        
+        with open(fname, 'w') as fp1:
+            for tobj in pos:
+               fp1.write("image;circle(%.2f,%.2f,%.2f) # color=%s width=%d font=\"times 10\"\n"%
+               (tobj[0], tobj[1], radius, color, width))
         
     def posTrans2(self, posMchs, stars):
         
@@ -354,13 +384,18 @@ class StarMatch(object):
             else:
                 dataOi = np.concatenate([dataOi,posMchs[i][0]])
                 dataTi = np.concatenate([dataTi,posMchs[i][1]])
-        
+                
+        ds9RegionName = "data/oi_ds9.reg" 
+        ds9RegionName = "data/ti_ds9.reg"
+        #self.saveReg(dataOi, ds9RegionName, radius=4, width=1)
+        #self.saveReg(dataTi, ds9RegionName, radius=4, width=1)
+               
         print(dataOi.shape)
-        print(dataOi[:3])
-        plt.plot(dataOi[:,0],dataOi[:,1])
-        plt.show()
-        plt.plot(dataTi[:,0],dataTi[:,1])
-        plt.show()
+        #print(dataOi[:3])
+        #plt.plot(dataOi[:,0],dataOi[:,1])
+        #plt.show()
+        #plt.plot(dataTi[:,0],dataTi[:,1])
+        #plt.show()
         
         xshift,yshift, xrms, yrms = self.evaluatePos(dataOi, dataTi)
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
@@ -372,6 +407,10 @@ class StarMatch(object):
         
         dataTi2 = cv2.perspectiveTransform(np.array([dataOi]), h)
         dataTi2 = dataTi2[0]
+        
+        ds9RegionName = "data/oi2ti_ds9.reg"
+        #self.saveReg(dataTi2, ds9RegionName, radius=8, width=2)
+        
         xshift,yshift, xrms, yrms = self.evaluatePos(dataTi, dataTi2)
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
     
@@ -448,17 +487,39 @@ class StarMatch(object):
                   
         oiData = np.loadtxt("%s/%s"%(srcDir, oiFile))
         tiData = np.loadtxt("%s/%s"%(srcDir, tiFile))
+        print("orign")
         print(oiData.shape)
         print(tiData.shape)
         
         oiData = self.filterStar(oiData)
         tiData = self.filterStar(tiData)
+        print("filter")
+        print(oiData.shape)
+        print(tiData.shape)
         
         brightStarTi, darkStarTi = self.getBright(tiData,100)
         brightStarOi, darkStarOi = self.getBright(oiData, 100)
+        print("bright")
+        print(brightStarOi.shape)
+        print(brightStarTi.shape)
+        print("dark")
+        print(darkStarOi.shape)
+        print(darkStarTi.shape)
+        
+        ds9RegionName = "data/brightStarTi.reg"
+        #self.saveReg(brightStarTi, ds9RegionName, radius=6, width=2, color='red')
+        ds9RegionName = "data/brightStarOi.reg"
+        #self.saveReg(brightStarOi, ds9RegionName, radius=6, width=2, color='red')
+        ds9RegionName = "data/darkStarTi.reg"
+        #self.saveReg(darkStarTi, ds9RegionName, radius=4, width=1, color='yellow')
+        ds9RegionName = "data/darkStarOi.reg"
+        #self.saveReg(darkStarOi, ds9RegionName, radius=4, width=1, color='yellow')
         
         regionPosTi, regionStarNumTi, regNumTi, regSizeTi, regWTi, regHTi = self.createRegionIdx(darkStarTi)
         regionPosOi, regionStarNumOi, regNumOi, regSizeOi, regWOi, regHOi = self.createRegionIdx(darkStarOi)
+        
+        self.statisticRegions(regionPosTi, regionStarNumTi)
+        self.statisticRegions(regionPosOi, regionStarNumOi)
         
         tiXY, mchIdxsTi = self.createMatchIdx(brightStarTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi)
         oiXY, mchIdxsOi = self.createMatchIdx(brightStarOi, regionPosOi, regNumOi, regSizeOi, regWOi, regHOi)
@@ -473,7 +534,7 @@ class StarMatch(object):
         mchList = []
         for i, oIdx in enumerate(mchIdxsOi):
             td = oIdx[:,2]
-            mchIdx = tree.query_ball_point(td, 100)
+            mchIdx = tree.query_ball_point(td, 20)
             
             if len(mchIdx)>0:
                 for tidx0 in mchIdx:
@@ -487,11 +548,11 @@ class StarMatch(object):
                         tmIdx = dm[:,1]
                         ox = omIdx[:,0]
                         oy = omIdx[:,1]
-                        #self.plotMatch(oxy0[0],oxy0[1],ox,oy)
+                        self.plotMatch(oxy0[0],oxy0[1],ox,oy)
                         txy0 = tiXY[tidx0]
                         tx = tmIdx[:,0]
                         ty = tmIdx[:,1]
-                        #self.plotMatch(txy0[0],txy0[1],tx,ty)
+                        self.plotMatch(txy0[0],txy0[1],tx,ty)
                         totalMatchNum += 1
                         
                         opos = omIdx[:,0:2]
@@ -505,6 +566,9 @@ class StarMatch(object):
         print("totalMatchNum=%d"%(totalMatchNum))
         darkStarOiTi = self.posTrans2(mchList, darkStarOi)
         origXY, mchXY = self.match(darkStarOiTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi,1)
+        
+        ds9RegionName = "data/OiMatch.reg"
+        #self.saveReg(origXY, ds9RegionName, radius=10, width=2, color='red')
         
         mchXY = np.array(mchXY)
         print(mchXY.shape)
