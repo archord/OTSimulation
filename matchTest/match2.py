@@ -144,8 +144,7 @@ class StarMatch(object):
     def getNearestN(self, x,y, searchRadius, regionPos, regNum, regSize, regW, regH, num=10):
         
         regIdxs = self.getSearchRegions(x, y, searchRadius, regNum, regSize, regW, regH)
-        #print(regIdxs)
-        
+
         stars = []
         for rid in regIdxs:
             stars.extend(regionPos[rid])
@@ -156,31 +155,12 @@ class StarMatch(object):
             tdistances.append((tstar[0], tstar[1], tdist))
             
         tdistances = np.array(tdistances)
-        '''
-        tpos=(2012.68,2616.21)
-        #tpos=(2095.35,2531.6)
-        if(self.getLineDistance((x,y),tpos)<1):
-            print("***************************")
-            print(regIdxs)
-            print(len(stars))
-            print(tdistances.shape)
-            ds9RegionName = "data/star21.reg"
-            self.saveReg(stars, ds9RegionName, radius=8, width=2, color='yellow')
-        tpos=(2095.35,2531.6)
-        if(self.getLineDistance((x,y),tpos)<1):
-            print("***************************")
-            print(regIdxs)
-            print(len(stars))
-            print(tdistances.shape)
-            ds9RegionName = "data/star22.reg"
-            self.saveReg(stars, ds9RegionName, radius=8, width=2, color='yellow')
-        '''    
-        #if tdistances.shape[0]>0:
         tdistances = tdistances[tdistances[:,2].argsort()]
         tdistances = tdistances[:num]
         
+        totalDistance = np.sum(tdistances[:,2])
         
-        return tdistances
+        return tdistances, totalDistance
     
     def searchR(self, x,y, searchRadius, regionPos, regNum, regSize, regW, regH):
         
@@ -210,18 +190,17 @@ class StarMatch(object):
         
         tXY = []
         mchIdxs = []
+        totalDists = []
         for i, ts in enumerate(stars):
             x = ts[3]
             y = ts[4]
-            #if i==68:
-            #    print('star %d, x %f, y %f'%(i,x,y))
-            #oi:(2043.46,2548.93), ti:(2095.35, 2531.6)
-            nN = self.getNearestN(x,y, searchRadius, regionPos, regNum, regSize, regW, regH,num)
-            if len(nN)==num:
+            nNPoint, totalDistance = self.getNearestN(x,y, searchRadius, regionPos, regNum, regSize, regW, regH,num)
+            if len(nNPoint)==num:
                 tXY.append((x,y))
-                mchIdxs.append(nN)
+                mchIdxs.append(nNPoint)
+                totalDists.append(totalDistance)
         
-        return tXY, mchIdxs
+        return tXY, mchIdxs, totalDists
     
     def match(self, stars, regionPos, regNum, regSize, regW, regH, searchRadius = 1):
         
@@ -258,9 +237,6 @@ class StarMatch(object):
         axs[1].grid()
         plt.show()
         
-    '''
-    两组排序的（数值由小到大）特征匹配，当一个特征匹配成功之后，下一个特征的匹配搜索从另一组特征的匹配成功的下一个特征开始检索
-    '''  
     def distMatch2(self,oiData, tiData, maxMchDist=1, minMchNum=3):
         
         oiDist = oiData[:,2]
@@ -313,9 +289,7 @@ class StarMatch(object):
             
         return np.array(mchPairs), isMchOk
                     
-    '''
-    两组排序的（数值由小到大）特征匹配，每次重新循环，找距离最近的，可能重复匹配
-    '''
+    
     def distMatch(self,oiData, tiData, maxMchDist=1, minMchNum=3):
         
         oiDist = oiData[:,2]
@@ -338,11 +312,7 @@ class StarMatch(object):
                 distError += minDiff
                 minDiff = maxMchDist
                 minDiffIdx = -1
-        
-        meanError = 99
-        if mchNum>0:
-            meanError = distError/mchNum
-            #print("mchNum=%d,meanError=%f"%(mchNum,meanError))
+            
         
         isMchOk = True
         if mchNum>2:
@@ -502,33 +472,12 @@ class StarMatch(object):
                   
         oiData = np.loadtxt("%s/%s"%(srcDir, oiFile))
         tiData = np.loadtxt("%s/%s"%(srcDir, tiFile))
-        print("orign")
-        print(oiData.shape)
-        print(tiData.shape)
         
         oiData = self.filterStar(oiData)
         tiData = self.filterStar(tiData)
-        print("filter")
-        print(oiData.shape)
-        print(tiData.shape)
         
         brightStarTi, darkStarTi = self.getBright(tiData,100)
         brightStarOi, darkStarOi = self.getBright(oiData, 100)
-        print("bright")
-        print(brightStarOi.shape)
-        print(brightStarTi.shape)
-        print("dark")
-        print(darkStarOi.shape)
-        print(darkStarTi.shape)
-        
-        ds9RegionName = "data/brightStarTi.reg"
-        #self.saveReg(brightStarTi, ds9RegionName, radius=6, width=2, color='red')
-        ds9RegionName = "data/brightStarOi.reg"
-        #self.saveReg(brightStarOi, ds9RegionName, radius=6, width=2, color='red')
-        ds9RegionName = "data/darkStarTi.reg"
-        #self.saveReg(darkStarTi, ds9RegionName, radius=4, width=1, color='yellow')
-        ds9RegionName = "data/darkStarOi.reg"
-        #self.saveReg(darkStarOi, ds9RegionName, radius=4, width=1, color='yellow')
         
         regionPosTi, regionStarNumTi, regNumTi, regSizeTi, regWTi, regHTi = self.createRegionIdx(darkStarTi)
         regionPosOi, regionStarNumOi, regNumOi, regSizeOi, regWOi, regHOi = self.createRegionIdx(darkStarOi)
@@ -536,25 +485,27 @@ class StarMatch(object):
         self.statisticRegions(regionPosTi, regionStarNumTi)
         self.statisticRegions(regionPosOi, regionStarNumOi)
         
-        tiXY, mchIdxsTi = self.createMatchIdx(brightStarTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi)
-        oiXY, mchIdxsOi = self.createMatchIdx(brightStarOi, regionPosOi, regNumOi, regSizeOi, regWOi, regHOi)
+        tiXY, mchIdxsTi, tiTD = self.createMatchIdx(brightStarTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi)
+        oiXY, mchIdxsOi, oiTD = self.createMatchIdx(brightStarOi, regionPosOi, regNumOi, regSizeOi, regWOi, regHOi)
         
-        tarray = np.array(mchIdxsTi)
-        print(tarray.shape)
-        tDist = tarray[:,:,2]
-        print(tDist.shape)
-        tree = KDTree(tDist)
+        #plt.hist(tiTD,bins=30)
+        #plt.show()
+        
+        tiTD = np.array(tiTD).reshape([len(tiTD),1])
+        oiTD = np.array(oiTD).reshape([len(oiTD),1])
+        print(tiTD.shape)
+        tree = KDTree(tiTD)
         
         totalMatchNum = 0
         mchList = []
-        for i, oIdx in enumerate(mchIdxsOi):
-            td = oIdx[:,2]
-            mchIdx = tree.query_ball_point(td, 20)
+        for i, tdist in enumerate(oiTD):
+            mchIdx = tree.query_ball_point(tdist, 40)
             
             if len(mchIdx)>0:
                 for tidx0 in mchIdx:
-                    tdata00 = tarray[tidx0]
-                    dm, isMchOk = self.distMatch(oIdx, tdata00)
+                    tIdx = mchIdxsTi[tidx0]
+                    oIdx = mchIdxsOi[i]
+                    dm, isMchOk = self.distMatch2(oIdx, tIdx)
                     if len(dm)>2 and isMchOk:
                         print("query %d match %d******************"%(i, len(mchIdx)))
                         #print(dm)
@@ -580,9 +531,6 @@ class StarMatch(object):
         print("totalMatchNum=%d"%(totalMatchNum))
         darkStarOiTi = self.posTrans(mchList, darkStarOi)
         origXY, mchXY = self.match(darkStarOiTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi,1)
-        
-        ds9RegionName = "data/OiMatch.reg"
-        #self.saveReg(origXY, ds9RegionName, radius=10, width=2, color='red')
         
         mchXY = np.array(mchXY)
         print(mchXY.shape)
