@@ -2,6 +2,7 @@
 import numpy as np
 import math
 import cv2
+import os
 import matplotlib.pyplot as plt
 import warnings
 from astropy.modeling import models, fitting
@@ -306,8 +307,9 @@ class BlindMatch(object):
         
         return starTrans
     
-def doAll(srcDir, oiFile, tiFile):
-      
+def doBlindMatch(srcDir, oiFile, tiFile):
+    
+    rstStr = ''
     oiMatch = BlindMatch()
     tiMatch = BlindMatch()
     
@@ -435,17 +437,43 @@ def doAll(srcDir, oiFile, tiFile):
                   oiPosJoin0,tiPosJoin0, mchData0, mchRatios0, xshift0,yshift0, xrms0, yrms0,runTime0,\
                   oiPosJoin1,tiPosJoin1, mchData1, mchRatios1, xshift1,yshift1, xrms1, yrms1,runTime1,\
                   oiPosJoin2,tiPosJoin2, mchData2, mchRatios2, xshift2,yshift2, xrms2, yrms2,runTime2)
-            print(rstStr)
+            #print(rstStr)
+    return rstStr
+
 def test():
     
-    tpath = 'data'
-    #tfile1 = 'G031_mon_objt_190116T21430226.cat'
-    #tfile2 = 'G041_mon_objt_190101T21551991.cat'
-    tfile1 = 'G021_mon_objt_181106T17045393.cat' #G021_mon_objt_181106T17045393.cat G041_mon_objt_181018T17592546
-    tfile2 = 'G021_mon_objt_181101T17255569.cat'
+
+    srcDir = "/data/gwac_diff_xy/matchTest/cat"
+    dstDir = "/data/gwac_diff_xy/matchTest/tmp"
     
-    doAll(tpath, tfile1, tfile2)
+    tmplCat0 = ['G021_mon_objt_181101T17255569.cat',
+                'G032_mon_objt_190110T14080401.cat',
+                'G043_mon_objt_190126T10594812.cat',
+                'G024_mon_objt_181018T18570151.cat']
     
+    objCats = os.listdir(srcDir)
+    
+    for tmplCat in tmplCat0:
+        print("\n*****************************\n")
+        print("temp %s match..."%(tmplCat))
+        tmplCCDNum = tmplCat[3]
+        
+        savePath = "%s/%s_mch_statistic.cat"%(dstDir,tmplCat.split('.')[0])
+        tf = open(savePath, 'w')
+        tf.write("#fname, starNum, featureNum, matchNum, micro seconds\n")
+        
+        #G021_mon_objt_181101T17255569.cat
+        for objCat in objCats:
+            ccdNum = objCat[3]
+            if ccdNum == tmplCCDNum and tmplCat!=objCat:
+                print("match %s"%(objCat))
+                tstr = doBlindMatch(srcDir, objCat, tmplCat)
+                tf.write(tstr)
+                tf.flush()
+        tf.close()
+        
+#nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021 &
+#/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021
 if __name__ == "__main__":
         
     test()

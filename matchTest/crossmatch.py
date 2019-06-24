@@ -303,7 +303,7 @@ class CrossMatch(object):
         joinNum = oiPosJoin.shape[0] if oiPosJoin.shape[0]<tiPosJoin.shape[0] else tiPosJoin.shape[0]
         mchRatios = mchData.shape[0]*100.0/joinNum
         
-        return mchRatios
+        return mchRatios, oiPosJoin.shape[0],tiPosJoin.shape[0], mchData.shape[0], xshift,yshift, xrms, yrms
     
 def test():
     
