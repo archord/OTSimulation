@@ -32,13 +32,26 @@ class CrossMatch(object):
         tdist = math.sqrt(tx*tx+ty*ty)
         return tdist
     
-    def getBright(self, tdata, brightStarNum=100, darkStarNum=6000):
+    def getBright(self, tdata, brightStarNum=160, partitionNum=4, darkStarNum=6000):
         
-        sortMag = tdata[tdata[:,self.magIdx].argsort()]
-        brightStar = sortMag[:brightStarNum]
-        darkStar = sortMag[brightStarNum:darkStarNum]
+        pBrightStarNum = math.ceil(brightStarNum/(4*4))
         
-        return brightStar, darkStar
+        regions = self.partition(tdata, pNum=partitionNum)
+        
+        brightStars = np.array([])
+        otherStars = np.array([])
+        for treg in regions:
+            tregData = np.array(treg)
+            sortMag = tregData[tregData[:,self.magIdx].argsort()]
+            if brightStars.shape[0]==0:
+                brightStars = sortMag[:pBrightStarNum]
+                #darkStar = sortMag[pBrightStarNum:darkStarNum]
+                otherStars = sortMag[pBrightStarNum:]
+            else:
+                brightStars = np.concatenate([brightStars,sortMag[:pBrightStarNum]])
+                otherStars = np.concatenate([otherStars,sortMag[pBrightStarNum:]])
+        
+        return brightStars, otherStars
     
     def filterStar(self, tdata):
         
@@ -47,6 +60,25 @@ class CrossMatch(object):
         tdata2 = tdata[condition1]
         
         return tdata2
+    
+    def partition(self, oiData, pNum=4):
+        
+        regSize = pNum
+        regW = (self.regionBorder[1] - self.regionBorder[0])*1.0/regSize
+        regH = (self.regionBorder[3] - self.regionBorder[2])*1.0/regSize
+        
+        regionPos = []
+        for i in range(regSize*regSize):
+            regionPos.append([])
+        
+        for tdata in oiData:
+            x = tdata[self.xIdx]
+            y = tdata[self.yIdx]
+            if x>=self.regionBorder[0] and x<=self.regionBorder[1] and y>=self.regionBorder[2] and y<=self.regionBorder[3]:
+                regIdx = self.getRegionIdx_(x,y, regW, regH, regSize)
+                regionPos[regIdx].append(tdata)
+        
+        return regionPos
     
     def createRegionIdx(self, tdata, minRegionStarNum=10):
         
@@ -76,18 +108,22 @@ class CrossMatch(object):
         self.regionStarNum = regionStarNum
     
     def getRegionIdx(self, x,y):
+        
+        return self.getRegionIdx_(x,y, self.regW, self.regH, self.regSize)
     
-        regX = math.floor((x-self.regionBorder[0])/self.regW)
-        regY = math.floor((y-self.regionBorder[2])/self.regH)
+    def getRegionIdx_(self, x,y, regW, regH, regSize):
+    
+        regX = math.floor((x-self.regionBorder[0])/regW)
+        regY = math.floor((y-self.regionBorder[2])/regH)
         if regX<0:
             regX=0
-        elif regX>=self.regSize:
-            regX = self.regSize-1
+        elif regX>=regSize:
+            regX = regSize-1
         if regY<0:
             regY=0
-        elif regY>=self.regSize:
-            regY = self.regSize-1
-        regIdx = regY*self.regSize+regX
+        elif regY>=regSize:
+            regY = regSize-1
+        regIdx = regY*regSize+regX
         
         return regIdx
     
@@ -101,7 +137,7 @@ class CrossMatch(object):
         for trn in self.regionStarNum:
             tnum2 += trn
         
-        print("region start count=%d, region num sum=%d"%(tnum, tnum2))
+        print("region star count=%d, region num sum=%d"%(tnum, tnum2))
     
     def getSearchRegions(self, x, y, searchRadius):
         
