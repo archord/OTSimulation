@@ -312,10 +312,15 @@ def doAll(srcDir, oiFile, tiFile):
             crossMatch.statisticRegions()
             mchPosPairs = crossMatch.xyMatch(starOiTi, 2)
             endtime = datetime.now()
-            runTime = (endtime - starttime).seconds
-            print("********** rematch %s use %d seconds"%(oiFile, runTime))
+            runTime = (endtime - starttime).total_seconds()*1000
+            print("********** rematch %s use %d micro seconds"%(oiFile, runTime))
             
             crossMatch.evaluateMatchResult(starOiTi, tiData, mchPosPairs)
+            
+            mchPosPairs[:,0] = mchPosPairs[:,0] + 20
+            mchPosPairs[:,2] = mchPosPairs[:,2] + 20
+            tiMatch.saveReg(mchPosPairs[:,0:2], "data/OiMch.reg", radius=4, width=1, color='green')
+            tiMatch.saveReg(mchPosPairs[:,2:4], "data/TiMch.reg", radius=4, width=1, color='red')
             
 def test():
     
