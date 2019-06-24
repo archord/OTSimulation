@@ -6,6 +6,7 @@ import cv2
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 import warnings
+from datetime import datetime
 from astropy.modeling import models, fitting
             
 class StarMatch(object):
@@ -76,7 +77,7 @@ class StarMatch(object):
         
         print("num1=%d, num2=%d"%(tnum, tnum2))
     
-    def getBright(self, tdata, starNum=100, magIdx=38):
+    def getBright(self, tdata, starNum=100, magIdx=11):
         
         mag = tdata[:,magIdx]
         mag = np.sort(mag)
@@ -86,7 +87,7 @@ class StarMatch(object):
         
         return brightStar, darkStar
     
-    def filterStar(self, tdata, xIdx=3, yIdx=4):
+    def filterStar(self, tdata, xIdx=0, yIdx=1):
         
         condition1 = (tdata[:,xIdx]>=self.regionBorder[0]) & (tdata[:,xIdx]<=self.regionBorder[1]) & \
             (tdata[:,yIdx]>=self.regionBorder[2]) & (tdata[:,yIdx]<=self.regionBorder[3])
@@ -430,12 +431,12 @@ class StarMatch(object):
         xshift,yshift, xrms, yrms = self.evaluatePos(dataTi, dataTi2)
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
     
-        starPoss = stars[:,3:5]
+        starPoss = stars[:,0:2]
         starPossTi = cv2.perspectiveTransform(np.array([starPoss]), h)
         starPossTi = starPossTi[0]
 
         xshift,yshift, xrms, yrms = self.evaluatePos(starPoss, starPossTi)
-        stars[:,3:5] = starPossTi
+        stars[:,0:2] = starPossTi
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
         
         return stars
@@ -485,7 +486,7 @@ class StarMatch(object):
         xshift,yshift, xrms, yrms = self.evaluatePos(dataTi, dataTi2)
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
     
-        starPoss = stars[:,3:5]
+        starPoss = stars[:,0:2]
         oix = starPoss[:,0]
         oiy = starPoss[:,1]
         tix2 = tixp(oix, oiy)
@@ -493,7 +494,7 @@ class StarMatch(object):
         starPossTi = np.concatenate([tix2.reshape((tix2.shape[0],1)),tiy2.reshape((tix2.shape[0],1))],axis=1)
 
         xshift,yshift, xrms, yrms = self.evaluatePos(starPoss, starPossTi)
-        stars[:,3:5] = starPossTi
+        stars[:,0:2] = starPossTi
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
         
         
@@ -584,9 +585,14 @@ class StarMatch(object):
                     
         if len(mchList)>1:
             print("totalMatchNum=%d"%(totalMatchNum))
-            darkStarOiTi = self.posTrans(mchList, darkStarOi)
+            darkStarOiTi = self.posTrans2(mchList, darkStarOi)
+            print(darkStarOiTi.shape)
+            starttime = datetime.now()
             origXY, mchXY = self.match(darkStarOiTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi,1)
-            
+            endtime = datetime.now()
+            runTime = (endtime - starttime).seconds
+            print("********** rematch %s use %d seconds"%(oiFile, runTime))
+                    
             ds9RegionName = "data/OiMatch.reg"
             #self.saveReg(origXY, ds9RegionName, radius=10, width=2, color='red')
             
