@@ -224,6 +224,7 @@ class CrossMatch(object):
     
     def xyMatch(self, stars, searchRadius = 1):
         
+        orgPosIdxs = []
         tXY = []
         mchIdxs = []
         for i, ts in enumerate(stars):
@@ -233,12 +234,13 @@ class CrossMatch(object):
             if nN.shape[0]>0:
                 tXY.append((x,y))
                 mchIdxs.append(nN)
+                orgPosIdxs.append(i)
         
         tXY = np.array(tXY)
         mchIdxs = np.array(mchIdxs)
         
         mchPosPairs = np.concatenate([tXY,mchIdxs[:,0:2]], axis=1)
-        return mchPosPairs
+        return mchPosPairs, orgPosIdxs
     
     def evaluatePos(self, pos1, pos2, isAbs=False):
         
@@ -294,9 +296,14 @@ class CrossMatch(object):
         oiPosJoin = oiPos[(oiPos[:,0]>=minX) & (oiPos[:,0]<=maxX) & (oiPos[:,1]>=minY) & (oiPos[:,1]<=maxY)]
         tiPosJoin = tiPos[(tiPos[:,0]>=minX) & (tiPos[:,0]<=maxX) & (tiPos[:,1]>=minY) & (tiPos[:,1]<=maxY)]
         
-        print("oi:%d, ti:%d, joinOi:%d, joinTi:%d, mch:%d"\
-              %(oiPos.shape[0],tiPos.shape[0],oiPosJoin.shape[0],tiPosJoin.shape[0], mchData.shape[0]))
-        print("xmean=%.2f, ymean=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))      
+        #print("oi:%d, ti:%d, joinOi:%d, joinTi:%d, mch:%d"\
+        #      %(oiPos.shape[0],tiPos.shape[0],oiPosJoin.shape[0],tiPosJoin.shape[0], mchData.shape[0]))
+        #print("xmean=%.2f, ymean=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))   
+        
+        joinNum = oiPosJoin.shape[0] if oiPosJoin.shape[0]<tiPosJoin.shape[0] else tiPosJoin.shape[0]
+        mchRatios = mchData.shape[0]*100.0/joinNum
+        
+        return mchRatios
     
 def test():
     

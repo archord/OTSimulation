@@ -61,7 +61,7 @@ class BlindMatch(object):
         self.saveReg(tpos, "data/reg%d.reg"%(stars.shape[0]), radius=4, width=1, color='green')
         '''    
         oiMatch.createRegionIdx(darkStarOi, featureNum)
-        oiMatch.statisticRegions()
+        #oiMatch.statisticRegions()
         
         searchRadius = oiMatch.regSize*searchRTimes
         
@@ -187,10 +187,29 @@ class BlindMatch(object):
         
         return stars
     
-    def polynomialFit(self, dataOi, dataTi, degree=3):
+    def polynomialFitEvulate(self, dataOi, dataTi):
     
-        xshift,yshift, xrotation, yrotation = 0, 0, 0, 0
+        tixp, tiyp = self.polynomialFit(dataOi, dataTi, 1)
+        tp1 = tixp.parameters
+        tp2 = tiyp.parameters
         
+        a = tp1[0]
+        b = tp1[1]
+        c = tp1[2]
+        d = tp2[0]
+        e = tp2[1]
+        f = tp2[2]
+        
+        xshift = a
+        yshift = d
+        xrotation = math.atan(e/b)*180/math.pi
+        yrotation = math.atan(c/f)*180/math.pi
+        #print("xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift,yshift, xrotation, yrotation))
+            
+        return xshift,yshift, xrotation, yrotation
+            
+    def polynomialFit(self, dataOi, dataTi, degree=3):
+            
         oix = dataOi[:,0]
         oiy = dataOi[:,1]
         tix = dataTi[:,0]
@@ -205,25 +224,7 @@ class BlindMatch(object):
             tixp = fit_p(p_init, oix, oiy, tix)
             tiyp = fit_p(p_init, oix, oiy, tiy)
             
-            if degree==1:
-                tp1 = tixp.parameters
-                tp2 = tiyp.parameters
-                
-                a = tp1[0]
-                b = tp1[1]
-                c = tp1[2]
-                d = tp2[0]
-                e = tp2[1]
-                f = tp2[2]
-                
-                xshift = a
-                yshift = d
-                xrotation = math.atan(e/b)*180/math.pi
-                yrotation = math.atan(c/f)*180/math.pi
-                print("xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift,yshift, xrotation, yrotation))
-            
-        return tixp, tiyp, xshift,yshift, xrotation, yrotation
-            
+        return tixp, tiyp
             
     def posTransPolynomial(self, posMchs, stars):
         
@@ -236,56 +237,25 @@ class BlindMatch(object):
                 dataOi = np.concatenate([dataOi,posMchs[i][0]])
                 dataTi = np.concatenate([dataTi,posMchs[i][1]])
         
-        xshift,yshift, xrms, yrms = self.evaluatePos(dataOi, dataTi)
-        print("%d blindMatch stars, before trans: xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(dataOi.shape[0], xshift,yshift, xrms, yrms))
-   
-        dataTi2 = dataTi
-        dataOi2 = dataOi
+        #xshift,yshift, xrms, yrms = self.evaluatePos(dataOi, dataTi)
+        #print("%d blindMatch stars, before trans: xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(dataOi.shape[0], xshift,yshift, xrms, yrms))
+          
+        #xshift,yshift, xrotation, yrotation = 0, 0, 0, 0
+        xshift,yshift, xrotation, yrotation = self.polynomialFitEvulate(dataOi, dataTi)
+        #print("fitting: xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift,yshift, xrotation, yrotation))
+        tixp, tiyp = self.polynomialFit(dataOi, dataTi, 3)
         
-        tixp, tiyp, xshift1,yshift1, xrotation1, yrotation1 = self.polynomialFit(dataTi, dataOi, 1)
-        print("xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift1,yshift1, xrotation1, yrotation1))
-        tixp, tiyp, xshift,yshift, xrotation, yrotation = self.polynomialFit(dataTi, dataOi, 3)
-        
-        oix = dataOi2[:,0]
-        oiy = dataOi2[:,1]
-        tix = dataTi2[:,0]
-        tiy = dataTi2[:,1]
-        
-        p_init = models.Polynomial2D(degree=3)
-        fit_p = fitting.LevMarLSQFitter()
-        
-        with warnings.catch_warnings():
-            # Ignore model linearity warning from the fitter
-            warnings.simplefilter('ignore')
-            tixp = fit_p(p_init, oix, oiy, tix)
-            tiyp = fit_p(p_init, oix, oiy, tiy)
+        ''' 
+        oix = dataOi[:,0]
+        oiy = dataOi[:,1]
+        tix2 = tixp(oix, oiy)
+        tiy2 = tiyp(oix, oiy)
             
-            #print(tixp)
-            #print(tixp.parameters)
-            #print(tiyp.parameters)
-            tp1 = tixp.parameters
-            tp2 = tiyp.parameters
-            
-            a = tp1[0]
-            b = tp1[1]
-            c = tp1[2]
-            d = tp2[0]
-            e = tp2[1]
-            f = tp2[2]
-            
-            xshift = a
-            yshift = d
-            xrotation = math.atan(e/b)*180/math.pi
-            yrotation = math.atan(c/f)*180/math.pi
-            
-            tix2 = tixp(oix, oiy)
-            tiy2 = tiyp(oix, oiy)
-            
-        
         dataTi2 = np.concatenate([tix2.reshape((tix2.shape[0],1)),tiy2.reshape((tiy2.shape[0],1))],axis=1)
         xshift,yshift, xrms, yrms = self.evaluatePos(dataTi, dataTi2)
         print("%d blindMatch stars, after trans: xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(dataOi.shape[0], xshift,yshift, xrms, yrms))
-    
+        '''
+        
         starPoss = stars[:,[self.xIdx, self.yIdx]]
         oix = starPoss[:,0]
         oiy = starPoss[:,1]
@@ -293,12 +263,14 @@ class BlindMatch(object):
         tiy2 = tiyp(oix, oiy)
         starPossTi = np.concatenate([tix2.reshape((tix2.shape[0],1)),tiy2.reshape((tiy2.shape[0],1))],axis=1)
 
-        xshift,yshift, xrms, yrms = self.evaluatePos(starPoss, starPossTi)
-        stars[:,[self.xIdx, self.yIdx]] = starPossTi
-        print("%d orig stars, after trans: xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(stars.shape[0], xshift,yshift, xrms, yrms))
+        #xshift,yshift, xrms, yrms = self.evaluatePos(starPoss, starPossTi)
+        #print("%d orig stars, after trans: xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(stars.shape[0], xshift,yshift, xrms, yrms))
         
+        starTrans = stars.copy()
+        #starTrans = stars
+        starTrans[:,[self.xIdx, self.yIdx]] = starPossTi
         
-        return stars
+        return starTrans, xshift,yshift, xrotation, yrotation
 
         
     
@@ -309,9 +281,9 @@ def doAll(srcDir, oiFile, tiFile):
     
     oiData = np.loadtxt("%s/%s"%(srcDir, oiFile))
     tiData = np.loadtxt("%s/%s"%(srcDir, tiFile))
-    print("orign")
-    print(oiData.shape)
-    print(tiData.shape)
+    #print("orign")
+    #print(oiData.shape)
+    #print(tiData.shape)
     
     tiXY, mchIdxsTi = tiMatch.createBlindMatchFeatures(tiData)
     oiXY, mchIdxsOi = oiMatch.createBlindMatchFeatures(oiData)
@@ -336,7 +308,7 @@ def doAll(srcDir, oiFile, tiFile):
                     tdata00 = tarray[tidx0]
                     dm, isMchOk = oiMatch.blindDistMatch(oIdx, tdata00, 1, 5)
                     if isMchOk:
-                        print("query %d KDTree match %d, precisely match %dth with %d point"%(i, len(mchIdx), ii, len(dm)))
+                        #print("query %d KDTree match %d, precisely match %dth with %d point"%(i, len(mchIdx), ii, len(dm)))
                         #print(dm)
                         omIdx = dm[:,0]
                         tmIdx = dm[:,1]
@@ -360,22 +332,29 @@ def doAll(srcDir, oiFile, tiFile):
                         break
                 
         if len(mchList)>1:
-            print("totalMatchNum=%d"%(totalMatchNum))
-            starOiTi = tiMatch.posTransPolynomial(mchList, oiData) # posTransPolynomial posTransPerspective
-            print(starOiTi.shape)
+            print("total Match key points %d"%(totalMatchNum))
+            starOiTi, xshift,yshift, xrotation, yrotation = tiMatch.posTransPolynomial(mchList, oiData) # posTransPolynomial posTransPerspective
+            print("fitting: xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift,yshift, xrotation, yrotation))
+            #print(starOiTi.shape)
             
             starttime = datetime.now()
             crossMatch = CrossMatch()
             #tiData = crossMatch.filterStar(tiData)
             crossMatch.createRegionIdx(tiData)
-            crossMatch.statisticRegions()
-            mchPosPairs = crossMatch.xyMatch(starOiTi, 2)
+            #crossMatch.statisticRegions()
+            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, 2)
             endtime = datetime.now()
             runTime = (endtime - starttime).total_seconds()*1000
             print("********** rematch %s use %d micro seconds"%(oiFile, runTime))
             
+            oiDataMch = oiData[orgPosIdxs]
+            print(oiDataMch.shape)
+            print(oiDataMch[:3])
+            
             print(mchPosPairs.shape)
-            crossMatch.evaluateMatchResult(starOiTi, tiData, mchPosPairs)
+            print(mchPosPairs[:3])
+            mchRatios = crossMatch.evaluateMatchResult(starOiTi, tiData, mchPosPairs)
+            print(mchRatios)
             '''
             mchPosPairs[:,0] = mchPosPairs[:,0] + 20
             mchPosPairs[:,2] = mchPosPairs[:,2] + 20
