@@ -42,6 +42,8 @@ class CrossMatch(object):
         otherStars = np.array([])
         for treg in regions:
             tregData = np.array(treg)
+            if tregData.shape[0]==0:
+                continue
             sortMag = tregData[tregData[:,self.magIdx].argsort()]
             if brightStars.shape[0]==0:
                 brightStars = sortMag[:pBrightStarNum]

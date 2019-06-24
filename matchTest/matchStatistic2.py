@@ -5,6 +5,7 @@ import cv2
 import os
 import matplotlib.pyplot as plt
 import warnings
+import traceback
 from astropy.modeling import models, fitting
 from scipy.spatial import KDTree
 from datetime import datetime
@@ -306,6 +307,57 @@ class BlindMatch(object):
         starTrans[:,[self.xIdx, self.yIdx]] = starPossTi
         
         return starTrans
+
+
+def imgStatistic(fname, catData, size=2000):
+
+    imgSize = (4136, 4196)
+    #imgSize = (4136, 4096)
+    imgW = imgSize[1]
+    imgH = imgSize[0]
+    
+    halfSize = size/2
+    xStart = int(imgW/2 - halfSize)
+    xEnd = int(imgW/2 + halfSize)
+    yStart = int(imgH/2 - halfSize)
+    yEnd = int(imgH/2 + halfSize)
+    
+    dateStr = fname[14:27] #190302T114028
+    camName = fname[2:4] #23
+    fwhms = []
+    bkgs = []
+    for row in catData:
+        tx = row[0]
+        ty = row[1]
+        fwhm = row[9]
+        bkg = row[8]
+        if tx>=xStart and tx<xEnd and ty>=yStart and ty<yEnd:
+            fwhms.append(fwhm)
+            bkgs.append(bkg)
+    
+    fwhms = np.array(fwhms)
+    bkgs = np.array(bkgs)
+    
+    times = 2
+    for i in range(1):
+        tmean = np.mean(fwhms)
+        trms = np.std(fwhms)
+        tIdx = fwhms<(tmean+times*trms)
+        fwhms = fwhms[tIdx]
+        
+        tmean = np.mean(bkgs)
+        trms = np.std(bkgs)
+        tIdx = bkgs<(tmean+times*trms)
+        bkgs = bkgs[tIdx]
+        
+    fwhmMean = np.mean(fwhms)
+    fwhmRms = np.std(fwhms)
+    bkgMean = np.mean(bkgs)
+    bkgRms = np.std(bkgs)
+    
+    return dateStr, camName, fwhmMean, fwhmRms, bkgMean, bkgRms
+    
+
     
 def doBlindMatch(srcDir, oiFile, tiFile):
     
@@ -315,129 +367,159 @@ def doBlindMatch(srcDir, oiFile, tiFile):
     
     oiData = np.loadtxt("%s/%s"%(srcDir, oiFile))
     tiData = np.loadtxt("%s/%s"%(srcDir, tiFile))
+    
+    dateStr, camName, fwhmMean, fwhmRms, bkgMean, bkgRms = imgStatistic(oiFile, oiData)
     #print("orign")
     #print(oiData.shape)
     #print(tiData.shape)
     
-    tiXY, mchIdxsTi = tiMatch.createBlindMatchFeatures(tiData)
-    oiXY, mchIdxsOi = oiMatch.createBlindMatchFeatures(oiData)
-    
-    if len(tiXY)==0:
-        print("%s create feature failure"%(tiFile))
-    elif len(oiXY)==0:
-        print("%s create feature failure"%(oiFile))
-    else:
-        tarray = np.array(mchIdxsTi)
-        tDist = tarray[:,:,2]
-        tiTree = KDTree(tDist)
+    try:
+        tiXY, mchIdxsTi = tiMatch.createBlindMatchFeatures(tiData)
         
-        totalMatchNum = 0
-        mchList = []
-        for i, oIdx in enumerate(mchIdxsOi):
-            td = oIdx[:,2]
-            mchIdx = tiTree.query_ball_point(td, 20)
+        if len(tiXY)==0:
+            print("%s create feature failure"%(tiFile))
+        else:
+            tarray = np.array(mchIdxsTi)
+            tDist = tarray[:,:,2]
+            tiTree = KDTree(tDist)
             
-            if len(mchIdx)>0:
-                for ii, tidx0 in enumerate(mchIdx):
-                    tdata00 = tarray[tidx0]
-                    dm, isMchOk = oiMatch.blindDistMatch(oIdx, tdata00, 1, 5)
-                    if isMchOk:
-                        #print("query %d KDTree match %d, precisely match %dth with %d point"%(i, len(mchIdx), ii, len(dm)))
-                        #print(dm)
-                        omIdx = dm[:,0]
-                        tmIdx = dm[:,1]
-                        oxy01 = oiXY[i]
-                        txy02 = tiXY[tidx0]
-                        totalMatchNum += 1
-                        
-                        opos = omIdx[:,0:2]
-                        tpos = tmIdx[:,0:2]
-                        oxy1 = np.concatenate([opos,[oxy01]])
-                        txy1 = np.concatenate([tpos,[txy02]])
-                        mchList.append((oxy1,txy1))
-                        
-                        '''   
-                        ox1 = omIdx[:,0]
-                        oy1 = omIdx[:,1]
-                        tx2 = tmIdx[:,0]
-                        ty2 = tmIdx[:,1]
-                        oiMatch.plotBlindMatch(oxy01[0],oxy01[1],ox1,oy1,txy02[0],txy02[1],tx2,ty2)
-                        '''
-                        break
+            starttime = datetime.now()
+            #createBlindMatchFeatures(self, stars, featurePoint=160, featureNum=10, searchRTimes=2, partitionNum=4)
+            oiXY, mchIdxsOi = oiMatch.createBlindMatchFeatures(oiData)
+            if len(mchIdxsOi)==0:
+                print("%s searchR %d create feature failure, reuse %d"%(oiFile, 2, 2*2))
+                oiXY, mchIdxsOi = oiMatch.createBlindMatchFeatures(oiData,searchRTimes=4)
+        
+            totalMatchNum = 0
+            mchList = []
+            mchRadius = [20,40,100]
+            for mchR in mchRadius:
+                for i, oIdx in enumerate(mchIdxsOi):
+                    td = oIdx[:,2]
+                    mchIdx = tiTree.query_ball_point(td, mchR)
+                    
+                    if len(mchIdx)>0:
+                        for ii, tidx0 in enumerate(mchIdx):
+                            tdata00 = tarray[tidx0]
+                            dm, isMchOk = oiMatch.blindDistMatch(oIdx, tdata00, 1, 5)
+                            if isMchOk:
+                                #print("query %d KDTree match %d, precisely match %dth with %d point"%(i, len(mchIdx), ii, len(dm)))
+                                #print(dm)
+                                omIdx = dm[:,0]
+                                tmIdx = dm[:,1]
+                                oxy01 = oiXY[i]
+                                txy02 = tiXY[tidx0]
+                                totalMatchNum += 1
+                                
+                                opos = omIdx[:,0:2]
+                                tpos = tmIdx[:,0:2]
+                                oxy1 = np.concatenate([opos,[oxy01]])
+                                txy1 = np.concatenate([tpos,[txy02]])
+                                mchList.append((oxy1,txy1))
+                                break
+                            
+                if len(mchList)>1:
+                    break
+                else:
+                    mchList = []
+                    print("%s radius %d matchNum %d"%(oiFile, mchR, len(mchList)))
+                    
+            endtime = datetime.now()
+            blindMatchTime = (endtime - starttime).total_seconds()*1000
                 
-        if len(mchList)>1:
-            #print("total Match key points %d"%(totalMatchNum))
-            starOiTi, xshift,yshift, xrotation, yrotation, blindStarNum = tiMatch.posTransPolynomial(mchList, oiData) # posTransPolynomial posTransPerspective
-            #print("fitting: xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift,yshift, xrotation, yrotation))
-            #print(starOiTi.shape)
+            if len(mchList)>1:
+                #print("total Match key points %d"%(totalMatchNum))
+                starOiTi, xshift,yshift, xrotation, yrotation, blindStarNum = tiMatch.posTransPolynomial(mchList, oiData) # posTransPolynomial posTransPerspective
+                #print("fitting: xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift,yshift, xrotation, yrotation))
+                #print(starOiTi.shape)
+                
+                starttime = datetime.now()
+                crossMatch = CrossMatch()
+                #tiData = crossMatch.filterStar(tiData)
+                crossMatch.createRegionIdx(tiData)
+                #crossMatch.statisticRegions()
+                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, 2)
+                endtime = datetime.now()
+                runTime0 = (endtime - starttime).total_seconds()*1000
+                #print("********** rematch %s use %d micro seconds"%(oiFile, runTime0))
+                
+                #print(mchPosPairs.shape)
+                #print(mchPosPairs[:3])
+                mchRatios0, oiPosJoin0,tiPosJoin0, mchData0, xshift0,yshift0, xrms0, yrms0 \
+                    = crossMatch.evaluateMatchResult(starOiTi, tiData, mchPosPairs)
+                #print(mchRatios0)
+                
+                oiDataMch = oiData[orgPosIdxs]
+                #print(oiDataMch.shape)
+                #print(oiDataMch[:3])
+                
+                oiMchPos = oiDataMch[:,0:2]
+                tiMchPos = mchPosPairs[:,2:4]
+                starOiTiPsp2 = tiMatch.posTransPerspective2(oiMchPos, tiMchPos, oiData)
+                starOiTiPly2 = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData)
+                
+                starttime = datetime.now()
+                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPsp2, 2)
+                endtime = datetime.now()
+                runTime1 = (endtime - starttime).total_seconds()*1000
+                #print("********** rematch %s use %d micro seconds"%(oiFile, runTime1))
+                
+                #print(mchPosPairs.shape)
+                #print(mchPosPairs[:3])
+                mchRatios1, oiPosJoin1,tiPosJoin1, mchData1, xshift1,yshift1, xrms1, yrms1 \
+                    = crossMatch.evaluateMatchResult(starOiTiPsp2, tiData, mchPosPairs)
+                #print(mchRatios1)
+                
+                starttime = datetime.now()
+                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 2)
+                endtime = datetime.now()
+                runTime2 = (endtime - starttime).total_seconds()*1000
+                #print("********** rematch %s use %d micro seconds"%(oiFile, runTime2))
+                
+                #print(mchPosPairs.shape)
+                #print(mchPosPairs[:3])
+                mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2 \
+                    = crossMatch.evaluateMatchResult(starOiTiPly2, tiData, mchPosPairs)
+                #print(mchRatios2)
+                
+                '''
+                mchPosPairs[:,0] = mchPosPairs[:,0] + 20
+                mchPosPairs[:,2] = mchPosPairs[:,2] + 20
+                tiMatch.saveReg(mchPosPairs[:,0:2], "data/OiMch.reg", radius=4, width=1, color='green')
+                tiMatch.saveReg(mchPosPairs[:,2:4], "data/TiMch.reg", radius=4, width=1, color='red')
+                '''
+                
+                rstStr = "%s %.2f %.2f %.2f %.2f %d %d "\
+                    "%d %d "\
+                    "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
+                    "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
+                    "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
+                    "%s %s %.2f %.2f %.2f %.2f %d \n"\
+                    %(oiFile, xshift,yshift, xrotation, yrotation, blindStarNum, totalMatchNum, \
+                      tiData.shape[0], oiData.shape[0], \
+                      oiPosJoin0,tiPosJoin0, mchData0, mchRatios0, xshift0,yshift0, xrms0, yrms0,runTime0,\
+                      oiPosJoin1,tiPosJoin1, mchData1, mchRatios1, xshift1,yshift1, xrms1, yrms1,runTime1,\
+                      oiPosJoin2,tiPosJoin2, mchData2, mchRatios2, xshift2,yshift2, xrms2, yrms2,runTime2,\
+                      dateStr, camName, fwhmMean, fwhmRms, bkgMean, bkgRms, blindMatchTime)
+                #print(rstStr)
             
-            starttime = datetime.now()
-            crossMatch = CrossMatch()
-            #tiData = crossMatch.filterStar(tiData)
-            crossMatch.createRegionIdx(tiData)
-            #crossMatch.statisticRegions()
-            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, 2)
-            endtime = datetime.now()
-            runTime0 = (endtime - starttime).total_seconds()*1000
-            #print("********** rematch %s use %d micro seconds"%(oiFile, runTime0))
-            
-            #print(mchPosPairs.shape)
-            #print(mchPosPairs[:3])
-            mchRatios0, oiPosJoin0,tiPosJoin0, mchData0, xshift0,yshift0, xrms0, yrms0 \
-                = crossMatch.evaluateMatchResult(starOiTi, tiData, mchPosPairs)
-            #print(mchRatios0)
-            
-            oiDataMch = oiData[orgPosIdxs]
-            #print(oiDataMch.shape)
-            #print(oiDataMch[:3])
-            
-            oiMchPos = oiDataMch[:,0:2]
-            tiMchPos = mchPosPairs[:,2:4]
-            starOiTiPsp2 = tiMatch.posTransPerspective2(oiMchPos, tiMchPos, oiData)
-            starOiTiPly2 = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData)
-            
-            starttime = datetime.now()
-            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPsp2, 2)
-            endtime = datetime.now()
-            runTime1 = (endtime - starttime).total_seconds()*1000
-            #print("********** rematch %s use %d micro seconds"%(oiFile, runTime1))
-            
-            #print(mchPosPairs.shape)
-            #print(mchPosPairs[:3])
-            mchRatios1, oiPosJoin1,tiPosJoin1, mchData1, xshift1,yshift1, xrms1, yrms1 \
-                = crossMatch.evaluateMatchResult(starOiTiPsp2, tiData, mchPosPairs)
-            #print(mchRatios1)
-            
-            starttime = datetime.now()
-            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 2)
-            endtime = datetime.now()
-            runTime2 = (endtime - starttime).total_seconds()*1000
-            #print("********** rematch %s use %d micro seconds"%(oiFile, runTime2))
-            
-            #print(mchPosPairs.shape)
-            #print(mchPosPairs[:3])
-            mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2 \
-                = crossMatch.evaluateMatchResult(starOiTiPly2, tiData, mchPosPairs)
-            #print(mchRatios2)
-            
-            '''
-            mchPosPairs[:,0] = mchPosPairs[:,0] + 20
-            mchPosPairs[:,2] = mchPosPairs[:,2] + 20
-            tiMatch.saveReg(mchPosPairs[:,0:2], "data/OiMch.reg", radius=4, width=1, color='green')
-            tiMatch.saveReg(mchPosPairs[:,2:4], "data/TiMch.reg", radius=4, width=1, color='red')
-            '''
-            
-            rstStr = "%s %.2f %.2f %.2f %.2f %d %d "\
-                "%d %d "\
-                "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
-                "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
-                "%d %d %d %.2f %.2f %.2f %.2f %.2f %d \n"\
-                %(oiFile, xshift,yshift, xrotation, yrotation, blindStarNum, totalMatchNum, \
-                  tiData.shape[0], oiData.shape[0], \
-                  oiPosJoin0,tiPosJoin0, mchData0, mchRatios0, xshift0,yshift0, xrms0, yrms0,runTime0,\
-                  oiPosJoin1,tiPosJoin1, mchData1, mchRatios1, xshift1,yshift1, xrms1, yrms1,runTime1,\
-                  oiPosJoin2,tiPosJoin2, mchData2, mchRatios2, xshift2,yshift2, xrms2, yrms2,runTime2)
-            #print(rstStr)
+    except Exception as e:
+        print("blind match error")
+        tstr = traceback.format_exc()
+        print(tstr)
+    if len(rstStr)==0:
+        rstStr = "%s %.2f %.2f %.2f %.2f %d %d "\
+            "%d %d "\
+            "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
+            "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
+            "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
+            "%s %s %.2f %.2f %.2f %.2f %d\n"\
+            %(oiFile, 0,0, 0, 0, 0, 0, \
+              tiData.shape[0], oiData.shape[0], \
+              0,0, 0, 0, 0,0, 0, 0,0,\
+              0,0, 0, 0, 0,0, 0, 0,0,\
+              0,0, 0, 0, 0,0, 0, 0,0,\
+              dateStr, camName, fwhmMean, fwhmRms, bkgMean, bkgRms, 0)
     return rstStr
 
 def test():
@@ -458,9 +540,9 @@ def test():
         print("temp %s match..."%(tmplCat))
         tmplCCDNum = tmplCat[3]
         
-        savePath = "%s/%s_mch_statistic.cat"%(dstDir,tmplCat.split('.')[0])
-        tf = open(savePath, 'w')
-        tf.write("#fname, starNum, featureNum, matchNum, micro seconds\n")
+        savePath1 = "%s/%s_mch_statistic2.cat"%(dstDir,tmplCat.split('.')[0])
+        tf1 = open(savePath1, 'w')
+        #tf.write("#fname, starNum, featureNum, matchNum, micro seconds\n")
         
         #G021_mon_objt_181101T17255569.cat
         for objCat in objCats:
@@ -468,9 +550,9 @@ def test():
             if ccdNum == tmplCCDNum and tmplCat!=objCat:
                 print("match %s"%(objCat))
                 tstr = doBlindMatch(srcDir, objCat, tmplCat)
-                tf.write(tstr)
-                tf.flush()
-        tf.close()
+                tf1.write(tstr)
+                tf1.flush()
+        tf1.close()
         
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021 &
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021
