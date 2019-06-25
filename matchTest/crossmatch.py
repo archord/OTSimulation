@@ -32,9 +32,10 @@ class CrossMatch(object):
         tdist = math.sqrt(tx*tx+ty*ty)
         return tdist
     
-    def getBright(self, tdata, brightStarNum=160, partitionNum=4, darkStarNum=6000):
+    def getBright(self, tdata, brightStarNum=160, partitionNum=4, darkStarNum=4000):
         
         pBrightStarNum = math.ceil(brightStarNum/(4*4))
+        pDarkStarNum = math.ceil(darkStarNum/(4*4))
         
         regions = self.partition(tdata, pNum=partitionNum)
         
@@ -47,11 +48,11 @@ class CrossMatch(object):
             sortMag = tregData[tregData[:,self.magIdx].argsort()]
             if brightStars.shape[0]==0:
                 brightStars = sortMag[:pBrightStarNum]
-                #darkStar = sortMag[pBrightStarNum:darkStarNum]
-                otherStars = sortMag[pBrightStarNum:]
+                otherStars = sortMag[pBrightStarNum:pDarkStarNum]
+                #otherStars = sortMag[pBrightStarNum:]
             else:
                 brightStars = np.concatenate([brightStars,sortMag[:pBrightStarNum]])
-                otherStars = np.concatenate([otherStars,sortMag[pBrightStarNum:]])
+                otherStars = np.concatenate([otherStars,sortMag[pBrightStarNum:pDarkStarNum]])
         
         return brightStars, otherStars
     

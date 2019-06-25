@@ -10,12 +10,33 @@ import traceback
 from matplotlib.ticker import FuncFormatter
 import pandas as pd
 
-
+def aa():
+    
+        fname1 = 'G021_mon_objt_181101T17255569_mch_statistic.cat'
+        fname2 = 'G032_mon_objt_190110T14080401_mch_statistic.cat'
+        fname3 = 'G043_mon_objt_190126T10594812_mch_statistic.cat'
+        fname4 = 'G024_mon_objt_181018T18570151_mch_statistic.cat'
+        
+        tdata1 = np.loadtxt("%s/%s"%(srcDir, fname1), dtype='str')
+        print(tdata1.shape)
+        tdata2 = np.loadtxt("%s/%s"%(srcDir, fname2), dtype='str')
+        print(tdata2.shape)
+        tdata3 = np.loadtxt("%s/%s"%(srcDir, fname3), dtype='str')
+        print(tdata3.shape)
+        tdata4 = np.loadtxt("%s/%s"%(srcDir, fname4), dtype='str')
+        print(tdata4.shape)
+        
+        tdata = np.concatenate([tdata1,tdata2,tdata3,tdata4])
+        print(tdata.shape)
+    
+    
 def magStatistic1(srcDir, fname, destDir):
     
     try:
+        print(fname)
         tdata = np.loadtxt("%s/%s"%(srcDir, fname), dtype='str')
         print(tdata.shape)
+        
         fname = tdata[:,0].copy()
         dateStr = tdata[:,36].copy()
         tdata[:,0] = '0'
@@ -31,7 +52,8 @@ def magStatistic1(srcDir, fname, destDir):
         xshift0,yshift0, xrms0, yrms0 = tdata[:,13],tdata[:,14],tdata[:,15],tdata[:,16]
         xshift1,yshift1, xrms1, yrms1 = tdata[:,22],tdata[:,23],tdata[:,24],tdata[:,25]
         xshift2,yshift2, xrms2, yrms2 = tdata[:,31],tdata[:,32],tdata[:,33],tdata[:,34]
-        
+                
+        print(tiNum)
         plt.plot(oiNum,mratio0, '.')
         plt.show()
         plt.plot(oiNum,mratio1, '.')
@@ -48,13 +70,19 @@ def run1():
     
     srcPath = 'data'
     destPath = "draw"
-    srcData1 = 'G021_mon_objt_181101T17255569_mch_statistic.cat'
+    fname1 = 'G021_mon_objt_181101T17255569_mch_statistic.cat'
+    fname2 = 'G032_mon_objt_190110T14080401_mch_statistic.cat'
+    fname3 = 'G043_mon_objt_190126T10594812_mch_statistic.cat'
+    fname4 = 'G024_mon_objt_181018T18570151_mch_statistic.cat'
     
     if not os.path.exists(destPath):
         os.system("mkdir -p %s"%(destPath))            
     
     print("\n\n***************\nstatistic..\n")
-    magStatistic1(srcPath, srcData1, destPath)
+    magStatistic1(srcPath, fname1, destPath)
+    magStatistic1(srcPath, fname2, destPath)
+    magStatistic1(srcPath, fname3, destPath)
+    magStatistic1(srcPath, fname4, destPath)
     
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py > nohup.log&
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py
