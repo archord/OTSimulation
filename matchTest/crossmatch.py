@@ -32,7 +32,7 @@ class CrossMatch(object):
         tdist = math.sqrt(tx*tx+ty*ty)
         return tdist
     
-    def getBright(self, tdata, brightStarNum=160, partitionNum=4, darkStarNum=4000):
+    def getBright(self, tdata, brightStarNum=160, partitionNum=4, darkStarNum=8000):
         
         pBrightStarNum = math.ceil(brightStarNum/(4*4))
         pDarkStarNum = math.ceil(darkStarNum/(4*4))

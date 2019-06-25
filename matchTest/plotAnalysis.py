@@ -10,25 +10,101 @@ import traceback
 from matplotlib.ticker import FuncFormatter
 import pandas as pd
 
-def aa():
+def unionStatistic():
     
-        fname1 = 'G021_mon_objt_181101T17255569_mch_statistic.cat'
-        fname2 = 'G032_mon_objt_190110T14080401_mch_statistic.cat'
-        fname3 = 'G043_mon_objt_190126T10594812_mch_statistic.cat'
-        fname4 = 'G024_mon_objt_181018T18570151_mch_statistic.cat'
-        
-        tdata1 = np.loadtxt("%s/%s"%(srcDir, fname1), dtype='str')
-        print(tdata1.shape)
-        tdata2 = np.loadtxt("%s/%s"%(srcDir, fname2), dtype='str')
-        print(tdata2.shape)
-        tdata3 = np.loadtxt("%s/%s"%(srcDir, fname3), dtype='str')
-        print(tdata3.shape)
-        tdata4 = np.loadtxt("%s/%s"%(srcDir, fname4), dtype='str')
-        print(tdata4.shape)
-        
-        tdata = np.concatenate([tdata1,tdata2,tdata3,tdata4])
-        print(tdata.shape)
+    srcDir = 'data'
+    fname1 = 'G021_mon_objt_181101T17255569_mch_statistic2.cat'
+    fname2 = 'G032_mon_objt_190110T14080401_mch_statistic2.cat'
+    fname3 = 'G043_mon_objt_190126T10594812_mch_statistic2.cat'
+    fname4 = 'G024_mon_objt_181018T18570151_mch_statistic2.cat'
     
+    tdata1 = np.loadtxt("%s/%s"%(srcDir, fname1), dtype='str')
+    print(tdata1.shape)
+    tdata2 = np.loadtxt("%s/%s"%(srcDir, fname2), dtype='str')
+    print(tdata2.shape)
+    tdata3 = np.loadtxt("%s/%s"%(srcDir, fname3), dtype='str')
+    print(tdata3.shape)
+    tdata4 = np.loadtxt("%s/%s"%(srcDir, fname4), dtype='str')
+    print(tdata4.shape)
+    
+    tdata = np.concatenate([tdata1,tdata2,tdata3,tdata4])
+    print(tdata.shape)
+    
+    fname = tdata[:,0].copy()
+    dateStr = tdata[:,36].copy()
+    tdata[:,0] = '0'
+    tdata[:,36] = '0'
+    tdata = tdata.astype(np.float)
+    
+    blindStarNum, featurePointNum = tdata[:,5],tdata[:,6]
+    mratio0, mratio1, mratio2 = tdata[:,12],tdata[:,21],tdata[:,30]
+    tIdx = (blindStarNum>0) & (featurePointNum>0) & (mratio2>80)
+    tdata80 = tdata[tIdx]
+    print(tdata80.shape)
+    tIdx = (blindStarNum>0) & (featurePointNum>0) & (mratio2<=60)
+    tdata = tdata[tIdx]
+    print(tdata.shape)
+    
+    xshift,yshift, xrotation, yrotation = tdata[:,1],tdata[:,2],tdata[:,3],tdata[:,4]
+    fwhmMean, bkgMean = tdata[:,38],tdata[:,40]
+    tiNum, oiNum, oiJNum,tiJNum, mchNum = tdata[:,7],tdata[:,8],tdata[:,9],tdata[:,10],tdata[:,11]
+    mratio0, mratio1, mratio2 = tdata[:,12],tdata[:,21],tdata[:,30]
+    runTime0, runTime1, runTime2 = tdata[:,17],tdata[:,26],tdata[:,35]
+    blindStarNum, featurePointNum = tdata[:,5],tdata[:,6]
+    xshift0,yshift0, xrms0, yrms0 = tdata[:,13],tdata[:,14],tdata[:,15],tdata[:,16]
+    xshift1,yshift1, xrms1, yrms1 = tdata[:,22],tdata[:,23],tdata[:,24],tdata[:,25]
+    xshift2,yshift2, xrms2, yrms2 = tdata[:,31],tdata[:,32],tdata[:,33],tdata[:,34]
+    blindMchTime = tdata[:,-1]
+    
+    plt.hist(mchNum,20)
+    plt.title("mchNum")
+    plt.grid()
+    plt.show()
+    
+    plt.hist(mratio2,20)
+    plt.title("mratio2")
+    plt.grid()
+    plt.show()
+    
+    plt.hist(blindMchTime,20)
+    plt.title("blindMchTime")
+    plt.grid()
+    plt.show()
+    
+    plt.hist(xshift,20)
+    plt.title("xshift")
+    plt.grid()
+    plt.show()
+    
+    plt.hist(xshift2,20)
+    plt.title("xshift2")
+    plt.grid()
+    plt.show()
+    
+    plt.hist(yshift,20)
+    plt.title("yshift")
+    plt.grid()
+    plt.show()
+    
+    plt.hist(yshift2,20)
+    plt.title("yshift2")
+    plt.grid()
+    plt.show()
+    
+    plt.hist(xrotation,20)
+    plt.title("rotation")
+    plt.grid()
+    plt.show()
+
+    plt.hist(xrms2,20)
+    plt.title("xrms2")
+    plt.grid()
+    plt.show()
+    
+    plt.hist(yrms2,20)
+    plt.title("yrms2")
+    plt.grid()
+    plt.show()
     
 def magStatistic1(srcDir, fname, destDir):
     
@@ -70,22 +146,23 @@ def run1():
     
     srcPath = 'data'
     destPath = "draw"
-    fname1 = 'G021_mon_objt_181101T17255569_mch_statistic.cat'
-    fname2 = 'G032_mon_objt_190110T14080401_mch_statistic.cat'
-    fname3 = 'G043_mon_objt_190126T10594812_mch_statistic.cat'
-    fname4 = 'G024_mon_objt_181018T18570151_mch_statistic.cat'
+    fname1 = 'G021_mon_objt_181101T17255569_mch_statistic2.cat'
+    fname2 = 'G032_mon_objt_190110T14080401_mch_statistic2.cat'
+    fname3 = 'G043_mon_objt_190126T10594812_mch_statistic2.cat'
+    fname4 = 'G024_mon_objt_181018T18570151_mch_statistic2.cat'
     
     if not os.path.exists(destPath):
         os.system("mkdir -p %s"%(destPath))            
     
     print("\n\n***************\nstatistic..\n")
     magStatistic1(srcPath, fname1, destPath)
-    magStatistic1(srcPath, fname2, destPath)
-    magStatistic1(srcPath, fname3, destPath)
-    magStatistic1(srcPath, fname4, destPath)
+    #magStatistic1(srcPath, fname2, destPath)
+    #magStatistic1(srcPath, fname3, destPath)
+    #magStatistic1(srcPath, fname4, destPath)
     
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py > nohup.log&
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python OTSimulation.py
 if __name__ == "__main__":
     
-    run1()
+    #run1()
+    unionStatistic()

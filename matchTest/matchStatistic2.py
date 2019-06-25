@@ -418,9 +418,9 @@ def doBlindMatch(srcDir, oiFile, tiFile):
                                 mchList.append((oxy1,txy1))
                                 break
                             
-                if len(mchList)>1:
+                if len(mchList)>5:
                     break
-                else:
+                elif mchR<100:
                     mchList = []
                     print("%s radius %d matchNum %d"%(oiFile, mchR, len(mchList)))
                     
@@ -540,7 +540,7 @@ def test():
         print("temp %s match..."%(tmplCat))
         tmplCCDNum = tmplCat[3]
         
-        savePath1 = "%s/%s_mch_statistic2.cat"%(dstDir,tmplCat.split('.')[0])
+        savePath1 = "%s/%s_mch_statistic8000.cat"%(dstDir,tmplCat.split('.')[0])
         tf1 = open(savePath1, 'w')
         #tf.write("#fname, starNum, featureNum, matchNum, micro seconds\n")
         
