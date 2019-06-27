@@ -229,7 +229,7 @@ class BlindMatch(object):
             
         return tixp, tiyp
             
-    def posTransPolynomial(self, posMchs, stars):
+    def posTransPolynomial(self, posMchs, stars, degree=3):
         
         #print(posMchs)
         for i, tm in enumerate(posMchs):
@@ -247,7 +247,7 @@ class BlindMatch(object):
         #xshift,yshift, xrotation, yrotation = 0, 0, 0, 0
         xshift,yshift, xrotation, yrotation = self.polynomialFitEvulate(dataOi, dataTi)
         #print("fitting: xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift,yshift, xrotation, yrotation))
-        tixp, tiyp = self.polynomialFit(dataOi, dataTi, 3)
+        tixp, tiyp = self.polynomialFit(dataOi, dataTi, degree)
         
         ''' 
         oix = dataOi[:,0]
@@ -293,9 +293,9 @@ class BlindMatch(object):
         
         return starTrans
     
-    def posTransPolynomial2(self, oiMchPos, tiMchPos, stars):
+    def posTransPolynomial2(self, oiMchPos, tiMchPos, stars, degree=5):
         
-        tixp, tiyp = self.polynomialFit(oiMchPos, tiMchPos, 3)
+        tixp, tiyp = self.polynomialFit(oiMchPos, tiMchPos, degree)
         
         starPoss = stars[:,[self.xIdx, self.yIdx]]
         oix = starPoss[:,0]
@@ -429,78 +429,65 @@ def doBlindMatch(srcDir, oiFile, tiFile):
                 
             if len(mchList)>1:
                 #print("total Match key points %d"%(totalMatchNum))
-                starOiTi, xshift,yshift, xrotation, yrotation, blindStarNum = tiMatch.posTransPolynomial(mchList, oiData) # posTransPolynomial posTransPerspective
+                starOiTi, xshift,yshift, xrotation, yrotation, blindStarNum = tiMatch.posTransPolynomial(mchList, oiData,2) # posTransPolynomial posTransPerspective
                 #print("fitting: xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift,yshift, xrotation, yrotation))
                 #print(starOiTi.shape)
                 
+                mchRadius = 4
                 starttime = datetime.now()
                 crossMatch = CrossMatch()
                 #tiData = crossMatch.filterStar(tiData)
                 crossMatch.createRegionIdx(tiData)
                 #crossMatch.statisticRegions()
-                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, 2)
+                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, mchRadius)
                 endtime = datetime.now()
                 runTime0 = (endtime - starttime).total_seconds()*1000
-                #print("********** rematch %s use %d micro seconds"%(oiFile, runTime0))
-                
-                #print(mchPosPairs.shape)
-                #print(mchPosPairs[:3])
                 mchRatios0, oiPosJoin0,tiPosJoin0, mchData0, xshift0,yshift0, xrms0, yrms0 \
                     = crossMatch.evaluateMatchResult(starOiTi, tiData, mchPosPairs)
-                #print(mchRatios0)
                 
                 oiDataMch = oiData[orgPosIdxs]
-                #print(oiDataMch.shape)
-                #print(oiDataMch[:3])
-                
                 oiMchPos = oiDataMch[:,0:2]
                 tiMchPos = mchPosPairs[:,2:4]
                 starOiTiPsp2 = tiMatch.posTransPerspective2(oiMchPos, tiMchPos, oiData)
-                starOiTiPly2 = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData)
+                starOiTiPly23 = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, 3)
+                starOiTiPly25 = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, 5)
                 
                 starttime = datetime.now()
-                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPsp2, 2)
+                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPsp2, mchRadius)
                 endtime = datetime.now()
                 runTime1 = (endtime - starttime).total_seconds()*1000
-                #print("********** rematch %s use %d micro seconds"%(oiFile, runTime1))
-                
-                #print(mchPosPairs.shape)
-                #print(mchPosPairs[:3])
                 mchRatios1, oiPosJoin1,tiPosJoin1, mchData1, xshift1,yshift1, xrms1, yrms1 \
                     = crossMatch.evaluateMatchResult(starOiTiPsp2, tiData, mchPosPairs)
-                #print(mchRatios1)
+
                 
                 starttime = datetime.now()
-                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 2)
+                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly23, mchRadius)
                 endtime = datetime.now()
                 runTime2 = (endtime - starttime).total_seconds()*1000
-                #print("********** rematch %s use %d micro seconds"%(oiFile, runTime2))
-                
-                #print(mchPosPairs.shape)
-                #print(mchPosPairs[:3])
                 mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2 \
-                    = crossMatch.evaluateMatchResult(starOiTiPly2, tiData, mchPosPairs)
-                #print(mchRatios2)
+                    = crossMatch.evaluateMatchResult(starOiTiPly23, tiData, mchPosPairs)
                 
-                '''
-                mchPosPairs[:,0] = mchPosPairs[:,0] + 20
-                mchPosPairs[:,2] = mchPosPairs[:,2] + 20
-                tiMatch.saveReg(mchPosPairs[:,0:2], "data/OiMch.reg", radius=4, width=1, color='green')
-                tiMatch.saveReg(mchPosPairs[:,2:4], "data/TiMch.reg", radius=4, width=1, color='red')
-                '''
+                starttime = datetime.now()
+                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly25, mchRadius)
+                endtime = datetime.now()
+                runTime3 = (endtime - starttime).total_seconds()*1000
+                mchRatios3, oiPosJoin3,tiPosJoin3, mchData3, xshift3,yshift3, xrms3, yrms3 \
+                    = crossMatch.evaluateMatchResult(starOiTiPly25, tiData, mchPosPairs)
                 
                 rstStr = "%s %.2f %.2f %.2f %.2f %d %d "\
                     "%d %d "\
                     "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
                     "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
                     "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
-                    "%s %s %.2f %.2f %.2f %.2f %d \n"\
+                    "%s %s %.2f %.2f %.2f %.2f %d "\
+                    "%d %d %d %.2f %.2f %.2f %.2f %.2f %d \n"\
                     %(oiFile, xshift,yshift, xrotation, yrotation, blindStarNum, totalMatchNum, \
                       tiData.shape[0], oiData.shape[0], \
                       oiPosJoin0,tiPosJoin0, mchData0, mchRatios0, xshift0,yshift0, xrms0, yrms0,runTime0,\
                       oiPosJoin1,tiPosJoin1, mchData1, mchRatios1, xshift1,yshift1, xrms1, yrms1,runTime1,\
                       oiPosJoin2,tiPosJoin2, mchData2, mchRatios2, xshift2,yshift2, xrms2, yrms2,runTime2,\
-                      dateStr, camName, fwhmMean, fwhmRms, bkgMean, bkgRms, blindMatchTime)
+                      dateStr, camName, fwhmMean, fwhmRms, bkgMean, bkgRms, blindMatchTime,\
+                      oiPosJoin3,tiPosJoin3, mchData3, mchRatios3, xshift3,yshift3, xrms3, yrms3,runTime3)
                 #print(rstStr)
             
     except Exception as e:
@@ -513,13 +500,15 @@ def doBlindMatch(srcDir, oiFile, tiFile):
             "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
             "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
             "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
-            "%s %s %.2f %.2f %.2f %.2f %d\n"\
+            "%s %s %.2f %.2f %.2f %.2f %d "\
+            "%d %d %d %.2f %.2f %.2f %.2f %.2f %d \n"\
             %(oiFile, 0,0, 0, 0, 0, 0, \
               tiData.shape[0], oiData.shape[0], \
               0,0, 0, 0, 0,0, 0, 0,0,\
               0,0, 0, 0, 0,0, 0, 0,0,\
               0,0, 0, 0, 0,0, 0, 0,0,\
-              dateStr, camName, fwhmMean, fwhmRms, bkgMean, bkgRms, 0)
+              dateStr, camName, fwhmMean, fwhmRms, bkgMean, bkgRms, 0,\
+              0,0, 0, 0, 0,0, 0, 0,0)
     return rstStr
 
 def test():
@@ -540,7 +529,7 @@ def test():
         print("temp %s match..."%(tmplCat))
         tmplCCDNum = tmplCat[3]
         
-        savePath1 = "%s/%s_mch_statistic8000.cat"%(dstDir,tmplCat.split('.')[0])
+        savePath1 = "%s/%s_mch_statistic4000d3r4.cat"%(dstDir,tmplCat.split('.')[0])
         tf1 = open(savePath1, 'w')
         #tf.write("#fname, starNum, featureNum, matchNum, micro seconds\n")
         

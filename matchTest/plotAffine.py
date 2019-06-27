@@ -24,18 +24,33 @@ def getData(srcDir, fname, destDir):
     tdata[:,36] = '0'
     tdata = tdata.astype(np.float)
     
+    xshift,yshift, xrotation, yrotation = tdata[:,1],tdata[:,2],tdata[:,3],tdata[:,4]
     fwhmMean, bkgMean = tdata[:,38],tdata[:,40]
     tiNum, oiNum, oiJNum,tiJNum, mchNum = tdata[:,7],tdata[:,8],tdata[:,9],tdata[:,10],tdata[:,11]
     mratio0, mratio1, mratio2 = tdata[:,12],tdata[:,21],tdata[:,30]
+    runTime0, runTime1, runTime2 = tdata[:,17],tdata[:,26],tdata[:,35]
+    blindStarNum, featurePointNum = tdata[:,5],tdata[:,6]
+    xshift0,yshift0, xrms0, yrms0 = tdata[:,13],tdata[:,14],tdata[:,15],tdata[:,16]
+    xshift1,yshift1, xrms1, yrms1 = tdata[:,22],tdata[:,23],tdata[:,24],tdata[:,25]
+    xshift2,yshift2, xrms2, yrms2 = tdata[:,31],tdata[:,32],tdata[:,33],tdata[:,34]
+    blindMatchTime = tdata[:,-1]
     ccdNums = tdata[:,37].astype(np.int)
-    ''' 
-    tIdx = ccdNums==ccdNum
+    
+    tIdx01 = (oiNum > 4000)
+    fwhmT = 3
+    tIdx11 = tIdx01 & (fwhmMean<fwhmT) #fwhm=2.5,3,5;0.910174,0.950021,0.990278
+    tIdx41 = tIdx11 & (featurePointNum>0)
+    
+    '''     '''
+    #tIdx = (ccdNums==ccdNum)
+    tIdx = tIdx41 & (ccdNums==ccdNum)
+    #tIdx = tIdx41
     oiNum = oiNum[tIdx] 
     mratio0 = mratio0[tIdx] 
     mratio1 = mratio1[tIdx] 
     mratio2 = mratio2[tIdx] 
     print(mratio0.shape)
-    '''
+
     return oiNum, mratio0, mratio1, mratio2
                 
         
@@ -43,10 +58,10 @@ def run1():
     
     srcPath = 'data'
     destPath = "draw"
-    fname1 = 'G021_mon_objt_181101T17255569_mch_statistic4000.cat'
-    fname2 = 'G032_mon_objt_190110T14080401_mch_statistic4000.cat'
-    fname3 = 'G043_mon_objt_190126T10594812_mch_statistic4000.cat'
-    fname4 = 'G024_mon_objt_181018T18570151_mch_statistic4000.cat'
+    fname1 = 'G021_mon_objt_181101T17255569_mch_statistic4000d3r4.cat'
+    fname2 = 'G032_mon_objt_190110T14080401_mch_statistic4000d3r4.cat'
+    fname3 = 'G043_mon_objt_190126T10594812_mch_statistic4000d3r4.cat'
+    fname4 = 'G024_mon_objt_181018T18570151_mch_statistic4000d3r4.cat'
     
     if not os.path.exists(destPath):
         os.system("mkdir -p %s"%(destPath))            
