@@ -43,8 +43,8 @@ def getData(srcDir, fname, destDir):
     
     '''     '''
     #tIdx = (ccdNums==ccdNum)
-    tIdx = tIdx41 & (ccdNums==ccdNum)
-    #tIdx = tIdx41
+    #tIdx = tIdx41 & (ccdNums==ccdNum)
+    tIdx = tIdx41
     oiNum = oiNum[tIdx] 
     mratio0 = mratio0[tIdx] 
     mratio1 = mratio1[tIdx] 

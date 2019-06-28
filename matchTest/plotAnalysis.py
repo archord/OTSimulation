@@ -282,6 +282,31 @@ def unionStatistic(tnum=4000):
     plt.grid()
     plt.show()
     
+    
+    xrms21 = xshift2[tIdx41]
+    plt.hist(xrms21, 40)
+    plt.title("xshift order 3, avg=%.4f"%(np.average(xrms21)))
+    plt.grid()
+    plt.show()
+    
+    yrms21 = yshift2[tIdx41]
+    plt.hist(yrms21, 40)
+    plt.title("yshift order 3, avg=%.4f"%(np.average(yrms21)))
+    plt.grid()
+    plt.show()
+    
+    xrms21 = xshift3[tIdx41]
+    plt.hist(xrms21, 40)
+    plt.title("xshift order 5, avg=%.4f"%(np.average(xrms21)))
+    plt.grid()
+    plt.show()
+    
+    yrms21 = yshift3[tIdx41]
+    plt.hist(yrms21, 40)
+    plt.title("yshift order 5, avg=%.4f"%(np.average(yrms21)))
+    plt.grid()
+    plt.show()
+    
     blindMatchTime1 = blindMatchTime[tIdx41]
     plt.hist(blindMatchTime1, 20)
     plt.title("blindMatchTime, avg=%.0fms"%(np.average(blindMatchTime1)))
