@@ -146,7 +146,7 @@ def magStatistic1(srcDir, fname, destDir):
         
 def unionStatistic(tnum=4000):
     
-    srcDir = 'data'
+    srcDir = 'data' 
     fname1 = 'G021_mon_objt_181101T17255569_mch_statistic%dd3r4.cat'%(tnum)
     fname2 = 'G032_mon_objt_190110T14080401_mch_statistic%dd3r4.cat'%(tnum)
     fname3 = 'G043_mon_objt_190126T10594812_mch_statistic%dd3r4.cat'%(tnum)

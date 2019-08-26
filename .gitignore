@@ -111,3 +111,5 @@ data
 *.gz
 *.npz
 *.txt
+*.emf
+*.svg
