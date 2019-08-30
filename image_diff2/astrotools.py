@@ -17,21 +17,19 @@ import paramiko
 
 class AstroTools(object):
     
-    def __init__(self, rootPath, logPath): 
+    def __init__(self, rootPath): 
         
-        self.verbose = True
+        self.verbose = False
         
         self.serverIP = "http://172.28.8.8:8080"
         #self.serverIP = "http://10.0.10.236:9995"
         
         self.rootPath = rootPath
-        self.logPath = logPath
         self.varDir = "%s/tools/simulate_tools"%(rootPath)
         self.matchProgram="%s/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(rootPath)
         self.imgDiffProgram="%s/tools/hotpants/hotpants"%(rootPath)
         self.funpackProgram="%s/tools/cfitsio/funpack"%(rootPath)
         self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
-        self.wcsConfig="%s/tools/astrometry.net/mybackend.cfg"%(rootPath)
         #self.wcsProgram="solve-field"
         self.wcsProgramPC780="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/astrometry.net/bin/solve-field"
     
@@ -46,7 +44,7 @@ class AstroTools(object):
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s") #set format of logger
         logging.Formatter.converter = time.gmtime #convert time in logger to UCT
         #filehandler = logging.FileHandler("%s/otSim.log"%(self.destDir), 'w+')
-        filehandler = logging.FileHandler("%s/gwacWCS.log"%(self.logPath), 'w+')
+        filehandler = logging.FileHandler("%s/otSim.log"%(self.rootPath), 'w+')
         filehandler.setFormatter(formatter) #add format to log file
         self.log.addHandler(filehandler) #link log file to logger
         if self.verbose:
@@ -134,10 +132,7 @@ class AstroTools(object):
         srcPath = "%s/%s"%(srcDir, objCat)
     
         #scampcat = image_in.replace('.fits','.scamp')
-        cmd = [self.wcsProgram, srcPath, 
-               '--backend-config', self.wcsConfig,
-               '--cpulimit', '60'
-               '--no-plots', '--no-verify', #'--no-fits2fits', cloud version of astrometry does not have this arg
+        cmd = [self.wcsProgram, srcPath, '--no-plots', '--no-verify', #'--no-fits2fits', cloud version of astrometry does not have this arg
                '--x-column', 'X_IMAGE', '--y-column', 'Y_IMAGE',
                '--sort-column', 'FLUX_APER',
                '--no-remove-lines', '--uniformize', '0',
