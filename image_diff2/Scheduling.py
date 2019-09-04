@@ -71,7 +71,7 @@ def srcExtract(camName, catList, imgDiff, isRunning):
 
     isRunning.value = 0
     
-def newSkyTemplate(camName, catList, tIdx, imgDiff, isRunning):
+def newSkyTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
     
     isRunning.value = 1
     makeTmpl = False
@@ -96,8 +96,12 @@ def newSkyTemplate(camName, catList, tIdx, imgDiff, isRunning):
                     if makeTmpl:
                         if len(tmpls)>0:
                             print('down template')
+                            tmplMap['%d'%(skyId)]='templateName'
+                            tmplMap['%d_status'%(skyId)]='1'
                         else:
                             print('make new template')
+                            tmplMap['%d'%(skyId)]='templateName'
+                            tmplMap['%d_status'%(skyId)]='2'
         
     except Exception as e:
         print(e)
@@ -164,7 +168,7 @@ class BatchImageDiff(object):
         self.dataMgr = Manager()
         self.catList = self.dataMgr.list()
         self.catQueue = self.dataMgr.Queue()
-        self.tempMap = self.dataMgr.dict()
+        self.tmplMap = self.dataMgr.dict()
         self.curCatIdx = 0
         self.tmplIdx = self.dataMgr.Value('i', -1)
         self.alignIdx = self.dataMgr.Value('i', -1)
