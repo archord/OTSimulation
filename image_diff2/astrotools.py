@@ -43,8 +43,7 @@ class AstroTools(object):
         self.log.setLevel(logging.INFO) #set level of logger, DEBUG INFO
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s") #set format of logger
         logging.Formatter.converter = time.gmtime #convert time in logger to UCT
-        #filehandler = logging.FileHandler("%s/otSim.log"%(self.destDir), 'w+')
-        filehandler = logging.FileHandler("%s/otSim.log"%(self.rootPath), 'w+')
+        filehandler = logging.FileHandler("%s/gwac_diff.log"%(self.rootPath), 'w+')
         filehandler.setFormatter(formatter) #add format to log file
         self.log.addHandler(filehandler) #link log file to logger
         if self.verbose:
@@ -436,9 +435,10 @@ class AstroTools(object):
         self.log.info("grid number max %.5f, min %.5f, mean %.5f, rms %.5f"%(tmax, tmin, tmean, trms))
         return tmean, tmin, trms
         
-    def fwhmEvaluate(self, srcDir, catfile, size=2000):
+    def basicStatistic(self, srcDir, catfile, size=2000):
     
         catData = np.loadtxt("%s/%s"%(srcDir, catfile))
+        starNum = catData.shape[0]
         
         #imgSize = (4136, 4196)
         imgSize = (4136, 4096)
@@ -452,14 +452,18 @@ class AstroTools(object):
         yEnd = int(imgH/2 + halfSize)
         
         fwhms = []
+        bgs = []
         for row in catData:
             tx = row[0]
             ty = row[1]
+            bg = row[8]
             fwhm = row[9]
             if tx>=xStart and tx<xEnd and ty>=yStart and ty<yEnd:
                 fwhms.append(fwhm)
+                bgs.append(bg)
         
         fwhms = np.array(fwhms)
+        bgs = np.array(bgs)
         
         times = 2
         for i in range(1):
@@ -468,10 +472,17 @@ class AstroTools(object):
             tIdx = fwhms<(tmean+times*trms)
             fwhms = fwhms[tIdx]
             
-        tmean = np.mean(fwhms)
-        trms = np.std(fwhms)
+            tmean = np.mean(bgs)
+            trms = np.std(bgs)
+            tIdx = bgs<(tmean+times*trms)
+            bgs = bgs[tIdx]
+            
+        fwhmMean = np.mean(fwhms)
+        fwhmRms = np.std(fwhms)
+        bgMean = np.mean(bgs)
+        bgRms = np.std(bgs)
         
-        return tmean, trms
+        return starNum, fwhmMean, fwhmRms, bgMean, bgRms
         
     def evaluatePos(self, pos1, pos2, isAbs=False):
         

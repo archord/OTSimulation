@@ -28,9 +28,7 @@ class BatchImageDiff(object):
         self.srcDir0 = "%s"%(dataRoot)
         self.srcDir = "%s"%(dataRoot)
         
-        self.catDir="%s/cat"%(dataDest)
-        self.wcsDir="%s/wcs"%(dataDest)
-        self.remapDir="%s/remap"%(dataDest)
+        self.catDir="%s"%(dataDest)
             
         self.objectImg = 'oi.fit'
         self.templateImg = 'ti.fit'
@@ -62,8 +60,6 @@ class BatchImageDiff(object):
         
         self.initReg(0)
                 
-        if not os.path.exists(self.wcsDir):
-            os.system("mkdir -p %s"%(self.wcsDir))
         if not os.path.exists(self.catDir):
             os.system("mkdir -p %s"%(self.catDir))
 
@@ -107,7 +103,7 @@ class BatchImageDiff(object):
             self.log.warning("%s not exist"%(oImgf))
             return False
                 
-        fieldId, cra,cdec = self.tools.removeHeaderAndOverScan(self.tmpDir,self.objectImg)
+        #fieldId, cra,cdec = self.tools.removeHeaderAndOverScan(self.tmpDir,self.objectImg)
 
         sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
         fpar='sex_diff.par'
@@ -122,28 +118,27 @@ class BatchImageDiff(object):
          
 def run1():
     
-    storePath = '/home/xy/work/imgDiffTest2'
+    #storePath = '/home/xy/work/imgDiffTest2'
+    storePath = '/home/xy/work/imgDiffTest2/combine2'
     #toolPath = os.getcwd()
     toolPath = '/home/xy/Downloads/myresource/deep_data2/image_diff'
     tools = AstroTools(toolPath)
     
-    dataDest0 = "/home/xy/work/gwac_diff_xy/data"
+    dataDest0 = "/home/xy/work/imgDiffTest2/combineCat"
     logDest0 = "/home/xy/work/gwac_diff_xy/log"
     
     if not os.path.exists(dataDest0):
         os.system("mkdir -p %s"%(dataDest0))
     if not os.path.exists(logDest0):
         os.system("mkdir -p %s"%(logDest0))
-    
-    dateStr='190829'
-    
+        
     tdates = os.listdir(storePath)
     
     print("total has %d date&ccd"%(len(tdates)))
     
     for i, tdate in enumerate(tdates):
 
-        dstDir='%s/%s/%s'%(dataDest0, dateStr, tdate)
+        dstDir='%s/%s'%(dataDest0, tdate)
         tdiff = BatchImageDiff(storePath, dstDir, tools)
         tpath1 = '%s/%s'%(storePath,tdate)
         timgs = os.listdir(tpath1)

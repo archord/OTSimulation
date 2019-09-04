@@ -268,7 +268,7 @@ class BlindMatch(object):
         starTrans[:,[self.xIdx, self.yIdx]] = starPossTi
         
         ''' '''
-        theader, imgData = removeHeaderAndOverScan(srcImgPath, imgName)
+        theader, imgData = removeHeaderAndOverScan2(srcImgPath, imgName)
         imgW = imgData.shape[1]
         imgH = imgData.shape[0]
         
@@ -334,6 +334,21 @@ def removeHeaderAndOverScan(srcDir, fname):
     print(data.shape)
     data = data[:,overscanLeft:-overscanRight].copy()
     print(data.shape)
+    hdul.close()
+    
+    return hdr, data
+
+def removeHeaderAndOverScan2(srcDir, fname):
+    
+    fullPath = "%s/%s"%(srcDir, fname)
+    print(fullPath)
+    
+
+    #hdul = fits.open(fullPath, mode='update', memmap=False)
+    hdul = fits.open(fullPath, mode='readonly', memmap=False)
+    hdu1 = hdul[0]
+    hdr = hdu1.header
+    data = hdul[0].data
     hdul.close()
     
     return hdr, data

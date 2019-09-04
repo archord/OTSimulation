@@ -69,6 +69,35 @@ class QueryData:
             
         return rows
     
+    def getTmplList(self, camName, skyId):
+        
+        if len(camName)==4:
+            camId = (int(camName[2])-1)*5+int(camName[3])
+        
+            sql = "select ors.date_str, ors.real_img_num, orsw.ff_id, orsw.fwhm, orsw.star_num "\
+                "from observation_record_statistic ors "\
+                "INNER JOIN observation_record_statistic_wcs orsw on ors.ors_id= orsw.ors_id "\
+                "where ors.has_wcs=true and orsw.get_wcs=true and sky_id=%d and cam_id=%d "\
+                "ORDER BY orsw.star_num desc limit 5"%(skyId, camId)
+            #print(sql)
+            try:
+                self.connDb()
+        
+                cur = self.conn.cursor()
+                cur.execute(sql)
+                rows = cur.fetchall()
+                cur.close()
+                self.closeDb()
+            except Exception as err:
+                rows = []
+                print(" query template error ")
+                print(err)
+        else:
+            print("error: camera name must like G021")
+            rows = []
+            
+        return rows
+    
 
 if __name__ == '__main__':
     
