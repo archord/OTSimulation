@@ -110,3 +110,4 @@ data
 *.png
 *.gz
 *.npz
+*.txt
