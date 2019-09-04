@@ -259,9 +259,28 @@ def run1():
             tstr = traceback.format_exc()
             print(tstr)
 
+def getSubCat():
+    
+    srcDir = "/data/gwac_diff_xy/data/190620/cat"
+    dstDir = "/data/gwac_diff_xy/data/190620/cat"
+    
+    cats = os.listdir(srcDir)
+    
+    fnames = []
+    datas = []
+    for tcat in cats:
+        spath1 = "%s/%s"%(srcDir,tcat)
+        tdata = np.loadtxt(spath1)
+        
+        fnames.append(tcat)
+        datas.append(tdata)
+    
+    np.savez_compressed('posTest.npz',fns=fnames, ds=datas)
+        
             
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021 &
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021
 if __name__ == "__main__":
     
-    run1()
+    #run1()
+    getSubCat()

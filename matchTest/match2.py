@@ -7,6 +7,7 @@ from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 import warnings
 from astropy.modeling import models, fitting
+from datetime import datetime
             
 class StarMatch(object):
     
@@ -530,7 +531,12 @@ class StarMatch(object):
             #    break
         print("totalMatchNum=%d"%(totalMatchNum))
         darkStarOiTi = self.posTrans(mchList, darkStarOi)
+        print(darkStarOiTi.shape)
+        starttime = datetime.now()
         origXY, mchXY = self.match(darkStarOiTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi,1)
+        endtime = datetime.now()
+        runTime = (endtime - starttime).seconds
+        print("********** rematch %s use %d seconds"%(oiFile, runTime))
         
         mchXY = np.array(mchXY)
         print(mchXY.shape)

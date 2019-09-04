@@ -6,6 +6,7 @@ import cv2
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 import warnings
+from datetime import datetime
 from astropy.modeling import models, fitting
             
 class StarMatch(object):
@@ -40,7 +41,7 @@ class StarMatch(object):
                 
     def createRegionIdx(self, tdata, minRegionStarNum=10):
         
-        pos = tdata[:,3:5]
+        pos = tdata[:,0:2]
         
         totalNum = pos.shape[0]
         regNum = math.floor(totalNum/minRegionStarNum)
@@ -76,20 +77,20 @@ class StarMatch(object):
         
         print("num1=%d, num2=%d"%(tnum, tnum2))
     
-    def getBright(self, tdata, starNum=100):
+    def getBright(self, tdata, starNum=100, magIdx=11):
         
-        mag = tdata[:,38]
+        mag = tdata[:,magIdx]
         mag = np.sort(mag)
         maxMag = mag[starNum-1]
-        brightStar = tdata[tdata[:,38]<=maxMag]
-        darkStar = tdata[tdata[:,38]>maxMag]
+        brightStar = tdata[tdata[:,magIdx]<=maxMag]
+        darkStar = tdata[tdata[:,magIdx]>maxMag]
         
         return brightStar, darkStar
     
-    def filterStar(self, tdata):
+    def filterStar(self, tdata, xIdx=0, yIdx=1):
         
-        condition1 = (tdata[:,3]>=self.regionBorder[0]) & (tdata[:,3]<=self.regionBorder[1]) & \
-            (tdata[:,4]>=self.regionBorder[2]) & (tdata[:,4]<=self.regionBorder[3])
+        condition1 = (tdata[:,xIdx]>=self.regionBorder[0]) & (tdata[:,xIdx]<=self.regionBorder[1]) & \
+            (tdata[:,yIdx]>=self.regionBorder[2]) & (tdata[:,yIdx]<=self.regionBorder[3])
         tdata = tdata[condition1]
         
         return tdata
@@ -175,9 +176,10 @@ class StarMatch(object):
             ds9RegionName = "data/star22.reg"
             self.saveReg(stars, ds9RegionName, radius=8, width=2, color='yellow')
         '''    
-        #if tdistances.shape[0]>0:
-        tdistances = tdistances[tdistances[:,2].argsort()]
-        tdistances = tdistances[:num]
+        if len(tdistances.shape)==2 and tdistances.shape[0]>0:
+            #print(tdistances.shape)
+            tdistances = tdistances[tdistances[:,2].argsort()]
+            tdistances = tdistances[:num]
         
         
         return tdistances
@@ -204,15 +206,15 @@ class StarMatch(object):
         
         return tdistances
     
-    def createMatchIdx(self, stars, regionPos, regNum, regSize, regW, regH, num=10):
+    def createMatchIdx(self, stars, regionPos, regNum, regSize, regW, regH, num=10, searchRTimes=2):
         
-        searchRadius = regSize*2
+        searchRadius = regSize*searchRTimes
         
         tXY = []
         mchIdxs = []
         for i, ts in enumerate(stars):
-            x = ts[3]
-            y = ts[4]
+            x = ts[0]
+            y = ts[1]
             #if i==68:
             #    print('star %d, x %f, y %f'%(i,x,y))
             #oi:(2043.46,2548.93), ti:(2095.35, 2531.6)
@@ -229,8 +231,8 @@ class StarMatch(object):
         tXY = []
         mchIdxs = []
         for i, ts in enumerate(stars):
-            x = ts[3]
-            y = ts[4]
+            x = ts[0]
+            y = ts[1]
             #if i==68:
             #    print('star %d, x %f, y %f'%(i,x,y))
             nN = self.searchR(x,y, searchRadius, regionPos, regNum, regSize, regW, regH)
@@ -429,12 +431,12 @@ class StarMatch(object):
         xshift,yshift, xrms, yrms = self.evaluatePos(dataTi, dataTi2)
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
     
-        starPoss = stars[:,3:5]
+        starPoss = stars[:,0:2]
         starPossTi = cv2.perspectiveTransform(np.array([starPoss]), h)
         starPossTi = starPossTi[0]
 
         xshift,yshift, xrms, yrms = self.evaluatePos(starPoss, starPossTi)
-        stars[:,3:5] = starPossTi
+        stars[:,0:2] = starPossTi
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
         
         return stars
@@ -484,7 +486,7 @@ class StarMatch(object):
         xshift,yshift, xrms, yrms = self.evaluatePos(dataTi, dataTi2)
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
     
-        starPoss = stars[:,3:5]
+        starPoss = stars[:,0:2]
         oix = starPoss[:,0]
         oiy = starPoss[:,1]
         tix2 = tixp(oix, oiy)
@@ -492,7 +494,7 @@ class StarMatch(object):
         starPossTi = np.concatenate([tix2.reshape((tix2.shape[0],1)),tiy2.reshape((tix2.shape[0],1))],axis=1)
 
         xshift,yshift, xrms, yrms = self.evaluatePos(starPoss, starPossTi)
-        stars[:,3:5] = starPossTi
+        stars[:,0:2] = starPossTi
         print("xshift=%.2f, yshift=%.2f, xrms=%.5f, yrms=%.5f"%(xshift,yshift, xrms, yrms))
         
         
@@ -506,14 +508,14 @@ class StarMatch(object):
         print(oiData.shape)
         print(tiData.shape)
         
-        oiData = self.filterStar(oiData)
-        tiData = self.filterStar(tiData)
+        oiData = self.filterStar(oiData, xIdx=0, yIdx=1)
+        tiData = self.filterStar(tiData, xIdx=0, yIdx=1)
         print("filter")
         print(oiData.shape)
         print(tiData.shape)
         
-        brightStarTi, darkStarTi = self.getBright(tiData,100)
-        brightStarOi, darkStarOi = self.getBright(oiData, 100)
+        brightStarTi, darkStarTi = self.getBright(tiData,100, 11)
+        brightStarOi, darkStarOi = self.getBright(oiData, 100, 11)
         print("bright")
         print(brightStarOi.shape)
         print(brightStarTi.shape)
@@ -538,6 +540,11 @@ class StarMatch(object):
         
         tiXY, mchIdxsTi = self.createMatchIdx(brightStarTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi)
         oiXY, mchIdxsOi = self.createMatchIdx(brightStarOi, regionPosOi, regNumOi, regSizeOi, regWOi, regHOi)
+        
+        if len(tiXY)==0:
+            print("%s create feature failure"%(tiFile))
+        if len(oiXY)==0:
+            print("%s create feature failure"%(oiFile))
         
         tarray = np.array(mchIdxsTi)
         print(tarray.shape)
@@ -575,30 +582,37 @@ class StarMatch(object):
                         txy1 = np.concatenate([tpos,[txy02]])
                         mchList.append((oxy1,txy1))
                         break
-            #if len(mchList)>1:
-            #    break
-        print("totalMatchNum=%d"%(totalMatchNum))
-        darkStarOiTi = self.posTrans(mchList, darkStarOi)
-        origXY, mchXY = self.match(darkStarOiTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi,1)
-        
-        ds9RegionName = "data/OiMatch.reg"
-        #self.saveReg(origXY, ds9RegionName, radius=10, width=2, color='red')
-        
-        mchXY = np.array(mchXY)
-        print(mchXY.shape)
-        print(mchXY[:3])
-        tdist = mchXY[:,2]
-        minD = np.min(tdist)
-        maxD = np.max(tdist)
-        avgD = np.mean(tdist)
-        print("minD=%f,maxD=%f,avgD=%f"%(minD, maxD, avgD))
-        print("origNum:%d, after:%d"%(darkStarOiTi.shape[0],mchXY.shape[0]))
+                    
+        if len(mchList)>1:
+            print("totalMatchNum=%d"%(totalMatchNum))
+            darkStarOiTi = self.posTrans2(mchList, darkStarOi)
+            print(darkStarOiTi.shape)
+            starttime = datetime.now()
+            origXY, mchXY = self.match(darkStarOiTi, regionPosTi, regNumTi, regSizeTi, regWTi, regHTi,1)
+            endtime = datetime.now()
+            runTime = (endtime - starttime).seconds
+            print("********** rematch %s use %d seconds"%(oiFile, runTime))
+                    
+            ds9RegionName = "data/OiMatch.reg"
+            #self.saveReg(origXY, ds9RegionName, radius=10, width=2, color='red')
+            
+            mchXY = np.array(mchXY)
+            print(mchXY.shape)
+            print(mchXY[:3])
+            tdist = mchXY[:,2]
+            minD = np.min(tdist)
+            maxD = np.max(tdist)
+            avgD = np.mean(tdist)
+            print("minD=%f,maxD=%f,avgD=%f"%(minD, maxD, avgD))
+            print("origNum:%d, after:%d"%(darkStarOiTi.shape[0],mchXY.shape[0]))
 
 def test():
     
     tpath = 'data'
-    tfile1 = 'G031_mon_objt_190116T21430226.cat'
-    tfile2 = 'G041_mon_objt_190101T21551991.cat'
+    #tfile1 = 'G031_mon_objt_190116T21430226.cat'
+    #tfile2 = 'G041_mon_objt_190101T21551991.cat'
+    tfile1 = 'G041_mon_objt_181018T17592546.cat'
+    tfile2 = 'G021_mon_objt_181101T17255569.cat'
     
     starMatch = StarMatch()
     starMatch.doAll(tpath, tfile1, tfile2)

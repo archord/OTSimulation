@@ -110,3 +110,6 @@ data
 *.png
 *.gz
 *.npz
+*.txt
+*.emf
+*.svg
