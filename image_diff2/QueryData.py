@@ -74,10 +74,11 @@ class QueryData:
         if len(camName)==4:
             camId = (int(camName[2])-1)*5+int(camName[3])
         
-            sql = "select ors.date_str, ors.real_img_num, orsw.ff_id, orsw.fwhm, orsw.star_num "\
+            sql = "select ff2.img_name, ors.date_str, ors.real_img_num, orsw.fwhm, orsw.star_num "\
                 "from observation_record_statistic ors "\
                 "INNER JOIN observation_record_statistic_wcs orsw on ors.ors_id= orsw.ors_id "\
-                "where ors.has_wcs=true and orsw.get_wcs=true and sky_id=%d and cam_id=%d "\
+                "INNER JOIN fits_file2_his ff2 on orsw.ff_id=ff2.ff_id "\
+                "where ors.has_wcs=true and orsw.get_wcs=true and ors.sky_id=%d and ors.cam_id=%d "\
                 "ORDER BY orsw.star_num desc limit 5"%(skyId, camId)
             #print(sql)
             try:

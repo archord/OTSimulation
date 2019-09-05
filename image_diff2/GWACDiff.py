@@ -6,6 +6,7 @@ import math
 import time
 from datetime import datetime
 import traceback
+from astropy.io import fits
 from PIL import Image
 from gwac_util import getThumbnail, genPSFView, getWindowImgs, getLastLine
 from QueryData import QueryData
@@ -13,6 +14,7 @@ from astropy.wcs import WCS
 
 from astrotools import AstroTools
 from ot2classify import OT2Classify
+from blindmatch import doAll
 
             
 class GWACDiff(object):
@@ -52,28 +54,32 @@ class GWACDiff(object):
         self.tmpDir="%s/tmp"%(self.tmpRoot)
         self.tmpCat="%s/cat"%(self.tmpRoot)
         self.templateDir="%s/tmpl"%(self.tmpRoot)
+        self.tmpAlign="%s/align"%(self.tmpRoot)
         
         self.initReg(0)
         
         self.catDir="%s/A_cat"%(dataDest)
-        self.tmplDir="%s/B_template"%(dataDest)
+        self.tmplAlignDir="%s/B_template_align"%(dataDest)
         self.alignDir="%s/C_align"%(dataDest)
         self.cmbDir="%s/D_combine5"%(dataDest)
         self.cmbCatDir="%s/E_combine5Cat"%(dataDest)
-        self.diffImgDir="%s/F_diffImg"%(dataDest)
-        self.diffCatDir="%s/G_diffCat"%(dataDest)
-        self.origPreViewDir="%s/H_origPreview"%(dataDest)
+        self.tmplDiffDir="%s/F_template_diff"%(dataDest)
+        self.diffImgDir="%s/G_diffImg"%(dataDest)
+        self.diffCatDir="%s/H_diffCat"%(dataDest)
+        self.origPreViewDir="%s/I_origPreview"%(dataDest)
             
         if not os.path.exists(self.catDir):
             os.system("mkdir -p %s"%(self.catDir))
-        if not os.path.exists(self.tmplDir):
-            os.system("mkdir -p %s"%(self.tmplDir))
+        if not os.path.exists(self.tmplAlignDir):
+            os.system("mkdir -p %s"%(self.tmplAlignDir))
         if not os.path.exists(self.alignDir):
             os.system("mkdir -p %s"%(self.alignDir))
         if not os.path.exists(self.cmbDir):
             os.system("mkdir -p %s"%(self.cmbDir))
         if not os.path.exists(self.cmbCatDir):
             os.system("mkdir -p %s"%(self.cmbCatDir))
+        if not os.path.exists(self.tmplDiffDir):
+            os.system("mkdir -p %s"%(self.tmplDiffDir))
         if not os.path.exists(self.diffImgDir):
             os.system("mkdir -p %s"%(self.diffImgDir))
         if not os.path.exists(self.diffCatDir):
@@ -103,6 +109,8 @@ class GWACDiff(object):
                 os.system("mkdir -p %s"%(self.tmpDir))
             if not os.path.exists(self.tmpCat):
                 os.system("mkdir -p %s"%(self.tmpCat))
+            if not os.path.exists(self.tmpAlign):
+                os.system("mkdir -p %s"%(self.tmpAlign))
                 
         
     def getCat(self, srcDir, imgName):
@@ -112,24 +120,25 @@ class GWACDiff(object):
         isSuccess = False
         imgpre= imgName.split(".")[0]
         os.system("rm -rf %s/*"%(self.tmpDir))
+        objectImg = 'oi.fit'
         
         oImgf = "%s/%s.fit"%(srcDir,imgpre)
         oImgfz = "%s/%s.fit.fz"%(srcDir,imgpre)
         if os.path.exists(oImgf):
-            os.system("cp %s/%s.fit %s/%s"%(srcDir, imgpre, self.tmpDir, self.objectImg))
+            os.system("cp %s/%s.fit %s/%s"%(srcDir, imgpre, self.tmpDir, objectImg))
         elif os.path.exists(oImgfz):
-            os.system("cp %s/%s.fit.fz %s/%s.fz"%(srcDir, imgpre, self.tmpDir, self.objectImg))
-            os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpDir, self.objectImg))
+            os.system("cp %s/%s.fit.fz %s/%s.fz"%(srcDir, imgpre, self.tmpDir, objectImg))
+            os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpDir, objectImg))
         else:
             self.log.warning("%s not exist"%(oImgf))
             return False
                 
-        skyName, ra,dec = self.tools.removeHeaderAndOverScan(self.tmpDir,self.objectImg)
+        skyName, ra,dec = self.tools.removeHeaderAndOverScan(self.tmpDir,objectImg)
 
         sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
         #sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         fpar='sex_diff.par'
-        objectImgCat = self.tools.runSextractor(self.objectImg, self.tmpDir, self.tmpDir, fpar, sexConf)
+        objectImgCat = self.tools.runSextractor(objectImg, self.tmpDir, self.tmpDir, fpar, sexConf)
         if os.path.exists("%s/%s"%(self.tmpDir, objectImgCat)):
             isSuccess = True
             os.system("cp %s/%s %s/%s.cat"%(self.tmpDir, objectImgCat, self.catDir, imgpre))
@@ -143,6 +152,114 @@ class GWACDiff(object):
     
         return isSuccess, skyName, starNum, fwhmMean, bgMean
     
+    def getAlignTemplate(self, tmplParms, skyName):
+        
+        starttime = datetime.now()
+        tmplRoot = '/data/gwac_data/gwac_wcs_idx'
+        status = tmplParms[0]
+        files = tmplParms[1]
+        imgName = ''
+        if status ==2: #no history template, select template from current observed image
+            imgName = files[0][0]
+            imgpre = imgName.split(".")[0]
+            os.system("cp %s/%s.cat %s/%s.cat"%(self.catDir, imgpre, self.tmplAlignDir, imgpre))
+        elif status==1:
+            #/data/gwac_data/gwac_wcs_idx/00900085/G002_021/181028/G043_mon_objt_181018T18572921.fit
+            tfullPaths = []
+            for tfile in files:
+                imgName = tfile[0]
+                dateStr = tfile[1]
+                camName = imgName[:4]
+                mountCam = "G%03d_%s"%(int(camName[1:3]),camName[1:])
+                
+                imgpre = imgName.split(".")[0]
+                tpath = "%s/%s/%s/%s"%(tmplRoot, skyName, mountCam, dateStr)
+                tfullPaths.append("%s/%s.fit"%(tpath,imgpre))
+                tfullPaths.append("%s/%s.wcs"%(tpath,imgpre))
+                tfullPaths.append("%s/%s.cat"%(tpath,imgpre))
+                tfullPaths.append("%s/%s_badpix.cat"%(tpath,imgpre))
+                tfullPaths.append("%s/%s_cat.fit"%(tpath,imgpre))
+                break #only get the first template file
+            self.tools.remoteGetFile(tfullPaths, self.tmplAlignDir)
+        endtime = datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.info("********** getAlignTemplate %s use %d seconds"%(imgName, runTime))
+    
+    def alignImage(self, srcDir, imgName, tmplParms):
+        
+        starttime = datetime.now()
+        
+        files = tmplParms[1]
+        templateImg = files[0][0] #self.tmplAlignDir
+        
+        isSuccess = False
+        imgpre= imgName.split(".")[0]
+        os.system("rm -rf %s/*"%(self.tmpAlign))
+        objectImg = 'oi.fit'
+        objectCat = 'oi.cat'
+        ttmplCat = 'ti.cat'
+        
+        oImgf = "%s/%s.fit"%(srcDir,imgpre)
+        oImgfz = "%s/%s.fit.fz"%(srcDir,imgpre)
+        if os.path.exists(oImgf):
+            os.system("cp %s/%s.fit %s/%s"%(srcDir, imgpre, self.tmpAlign, objectImg))
+        elif os.path.exists(oImgfz):
+            os.system("cp %s/%s.fit.fz %s/%s.fz"%(srcDir, imgpre, self.tmpAlign, objectImg))
+            os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpAlign, objectImg))
+        else:
+            self.log.warning("%s not exist"%(oImgf))
+                
+        skyName, ra,dec = self.tools.removeHeaderAndOverScan(self.tmpAlign,objectImg)
+        os.system("cp %s/%s.cat %s/%s"%(self.catDir, imgpre, self.tmpAlign, objectCat))
+        os.system("cp %s/%s.cat %s/%s"%(self.tmplAlignDir, templateImg.split(".")[0] , self.tmpAlign, ttmplCat))
+        alignRst = doAll(self.tmpAlign, ttmplCat, self.tmpAlign, objectCat, self.tmpAlign, objectImg, self.alignDir)
+        if alignRst[0]>0:
+            totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios = alignRst
+            self.log.info(alignRst)
+            isSuccess = True
+    
+        endtime = datetime.now()
+        runTime = (endtime - starttime).seconds
+        self.log.info("********** getCat %s use %d seconds"%(imgName, runTime))
+        return isSuccess
+        
+    def superCombine(self, imgs, regions=[2,2]):
+    
+        try:
+            starttime = datetime.now()
+            
+            tCmbImg = np.array([])
+            regWid = 0
+            regHei = 0
+            for ty in range(regions[0]):
+                for tx in range(regions[1]):
+                    imgs = []
+                    for j in range(len(imgs)):
+                        tname = imgs[j]
+                        tdata1 = fits.getdata("%s/%s"%(self.tmpAlign, tname),ext=0) #first image is template
+                        if tCmbImg.shape[0]==0:
+                            tCmbImg=np.zeros(tdata1.shape, dtype=np.uint16)
+                            regWid = int(tCmbImg.shape[1]/2)
+                            regHei = int(tCmbImg.shape[0]/2)
+                        imgs.append(tdata1[ty*regHei:(ty+1)*regHei, tx*regWid:(tx+1)*regWid].copy())
+
+                    imgArray = np.array(imgs)
+                    tCmbImg[ty*regHei:(ty+1)*regHei, tx*regWid:(tx+1)*regWid] = np.median(imgArray,axis=0)
+            
+            #tCmbImg = tCmbImg.astype(np.uint16)
+            outImgName = "%s_cmb%03d.fit"%(imgs[0].split('.')[0], len(imgs))
+            fits.writeto("%s/%s"%(self.cmbDir, outImgName), tCmbImg, overwrite=True)
+            endtime = datetime.now()
+            runTime = (endtime - starttime).seconds
+            print("combine use %d seconds"%(runTime))
+            
+        except Exception as e:
+            outImgName = ''
+            print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
+        return outImgName
+            
     def makeTemplate(self):
         
         try:

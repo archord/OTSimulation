@@ -173,6 +173,46 @@ class AstroTools(object):
             runSuccess = False
         
         return runSuccess
+    
+    def remoteGetFile(self, srcFiles, destDir, user='gwac', pwd='xyag902', ip='172.28.8.8'):
+        
+        self.log.info('remote get files ...')
+    
+        runSuccess = True
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            ssh.connect(ip, username=user, password=pwd)
+            ftp = ssh.open_sftp()
+            for tfile in srcFiles:
+                ftp.get(tfile,"%s/%s"%(destDir,tfile.split('/')[-1]))
+        except paramiko.AuthenticationException:
+            self.log.error("Authentication Failed!")
+            runSuccess = False
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        except paramiko.SSHException:
+            self.log.error("Issues with SSH service!")
+            runSuccess = False
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        except Exception as e:
+            self.log.error(str(e))
+            runSuccess = False
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        
+        try:
+            time.sleep(1)
+            ftp.close()
+            ssh.close()
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        
+        return runSuccess
+        
 
     def runWCSRemotePC780(self, srcDir, objCat, ra, dec, ccdName, width=4096, height=4136):
     

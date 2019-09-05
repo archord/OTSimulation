@@ -57,8 +57,8 @@ def srcExtract(camName, catList, imgDiff, isRunning):
                 if os.path.exists(tpath) or os.path.exists(tpathfz):
                     starttime = datetime.now()
                     isSuccess, skyName, starNum, fwhmMean, bgMean = imgDiff.getCat(srcDir, timgName)
-                    if isSuccess:
-                        catList.append((isSuccess, ffId, timgName, starNum, skyName, fwhmMean, bgMean, curSkyId))
+                    if isSuccess: #we can add more filter condition, to remove bad images
+                        catList.append((isSuccess, ffId, timgName, starNum, skyName, fwhmMean, bgMean, curSkyId, srcDir))
                     endtime = datetime.now()
                     runTime = (endtime - starttime).seconds
                     imgDiff.log.info("totalTime %d seconds, sky:%d, ffNum:%d, %s"%(runTime, curSkyId, ffNumber, timgName))
@@ -71,19 +71,20 @@ def srcExtract(camName, catList, imgDiff, isRunning):
 
     isRunning.value = 0
     
-def newSkyTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
+def getAlignTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
     
     isRunning.value = 1
     makeTmpl = False
-    try:
-        catNum = len(catList)
-        if catNum>1:
-            lastIdx = tIdx.value
-            if catNum-1>lastIdx:
-                for i in range(lastIdx+1, catNum):
+    catNum = len(catList)
+    if catNum>=10:
+        lastIdx = tIdx.value
+        if catNum-1>lastIdx:
+            for i in range(lastIdx+1, catNum):
+                try:
                     tcatParm = catList[i]
                     skyId = tcatParm[7]
                     skyName = tcatParm[4]
+                    imgName = tcatParm[2]
                     if i==0:
                         query = QueryData()
                         tmpls = query.getTmplList(camName, skyId)
@@ -95,59 +96,137 @@ def newSkyTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
                             makeTmpl = True
                     if makeTmpl:
                         if len(tmpls)>0:
-                            print('down template')
-                            tmplMap['%d'%(skyId)]='templateName'
-                            tmplMap['%d_status'%(skyId)]='1'
+                            #print('down template')
+                            tmplMap[skyName]=('1',tmpls)
                         else:
-                            print('make new template')
-                            tmplMap['%d'%(skyId)]='templateName'
-                            tmplMap['%d_status'%(skyId)]='2'
+                            #print('make new template')
+                            tmplMap[skyName]=('2', [(imgName,)])
+                        imgDiff.getAlignTemplate(tmplMap[skyName], skyName)
+                        makeTmpl = False
+                        tIdx.value = i
         
-    except Exception as e:
-        print(e)
-        tstr = traceback.format_exc()
-        print(tstr)
-    finally:
-        isRunning.value = 0
+                except Exception as e:
+                    tstr = traceback.format_exc()
+                    imgDiff.log.error(tstr)
+    isRunning.value = 0
     
-def doAlign(catList, curCatIdx, isRunning):
+def doAlign(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
+    
     isRunning.value = 1
-    
-    try:
-        tempMap['skyName'] = 'tempPath'
-        
-    except Exception as e:
-        print(e)
-        tstr = traceback.format_exc()
-        print(tstr)
-    finally:
-        isRunning.value = 0
-        
-def doCombine(catList, curCatIdx, isRunning):
-    isRunning.value = 1
-    
-    try:
-        tempMap['skyName'] = 'tempPath'
-        
-    except Exception as e:
-        print(e)
-        tstr = traceback.format_exc()
-        print(tstr)
-    finally:
-        isRunning.value = 0
+    catNum = len(catList)
+    if catNum>1:
+        lastIdx = tIdx.value
+        if catNum-1>lastIdx:
+            for i in range(lastIdx+1, catNum):
+                try:
+                    tcatParm = catList[i]
+                    skyName = tcatParm[4]
+                    imgName = tcatParm[2]
+                    srcDir = tcatParm[8]
 
-def doDiff(catList, curCatIdx, isRunning):
-    isRunning.value = 1
-    
-    try:
-        tempMap['skyName'] = 'tempPath'
+                    if skyName in tmplMap:
+                        tIdx.value = i
+                        tmplParms = tmplMap[skyName]
+                        isSuccess = imgDiff.alignImage(srcDir, imgName, tmplParms)
+                        if isSuccess:
+                            imgDiff.log.info("%s %s align success"%(camName, imgName))
+                    else:
+                        imgDiff.log.warn("%s %s cannot find template"%(skyName, imgName))
+                        break
         
-    except Exception as e:
-        print(e)
-        tstr = traceback.format_exc()
-        print(tstr)
-    finally:
-        isRunning.value = 0
+                except Exception as e:
+                    tstr = traceback.format_exc()
+                    imgDiff.log.error(tstr)
+        
+    isRunning.value = 0
+        
+def doCombine(camName, catList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning, cmbNum=5):
+    
+    isRunning.value = 1
+    catNum = len(catList)
+    if catNum>1 and catNum%cmbNum==0:
+        cmbIdx = int(catNum/cmbNum)
+        lastIdx = tIdx.value
+        if cmbIdx-1>lastIdx:
+            for i in range(lastIdx+1, cmbIdx):
+                try:
+                    startIdx = i*cmbNum
+                    endIdx = (i+1)*cmbNum
+                    timgs = []
+                    for j in range(startIdx, endIdx):
+                        tcatParm = catList[j]
+                        imgName = tcatParm[2]
+                        timgs.append(imgName)
+
+                    cmbName = imgDiff.superCombine(timgs)
+                    tcatParm = catList[startIdx]
+                    tcatParm[2]=cmbName
+                    cmbImgList.append(tcatParm) #(isSuccess, ffId, timgName, starNum, skyName, fwhmMean, bgMean, curSkyId, srcDir)
+                    imgDiff.log.info("%s combine %s."%(camName, cmbName))
+                except Exception as e:
+                    tstr = traceback.format_exc()
+                    imgDiff.log.error(tstr)
+        
+    isRunning.value = 0
+    
+def srcExtractCombine(camName, cmbImgList, cmbCatList, tIdx, imgDiff, isRunning):
+    
+    isRunning.value = 1
+    logDest0 = "/data/gwac_diff_xy/log"
+    
+    for tparm in cmbImgList:
+        
+        try:
+            cmbImgName = tparm[2]
+            skyId = tparm[7]
+            skyName = tparm[4]
+            ffId = tparm[1]
+            
+            starttime = datetime.now()
+            isSuccess, skyName, starNum, fwhmMean, bgMean = imgDiff.getCat(imgDiff.cmbDir, cmbImgName)
+            if isSuccess: #we can add more filter condition, to remove bad images
+                cmbCatList.append((isSuccess, ffId, cmbImgName, starNum, skyName, fwhmMean, bgMean, skyId, imgDiff.cmbDir))
+            endtime = datetime.now()
+            runTime = (endtime - starttime).seconds
+            imgDiff.log.info("totalTime %d seconds, sky:%d, %s"%(runTime, skyId, cmbImgName))
+
+        except Exception as e:
+            tstr = traceback.format_exc()
+            imgDiff.log.error(tstr)
+
+    isRunning.value = 0
+    
+def doDiff(camName, cmbImgList, tmplMap, tIdx, imgDiff, isRunning):
+    
+    isRunning.value = 1
+    tNum = len(cmbImgList)
+    if tNum>1:
+        lastIdx = tIdx.value
+        if tNum-1>lastIdx:
+            for i in range(lastIdx+1, tNum):
+                try:
+                    tcatParm = cmbImgList[i]
+                    skyName = tcatParm[4]
+                    imgName = tcatParm[2]
+                    srcDir = tcatParm[8]
+
+                    if skyName in tmplMap:
+                        tIdx.value = i
+                        tmplParms = tmplMap[skyName]
+                        status = tmplParms[0]
+                        if status==1:
+                            isSuccess = imgDiff.alignImage(srcDir, imgName, tmplParms)
+                            if isSuccess:
+                                imgDiff.log.info("%s %s align success"%(camName, imgName))
+                    else:
+                        imgDiff.log.warn("%s %s cannot find template"%(skyName, imgName))
+                        break
+        
+                except Exception as e:
+                    tstr = traceback.format_exc()
+                    imgDiff.log.error(tstr)
+        
+    isRunning.value = 0
         
 def doRecognition(catList, curCatIdx, isRunning):
     isRunning.value = 1
@@ -169,6 +248,7 @@ class BatchImageDiff(object):
         self.catList = self.dataMgr.list()
         self.catQueue = self.dataMgr.Queue()
         self.tmplMap = self.dataMgr.dict()
+        self.cmbImgList = self.dataMgr.list()
         self.curCatIdx = 0
         self.tmplIdx = self.dataMgr.Value('i', -1)
         self.alignIdx = self.dataMgr.Value('i', -1)
@@ -215,10 +295,12 @@ class BatchImageDiff(object):
                 if catIdx==1 and self.catRunning.value==0:  #cat
                     catJob = Process(target=srcExtract, args=(camName, self.catList, imgDiff, self.catRunning))
                     catJob.start()
-                if self.tmptRunning==0: #template
+                tmptIdx = loopNum%10
+                if tmptIdx==0 and self.tmptRunning==0: #template
                     tmplJob = Process(target=newSkyTemplate, args=( self.tmptRunning))
                     tmplJob.start()
-                if self.alignRunning==0: #align
+                alignIdx = loopNum%2
+                if alignIdx==2 and self.alignRunning==0: #align
                     astmJob = Process(target=doAlign, args=( self.alignRunning))
                     astmJob.start()
                 if self.cmbRunning==0: #combine5

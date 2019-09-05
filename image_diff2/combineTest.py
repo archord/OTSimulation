@@ -5,7 +5,7 @@ from astropy.io import fits
 import os
 import traceback
 from datetime import datetime
-from blindmatch import removeHeaderAndOverScan2, doAll
+from blindmatchTest import removeHeaderAndOverScan2, doAll
 
 def doAlign(cats, dateDir, saveDir):
     
@@ -133,7 +133,7 @@ def superCombine(srcFitDir, destFitDir, regions=[2,2]):
                     tname = tfiles0[j]
                     tdata1 = fits.getdata("%s/%s"%(srcFitDir, tname),ext=0) #first image is template
                     if tCmbImg.shape[0]==0:
-                        tCmbImg=tdata1.copy()
+                        tCmbImg=np.zeros(tdata1.shape, dtype=np.uint16)
                         regWid = int(tCmbImg.shape[1]/2)
                         regHei = int(tCmbImg.shape[0]/2)
                     imgs.append(tdata1[ty*regHei:(ty+1)*regHei, tx*regWid:(tx+1)*regWid].copy())

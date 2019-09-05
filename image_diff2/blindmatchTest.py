@@ -267,30 +267,91 @@ class BlindMatch(object):
         starTrans = stars.copy()
         starTrans[:,[self.xIdx, self.yIdx]] = starPossTi
         
-        fullPath = "%s/%s"%(srcImgPath, imgName)
-        imgData, theader = fits.getdata(fullPath, header=True)
+        ''' '''
+        theader, imgData = removeHeaderAndOverScan2(srcImgPath, imgName)
         imgW = imgData.shape[1]
         imgH = imgData.shape[0]
         
+        starttime = datetime.now()
+        #pool = multiprocessing.Pool(8)
+        #transImg(imgHs, imgW, imgX, imgY, tixp, tiyp)
+        #pool.map(transImg, range(imgH), chunksize=64)
+        #pool.starmap(transImg, zip(range(imgH), repeat(imgW, imgX, imgY, tixp, tiyp)))
+        #pool.map(partial(transImg, imgW=imgW, imgX=imgX, imgY=imgY, tixp=tixp, tiyp=tiyp), range(imgH))
+
         imgWs = np.arange(imgW)
         xIdx = np.repeat(imgWs, imgH)
         xIdx = np.reshape(xIdx, (imgW, imgH)).transpose().flatten()
         imgHs = np.arange(imgH)
         yIdx = np.repeat(imgHs,imgW)
+        endtime = datetime.now()
+        runTime2 = (endtime - starttime).total_seconds()*1000
+        print("********** gen Idxs use %d micro seconds"%(runTime2))
+        
+        starttime = datetime.now()
         
         tixp, tiyp = self.polynomialFit(tiMchPos, oiMchPos, order)
         xIdxTrans = tixp(xIdx, yIdx)
         yIdxTrans = tiyp(xIdx, yIdx)
         imgX = np.reshape(xIdxTrans,  (imgH, imgW)).astype(np.float32)
         imgY = np.reshape(yIdxTrans,  (imgH, imgW)).astype(np.float32)
-        #https://docs.opencv.org/master/da/d54/group__imgproc__transform.html#gab75ef31ce5cdfb5c44b6da5f3b908ea4
-        mapData = cv2.remap(imgData, imgX, imgY, cv2.INTER_CUBIC, cv2.BORDER_CONSTANT, 0)
+        
+        endtime = datetime.now()
+        runTime2 = (endtime - starttime).total_seconds()*1000
+        print("********** posTrans use %d micro seconds"%(runTime2))
+        
+        starttime = datetime.now()
+        mapData = cv2.remap(imgData, imgX, imgY, cv2.INTER_CUBIC)
+        endtime = datetime.now()
+        runTime2 = (endtime - starttime).total_seconds()*1000
+        print("********** opencp remap use %d micro seconds"%(runTime2))
         
         savePath = "%s/%s_align.fit"%(dstImgPath, imgName.split('.')[0])
         fits.writeto(savePath, mapData, header=theader, overwrite=True)
         
         return starTrans
     
+def removeHeaderAndOverScan(srcDir, fname):
+    
+    overscanLeft = 20
+    overscanRight = 80
+    fullPath = "%s/%s"%(srcDir, fname)
+    print(fullPath)
+    
+    keyword=['WCSASTRM','WCSDIM','CTYPE1','CTYPE2',
+             'CRVAL1','CRVAL2','CRPIX1','CRPIX2',
+             'CD1_1','CD1_2','CD2_1','CD2_2','WAT0_001',
+             'WAT1_001','WAT1_002','WAT1_003','WAT1_004','WAT1_005','WAT1_006','WAT1_007','WAT1_008',
+             'WAT2_001','WAT2_002','WAT2_003','WAT2_004','WAT2_005','WAT2_006','WAT2_007','WAT2_008']
+
+    #hdul = fits.open(fullPath, mode='update', memmap=False)
+    hdul = fits.open(fullPath, mode='readonly', memmap=False)
+    hdu1 = hdul[0]
+    hdr = hdu1.header
+    for kw in keyword:
+        hdr.remove(kw,ignore_missing=True)
+    data = hdul[1].data
+    print(data.shape)
+    data = data[:,overscanLeft:-overscanRight].copy()
+    print(data.shape)
+    hdul.close()
+    
+    return hdr, data
+
+def removeHeaderAndOverScan2(srcDir, fname):
+    
+    fullPath = "%s/%s"%(srcDir, fname)
+    print(fullPath)
+    
+
+    #hdul = fits.open(fullPath, mode='update', memmap=False)
+    hdul = fits.open(fullPath, mode='readonly', memmap=False)
+    hdu1 = hdul[0]
+    hdr = hdu1.header
+    data = hdul[0].data
+    hdul.close()
+    
+    return hdr, data
     
 def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath):
       
@@ -299,16 +360,17 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath):
     
     oiData = np.loadtxt("%s/%s"%(oiPath, oiFile))
     tiData = np.loadtxt("%s/%s"%(tiPath, tiFile))
+    print("orign")
+    print(oiData.shape)
+    print(tiData.shape)
     
     tiXY, mchIdxsTi = tiMatch.createBlindMatchFeatures(tiData,featurePoint=160)
     oiXY, mchIdxsOi = oiMatch.createBlindMatchFeatures(oiData,featurePoint=160)
     
     if len(tiXY)==0:
-        #print("%s create feature failure"%(tiFile))
-        return (-1,)
+        print("%s create feature failure"%(tiFile))
     elif len(oiXY)==0:
-        #print("%s create feature failure"%(oiFile))
-        return (-1,)
+        print("%s create feature failure"%(oiFile))
     else:
         tarray = np.array(mchIdxsTi)
         tDist = tarray[:,:,2]
@@ -339,33 +401,128 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath):
                         txy1 = np.concatenate([tpos,[txy02]])
                         mchList.append((oxy1,txy1))
                         
+                        '''    
+                        ox1 = omIdx[:,0]
+                        oy1 = omIdx[:,1]
+                        tx2 = tmIdx[:,0]
+                        ty2 = tmIdx[:,1]
+                        oiMatch.plotBlindMatch(oxy01[0],oxy01[1],ox1,oy1,txy02[0],txy02[1],tx2,ty2)
+                        '''
                         break
                 
         if len(mchList)>1:
-            #print("total Match key points %d"%(totalMatchNum))
+            print("total Match key points %d"%(totalMatchNum))
             starOiTi, xshift,yshift, xrotation, yrotation, blindStarNum = tiMatch.posTransPolynomial(mchList, oiData, 2) # posTransPolynomial posTransPerspective
+            print("fitting: xshift=%.2f, yshift=%.2f, xrotation=%.5f, yrotation=%.5f"%(xshift,yshift, xrotation, yrotation))
+            print(starOiTi.shape)
+            
             mchRadius = 4
+            starttime = datetime.now()
             crossMatch = CrossMatch()
+            #tiData = crossMatch.filterStar(tiData)
             crossMatch.createRegionIdx(tiData)
-            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, mchRadius)            
+            #crossMatch.statisticRegions()
+            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, mchRadius)
+            endtime = datetime.now()
+            runTime0 = (endtime - starttime).total_seconds()*1000
+            print("********** rematch %s use %d micro seconds"%(oiFile, runTime0))
+            
+            #print(mchPosPairs.shape)
+            #print(mchPosPairs[:3])
+            mchRatios0, oiPosJoin0,tiPosJoin0, mchData0, xshift0,yshift0, xrms0, yrms0 \
+                = crossMatch.evaluateMatchResult(starOiTi, tiData, mchPosPairs)
+            #print(mchRatios0)
+            
             oiDataMch = oiData[orgPosIdxs]
+            #print(oiDataMch.shape)
+            #print(oiDataMch[:3])
             
             oiMchPos = oiDataMch[:,0:2]
             tiMchPos = mchPosPairs[:,2:4]
+            starttime = datetime.now()
             starOiTiPly2 = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, 3)
-
+            endtime = datetime.now()
+            runTime3 = (endtime - starttime).total_seconds()*1000
+            print("********** fit and remap cat and image %s use %d micro seconds"%(oiFile, runTime3))
+            
+            starttime = datetime.now()
             mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 4)
+            endtime = datetime.now()
+            runTime2 = (endtime - starttime).total_seconds()*1000
+            print("********** rematch %s use %d micro seconds"%(oiFile, runTime2))
             
             #print(mchPosPairs.shape)
             #print(mchPosPairs[:3])
             mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2 \
                 = crossMatch.evaluateMatchResult(starOiTiPly2, tiData, mchPosPairs)
-            #print("mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2")
-            #print((mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2))
+            print("mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2")
+            print((mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2))
             
-            return (totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios2)
+            
+            rstStr = "%s %.2f %.2f %.2f %.2f %d %d "\
+                "%d %d "\
+                "%d %d %d %.2f %.2f %.2f %.2f %.2f %d "\
+                "%d %d %d %.2f %.2f %.2f %.2f %.2f %d \n"\
+                %(oiFile, xshift,yshift, xrotation, yrotation, blindStarNum, totalMatchNum, \
+                  tiData.shape[0], oiData.shape[0], \
+                  oiPosJoin0,tiPosJoin0, mchData0, mchRatios0, xshift0,yshift0, xrms0, yrms0,runTime0,\
+                  oiPosJoin2,tiPosJoin2, mchData2, mchRatios2, xshift2,yshift2, xrms2, yrms2,runTime2)
+            #print(rstStr)
+            ''' 
+            oiDataMch = oiData[orgPosIdxs]
+            oiDataNch = np.delete(oiData, orgPosIdxs, axis=0)
+            oiMchPos = oiDataMch[:,0:2].copy()
+            oiNchPos = oiDataNch[:,0:2].copy()
+            oiMchPos[:,0] = oiMchPos[:,0] + 20
+            oiNchPos[:,0] = oiNchPos[:,0] + 20
+            tiMchPos = mchPosPairs[:,2:4]
+            
+            crossMatch1 = CrossMatch()
+            crossMatch1.createRegionIdx(tiMchPos)
+            mchPosPairs, orgPosIdxs = crossMatch1.xyMatch(tiData, 1)
+
+            #print(tiData.shape)
+            #print(tiMchPos.shape)
+            #print(len(orgPosIdxs))
+            tiDataNch = np.delete(tiData, orgPosIdxs, axis=0)
+            tiNchPos = tiDataNch[:,0:2].copy()
+            tiMchPos[:,0] = tiMchPos[:,0] + 20
+            tiNchPos[:,0] = tiNchPos[:,0] + 20
+            #print(tiNchPos.shape)
+            
+            tiMatch.saveReg(oiMchPos, "data/OiMch.reg", radius=4, width=1, color='green')
+            tiMatch.saveReg(oiNchPos, "data/OiNch.reg", radius=5, width=1, color='blue')
+            tiMatch.saveReg(tiMchPos, "data/TiMch.reg", radius=4, width=1, color='red')
+            tiMatch.saveReg(tiNchPos, "data/TiNch.reg", radius=5, width=1, color='yellow')
+            '''
         else:
-            #print("no point match")
-            return (0,)
+            print("no point match")
+def test():
+    
+    tpath1 = '/home/xy/work/imgDiffTest2/test'
+    tpath2 = '/home/xy/work/imgDiffTest2/test2'
+    tfiles = os.listdir(tpath1)
+    tcats = []
+    for tfile in tfiles:
+        if tfile[-3:]=='cat':
+            tcats.append(tfile)
             
+    tcats.sort()
+    tiCat = tcats[0]
+    print("template %s"%(tiCat))
+    
+    theader, imgData = removeHeaderAndOverScan(tpath1, "%s.fit.fz"%(tiCat.split('.')[0]))
+    savePath = "%s/%s.fit"%(tpath2, tiCat.split('.')[0])
+    fits.writeto(savePath, imgData, header=theader, overwrite=True)
         
+    for i in range(len(tcats)):
+        if i>0:
+            oiCat = tcats[i]
+            print("observate %s"%(oiCat))
+            tpre = oiCat.split('.')[0]
+            oiFit = "%s.fit.fz"%(tpre)
+    
+            doAll(tpath1, tiCat, tpath1, oiCat, tpath1, oiFit, tpath2)
+            
+if __name__ == "__main__":
+    test()
