@@ -113,7 +113,7 @@ class GWACDiff(object):
                 os.system("mkdir -p %s"%(self.tmpAlign))
                 
         
-    def getCat(self, srcDir, imgName):
+    def getCat(self, srcDir, imgName, destDir):
         
         starttime = datetime.now()
         
@@ -141,7 +141,7 @@ class GWACDiff(object):
         objectImgCat = self.tools.runSextractor(objectImg, self.tmpDir, self.tmpDir, fpar, sexConf)
         if os.path.exists("%s/%s"%(self.tmpDir, objectImgCat)):
             isSuccess = True
-            os.system("cp %s/%s %s/%s.cat"%(self.tmpDir, objectImgCat, self.catDir, imgpre))
+            os.system("cp %s/%s %s/%s.cat"%(self.tmpDir, objectImgCat, destDir, imgpre))
             starNum, fwhmMean, fwhmRms, bgMean, bgRms = self.tools.basicStatistic(self.tmpDir, objectImgCat)
         else:
             starNum, fwhmMean, fwhmRms, bgMean, bgRms = 0,0,0,0,0
