@@ -5,6 +5,7 @@ import time
 import traceback
 from datetime import datetime
 import os
+import numpy as np
 
 from QueryData import QueryData
 from astrotools import AstroTools
@@ -99,17 +100,22 @@ def getAlignTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
                     else:
                         tparms = tmplMap[skyName]
                         status=tparms[0]
-                        imgNumber = tparms[2]
-                        if status=='2' and imgNumber>=newTmplSelectNum:
-                            imgs = []
-                            for i in range(catNum-newTmplSelectNum, catNum):
-                                imgs.append((catList[i][2],))
-                            tparms = ('2', imgs,imgNumber)
-                            imgDiff.getAlignTemplate(tparms, skyName)
-                            tmplMap[skyName] = tparms
-                        else:
-                            tparms[2] = imgNumber+1
-                            tmplMap[skyName] = tparms
+                        skyImgNumber = tparms[2]
+                        if status=='2':
+                            if skyImgNumber==newTmplSelectNum:
+                                #imgs = []
+                                #for i in range(catNum-newTmplSelectNum, catNum):
+                                #    imgs.append((catList[i][2],))
+                                tcatParms = catList[catNum-newTmplSelectNum:catNum]
+                                tcatParms = np.array(tcatParms)
+                                tfwhm = tcatParms[:,5]
+                                selCatParms=tcatParms[np.argmin(tfwhm)] #select the image with minFwhm in 10 images
+                                tparms = ('2', [(selCatParms[2],)],skyImgNumber+1)
+                                tmplMap[skyName] = tparms
+                                imgDiff.getAlignTemplate(tparms, skyName)
+                            elif skyImgNumber<newTmplSelectNum:
+                                tparms[2] = skyImgNumber+1
+                                tmplMap[skyName] = tparms
                     tIdx.value = i
         
                 except Exception as e:
