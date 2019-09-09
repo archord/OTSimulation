@@ -260,7 +260,7 @@ class GWACDiff(object):
             print(tstr)
         return outImgName
             
-    def makeTemplate(self):
+    def getDiffTemplate(self):
         
         try:
             starttime = datetime.now()

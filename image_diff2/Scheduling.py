@@ -251,6 +251,7 @@ def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDif
                             if status=='1':
                                 diffTmplMap[skyName]=tmplParms
                             else:
+                                tmplParms[0]='3'
                                 diffTmplMap[skyName]=tmplParms
                         else:
                             tmplParms = diffTmplMap[skyName]
@@ -258,7 +259,7 @@ def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDif
                             tmplParms[2] = skyImgNumber+1
                             status=tmplParms[0]
                             
-                            if status=='2': #redo template
+                            if status=='3': #redo template
                                 if skyImgNumber==newTmplSelectNum:
                                     #imgs = []
                                     #for i in range(catNum-newTmplSelectNum, catNum):
@@ -268,13 +269,17 @@ def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDif
                                     tfwhm = tcatParms[:,5]
                                     selCatParms=tcatParms[np.argmin(tfwhm)] #select the image with minFwhm in 10 images
                                     tparms = ('2', [(selCatParms[2],)],skyImgNumber+1)
-                                    imgDiff.getAlignTemplate(tparms, skyName)
+                                    imgDiff.getDiffTemplate(tparms, skyName)
                                     diffTmplMap[skyName] = tparms
                                 else:
                                     tparms[2] = skyImgNumber+1
                                     diffTmplMap[skyName] = tparms
+                            elif status=='2':
+                                tparms[2] = skyImgNumber+1
+                                diffTmplMap[skyName] = tparms
+                                #if skyImgNumber>50, update diff template
                                 
-                        tIdx.value = i
+                    tIdx.value = i
         
                 except Exception as e:
                     tstr = traceback.format_exc()
