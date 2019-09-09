@@ -92,8 +92,9 @@ def getAlignTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
                         tmpls = query.getTmplList(camName, skyId)
                         if len(tmpls)>0:
                             #print('down template')
-                            tmplMap[skyName]=('1',tmpls,1) #status, imgList, currentSky image number
-                            imgDiff.getAlignTemplate(tmplMap[skyName], skyName)
+                            tparms = ('1',tmpls,1) #status, imgList, currentSky image number
+                            imgDiff.getAlignTemplate(tparms, skyName)
+                            tmplMap[skyName]=tparms 
                         else:
                             #print('make new template')
                             tmplMap[skyName]=('2', [(imgName,)],1) #status, imgList, currentSky image number
@@ -111,9 +112,9 @@ def getAlignTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
                                 tfwhm = tcatParms[:,5]
                                 selCatParms=tcatParms[np.argmin(tfwhm)] #select the image with minFwhm in 10 images
                                 tparms = ('2', [(selCatParms[2],)],skyImgNumber+1)
-                                tmplMap[skyName] = tparms
                                 imgDiff.getAlignTemplate(tparms, skyName)
-                            elif skyImgNumber<newTmplSelectNum:
+                                tmplMap[skyName] = tparms
+                            else: #if skyImgNumber<newTmplSelectNum
                                 tparms[2] = skyImgNumber+1
                                 tmplMap[skyName] = tparms
                     tIdx.value = i
@@ -156,40 +157,43 @@ def doAlign(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
 def doCombine(camName, catList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning, cmbNum=5):
     
     isRunning.value = 1
+    lastIdx = tIdx.value
     catNum = len(catList)
-    if catNum>1 and catNum%cmbNum==0:
-        cmbIdx = int(catNum/cmbNum)
-        lastIdx = tIdx.value
-        if cmbIdx-1>lastIdx:
-            for i in range(lastIdx+1, cmbIdx):
-                try:
-                    changeSky = False
-                    startIdx = i*cmbNum
-                    endIdx = (i+1)*cmbNum
+
+    startIdx = lastIdx+1
+    if catNum>=startIdx+cmbNum:
+        timgs = []
+        for i in range(lastIdx+1, catNum):
+            try:
+                tcatParm = catList[i]
+                skyName = tcatParm[4]
+                imgName = tcatParm[2]
+                
+                if len(timgs)==0:
+                    timgs.append(imgName)
+                    skyName0 = tcatParm[4]
+                else:
+                    if skyName==skyName0:
+                        timgs.append(imgName)
+                    else: #change sky
+                        timgs = []
+                        timgs.append(imgName)
+                        skyName0 = skyName
+                        imgDiff.log.warn("skyName change from %s to %s, skip this loop."%(skyName0, skyName))
+                        tIdx.value = i-1
+                        
+                if len(timgs)==cmbNum:
+                    cmbName = imgDiff.superCombine(timgs)
+                    tcatParm = catList[startIdx]
+                    tcatParm[2]=cmbName
+                    cmbImgList.append(tcatParm) #(isSuccess, ffId, timgName, starNum, skyName, fwhmMean, bgMean, curSkyId, srcDir)
+                    imgDiff.log.info("%s combine %s."%(camName, cmbName))
+                    tIdx.value = i
                     timgs = []
-                    for j in range(startIdx, endIdx):
-                        tcatParm = catList[j]
-                        skyName = tcatParm[4]
-                        imgName = tcatParm[2]
-                        if len(timgs)==0:
-                            timgs.append(imgName)
-                            skyName0 = tcatParm[4]
-                        else:
-                            if skyName==skyName0:
-                                timgs.append(imgName)
-                            else:
-                                changeSky = True
-                                imgDiff.log.warn("skyName change from %s to %s, skip this loop."%(skyName0, skyName))
-                                break
-                    if not changeSky:
-                        cmbName = imgDiff.superCombine(timgs)
-                        tcatParm = catList[startIdx]
-                        tcatParm[2]=cmbName
-                        cmbImgList.append(tcatParm) #(isSuccess, ffId, timgName, starNum, skyName, fwhmMean, bgMean, curSkyId, srcDir)
-                        imgDiff.log.info("%s combine %s."%(camName, cmbName))
-                except Exception as e:
-                    tstr = traceback.format_exc()
-                    imgDiff.log.error(tstr)
+                    
+            except Exception as e:
+                tstr = traceback.format_exc()
+                imgDiff.log.error(tstr)
         
     isRunning.value = 0
     
@@ -197,36 +201,36 @@ def srcExtractCombine(camName, cmbImgList, cmbCatList, tIdx, imgDiff, isRunning)
     
     isRunning.value = 1
     catNum = len(cmbImgList)
+    lastIdx = tIdx.value
     
-    if catNum>1:
-        lastIdx = tIdx.value
-        if catNum-1>lastIdx:
-            for i in range(lastIdx+1, catNum):
-                try:
-                    tparm = cmbImgList[i]
-                    cmbImgName = tparm[2]
-                    skyId = tparm[7]
-                    skyName = tparm[4]
-                    ffId = tparm[1]
-                    
-                    starttime = datetime.now()
-                    isSuccess, skyName, starNum, fwhmMean, bgMean = imgDiff.getCat(imgDiff.cmbDir, cmbImgName, imgDiff.cmbCatDir)
-                    if isSuccess: #we can add more filter condition, to remove bad images
-                        cmbCatList.append((isSuccess, ffId, cmbImgName, starNum, skyName, fwhmMean, bgMean, skyId, imgDiff.cmbDir))
-                    endtime = datetime.now()
-                    runTime = (endtime - starttime).seconds
-                    imgDiff.log.info("totalTime %d seconds, sky:%d, %s"%(runTime, skyId, cmbImgName))
-        
-                except Exception as e:
-                    tstr = traceback.format_exc()
-                    imgDiff.log.error(tstr)
+    if catNum>1 and catNum-1>lastIdx:
+        for i in range(lastIdx+1, catNum):
+            try:
+                tparm = cmbImgList[i]
+                cmbImgName = tparm[2]
+                skyId = tparm[7]
+                skyName = tparm[4]
+                ffId = tparm[1]
+                
+                starttime = datetime.now()
+                isSuccess, skyName, starNum, fwhmMean, bgMean = imgDiff.getCat(imgDiff.cmbDir, cmbImgName, imgDiff.cmbCatDir)
+                if isSuccess: #we can add more filter condition, to remove bad images
+                    cmbCatList.append((isSuccess, ffId, cmbImgName, starNum, skyName, fwhmMean, bgMean, skyId, imgDiff.cmbDir))
+                endtime = datetime.now()
+                runTime = (endtime - starttime).seconds
+                imgDiff.log.info("totalTime %d seconds, sky:%d, %s"%(runTime, skyId, cmbImgName))
+                
+                tIdx.value = i
+            except Exception as e:
+                tstr = traceback.format_exc()
+                imgDiff.log.error(tstr)
 
     isRunning.value = 0
     
 def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDiff, isRunning):
     
     isRunning.value = 1
-    makeTmpl = False
+    newTmplSelectNum = 10
     catNum = len(cmbCatList)
     if catNum>=10:
         lastIdx = tIdx.value
@@ -238,15 +242,38 @@ def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDif
                     skyName = tcatParm[4]
                     imgName = tcatParm[2]
                     
-                    if (skyName in alignTmplMap) and (skyName not in diffTmplMap):
+                    if skyName in alignTmplMap:
                         tmplParms = alignTmplMap[skyName]
+                        skyImgNumber = tmplParms[2]
                         status = tmplParms[0]
-                        if status=='1':
-                            diffTmplMap[skyName]=tmplParms
+                        if skyName not in diffTmplMap:
+                            tmplParms[2] = 1
+                            if status=='1':
+                                diffTmplMap[skyName]=tmplParms
+                            else:
+                                diffTmplMap[skyName]=tmplParms
                         else:
-                            if catNum>=10:
-                                imgDiff.getAlignTemplate(alignTmplMap[skyName], skyName)
+                            tmplParms = diffTmplMap[skyName]
+                            skyImgNumber = tmplParms[2]
+                            tmplParms[2] = skyImgNumber+1
+                            status=tmplParms[0]
                             
+                            if status=='2': #redo template
+                                if skyImgNumber==newTmplSelectNum:
+                                    #imgs = []
+                                    #for i in range(catNum-newTmplSelectNum, catNum):
+                                    #    imgs.append((catList[i][2],))
+                                    tcatParms = cmbCatList[catNum-newTmplSelectNum:catNum]
+                                    tcatParms = np.array(tcatParms)
+                                    tfwhm = tcatParms[:,5]
+                                    selCatParms=tcatParms[np.argmin(tfwhm)] #select the image with minFwhm in 10 images
+                                    tparms = ('2', [(selCatParms[2],)],skyImgNumber+1)
+                                    imgDiff.getAlignTemplate(tparms, skyName)
+                                    diffTmplMap[skyName] = tparms
+                                else:
+                                    tparms[2] = skyImgNumber+1
+                                    diffTmplMap[skyName] = tparms
+                                
                         tIdx.value = i
         
                 except Exception as e:
