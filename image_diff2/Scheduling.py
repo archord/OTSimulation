@@ -232,15 +232,13 @@ def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDif
     isRunning.value = 1
     newTmplSelectNum = 10
     catNum = len(cmbCatList)
-    if catNum>=10:
+    if catNum>=newTmplSelectNum:
         lastIdx = tIdx.value
         if catNum-1>lastIdx:
             for i in range(lastIdx+1, catNum):
                 try:
                     tcatParm = cmbCatList[i]
-                    skyId = tcatParm[7]
                     skyName = tcatParm[4]
-                    imgName = tcatParm[2]
                     
                     if skyName in alignTmplMap:
                         tmplParms = alignTmplMap[skyName]
@@ -261,22 +259,20 @@ def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDif
                             
                             if status=='3': #redo template
                                 if skyImgNumber==newTmplSelectNum:
-                                    #imgs = []
-                                    #for i in range(catNum-newTmplSelectNum, catNum):
-                                    #    imgs.append((catList[i][2],))
                                     tcatParms = cmbCatList[catNum-newTmplSelectNum:catNum]
                                     tcatParms = np.array(tcatParms)
                                     tfwhm = tcatParms[:,5]
                                     selCatParms=tcatParms[np.argmin(tfwhm)] #select the image with minFwhm in 10 images
                                     tparms = ('2', [(selCatParms[2],)],skyImgNumber+1)
-                                    imgDiff.getDiffTemplate(tparms, skyName)
-                                    diffTmplMap[skyName] = tparms
+                                    runSuccess = imgDiff.getDiffTemplate(tparms, skyName, selCatParms)
+                                    if runSuccess:
+                                        diffTmplMap[skyName] = tparms
+                                    else:
+                                        diffTmplMap[skyName] = tmplParms
                                 else:
-                                    tparms[2] = skyImgNumber+1
-                                    diffTmplMap[skyName] = tparms
+                                    diffTmplMap[skyName] = tmplParms
                             elif status=='2':
-                                tparms[2] = skyImgNumber+1
-                                diffTmplMap[skyName] = tparms
+                                diffTmplMap[skyName] = tmplParms
                                 #if skyImgNumber>50, update diff template
                                 
                     tIdx.value = i
@@ -286,35 +282,31 @@ def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDif
                     imgDiff.log.error(tstr)
     isRunning.value = 0
     
-def doDiff(camName, cmbImgList, tmplMap, tIdx, imgDiff, isRunning):
+def doDiff(camName, cmbImgList, diffTmplMap, tIdx, imgDiff, isRunning):
     
     isRunning.value = 1
     tNum = len(cmbImgList)
-    if tNum>1:
-        lastIdx = tIdx.value
-        if tNum-1>lastIdx:
-            for i in range(lastIdx+1, tNum):
-                try:
-                    tcatParm = cmbImgList[i]
-                    skyName = tcatParm[4]
-                    imgName = tcatParm[2]
-                    srcDir = tcatParm[8]
+    lastIdx = tIdx.value
+    if tNum-1>lastIdx:
+        for i in range(lastIdx+1, tNum):
+            try:
+                tcatParm = cmbImgList[i]
+                skyName = tcatParm[4]
+                imgName = tcatParm[2]
 
-                    if skyName in tmplMap:
-                        tIdx.value = i
-                        tmplParms = tmplMap[skyName]
-                        status = tmplParms[0]
-                        if status==1:
-                            isSuccess = imgDiff.alignImage(srcDir, imgName, tmplParms)
-                            if isSuccess:
-                                imgDiff.log.info("%s %s align success"%(camName, imgName))
-                    else:
-                        imgDiff.log.warn("%s %s cannot find template"%(skyName, imgName))
-                        break
-        
-                except Exception as e:
-                    tstr = traceback.format_exc()
-                    imgDiff.log.error(tstr)
+                if skyName in diffTmplMap:
+                    tIdx.value = i
+                    tmplParms = diffTmplMap[skyName]
+                    isSuccess = imgDiff.diffImage(imgName, tmplParms)
+                    if isSuccess:
+                        imgDiff.log.info("%s %s align success"%(camName, imgName))
+                else:
+                    imgDiff.log.warn("%s %s cannot find template"%(skyName, imgName))
+                    break
+    
+            except Exception as e:
+                tstr = traceback.format_exc()
+                imgDiff.log.error(tstr)
         
     isRunning.value = 0
         

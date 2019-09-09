@@ -432,6 +432,21 @@ class AstroTools(object):
         hdul.close()
         
         return fieldId, ra,dec
+        
+    def getRaDec(self, srcDir, fname):
+        
+        fullPath = "%s/%s"%(srcDir, fname)
+    
+        hdul = fits.open(fullPath)
+        hdu1 = hdul[0]
+        hdr = hdu1.header
+        fieldId = hdr['FIELD_ID']
+        ra = hdr['RA']
+        dec = hdr['DEC']
+        hdul.flush()
+        hdul.close()
+        
+        return fieldId, ra,dec
     
     def gridStatistic(self, srcDir, catfile, imgSize, gridNum=4):
         

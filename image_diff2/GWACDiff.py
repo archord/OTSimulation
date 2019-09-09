@@ -4,6 +4,8 @@ import os
 import sys
 import math
 import time
+import scipy
+import scipy.ndimage
 from datetime import datetime
 import traceback
 from astropy.io import fits
@@ -51,10 +53,10 @@ class GWACDiff(object):
         self.funpackProgram="%s/tools/cfitsio/funpack"%(self.toolPath)
         self.tmpRoot="/dev/shm/gwacsim"
         self.tmpUpload="/dev/shm/gwacupload"
-        self.tmpDir="%s/tmp"%(self.tmpRoot)
-        self.tmpCat="%s/cat"%(self.tmpRoot)
-        self.templateDir="%s/tmpl"%(self.tmpRoot)
-        self.tmpAlign="%s/align"%(self.tmpRoot)
+        self.tmpCat="%s/tmp"%(self.tmpRoot)
+        self.diff="%s/diff"%(self.tmpRoot)
+        self.makeDiffTmpl="%s/makeTmpl"%(self.tmpRoot)
+        self.doDiffTmpl="%s/tmpl"%(self.tmpRoot)
         
         self.initReg(0)
         
@@ -67,6 +69,8 @@ class GWACDiff(object):
         self.diffImgDir="%s/G_diffImg"%(dataDest)
         self.diffCatDir="%s/H_diffCat"%(dataDest)
         self.origPreViewDir="%s/I_origPreview"%(dataDest)
+        self.destDir = "%s/J_subImg"%(dataDest)
+        self.subImgViewDir = "%s/J_subImgPreview"%(dataDest)
             
         if not os.path.exists(self.catDir):
             os.system("mkdir -p %s"%(self.catDir))
@@ -86,6 +90,10 @@ class GWACDiff(object):
             os.system("mkdir -p %s"%(self.diffCatDir))
         if not os.path.exists(self.origPreViewDir):
             os.system("mkdir -p %s"%(self.origPreViewDir))
+        if not os.path.exists(self.destDir):
+            os.system("mkdir -p %s"%(self.destDir))
+        if not os.path.exists(self.subImgViewDir):
+            os.system("mkdir -p %s"%(self.subImgViewDir))
 
     def sendMsg(self, tmsg):
         
@@ -103,14 +111,16 @@ class GWACDiff(object):
             os.system("rm -rf %s/*"%(self.tmpUpload))
             if not os.path.exists(self.tmpUpload):
                 os.system("mkdir -p %s"%(self.tmpUpload))
-            if not os.path.exists(self.templateDir):
-                os.system("mkdir -p %s"%(self.templateDir))
-            if not os.path.exists(self.tmpDir):
-                os.system("mkdir -p %s"%(self.tmpDir))
+            if not os.path.exists(self.makeDiffTmpl):
+                os.system("mkdir -p %s"%(self.makeDiffTmpl))
             if not os.path.exists(self.tmpCat):
                 os.system("mkdir -p %s"%(self.tmpCat))
+            if not os.path.exists(self.diff):
+                os.system("mkdir -p %s"%(self.diff))
             if not os.path.exists(self.tmpAlign):
                 os.system("mkdir -p %s"%(self.tmpAlign))
+            if not os.path.exists(self.doDiffTmpl):
+                os.system("mkdir -p %s"%(self.doDiffTmpl))
                 
         
     def getCat(self, srcDir, imgName, destDir):
@@ -119,30 +129,30 @@ class GWACDiff(object):
         
         isSuccess = False
         imgpre= imgName.split(".")[0]
-        os.system("rm -rf %s/*"%(self.tmpDir))
+        os.system("rm -rf %s/*"%(self.tmpCat))
         objectImg = 'oi.fit'
         
         oImgf = "%s/%s.fit"%(srcDir,imgpre)
         oImgfz = "%s/%s.fit.fz"%(srcDir,imgpre)
         if os.path.exists(oImgf):
-            os.system("cp %s/%s.fit %s/%s"%(srcDir, imgpre, self.tmpDir, objectImg))
+            os.system("cp %s/%s.fit %s/%s"%(srcDir, imgpre, self.tmpCat, objectImg))
         elif os.path.exists(oImgfz):
-            os.system("cp %s/%s.fit.fz %s/%s.fz"%(srcDir, imgpre, self.tmpDir, objectImg))
-            os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpDir, objectImg))
+            os.system("cp %s/%s.fit.fz %s/%s.fz"%(srcDir, imgpre, self.tmpCat, objectImg))
+            os.system("%s %s/%s.fz"%(self.funpackProgram, self.tmpCat, objectImg))
         else:
             self.log.warning("%s not exist"%(oImgf))
             return False
                 
-        skyName, ra,dec = self.tools.removeHeaderAndOverScan(self.tmpDir,objectImg)
+        skyName, ra,dec = self.tools.removeHeaderAndOverScan(self.tmpCat,objectImg)
 
-        sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
-        #sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        #sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
+        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         fpar='sex_diff.par'
-        objectImgCat = self.tools.runSextractor(objectImg, self.tmpDir, self.tmpDir, fpar, sexConf)
-        if os.path.exists("%s/%s"%(self.tmpDir, objectImgCat)):
+        objectImgCat = self.tools.runSextractor(objectImg, self.tmpCat, self.tmpCat, fpar, sexConf)
+        if os.path.exists("%s/%s"%(self.tmpCat, objectImgCat)):
             isSuccess = True
-            os.system("cp %s/%s %s/%s.cat"%(self.tmpDir, objectImgCat, destDir, imgpre))
-            starNum, fwhmMean, fwhmRms, bgMean, bgRms = self.tools.basicStatistic(self.tmpDir, objectImgCat)
+            os.system("cp %s/%s %s/%s.cat"%(self.tmpCat, objectImgCat, destDir, imgpre))
+            starNum, fwhmMean, fwhmRms, bgMean, bgRms = self.tools.basicStatistic(self.tmpCat, objectImgCat)
         else:
             starNum, fwhmMean, fwhmRms, bgMean, bgRms = 0,0,0,0,0
         
@@ -260,111 +270,71 @@ class GWACDiff(object):
             print(tstr)
         return outImgName
             
-    def getDiffTemplate(self):
+    def getDiffTemplate(self, tmplParms, skyName, alignCatParms):
+        
+        starttime = datetime.now()
+        files = tmplParms[1]
+        tmplImageName = files[-1]
         
         try:
             starttime = datetime.now()
             
-            os.system("rm -rf %s/*"%(self.templateDir))
+            os.system("rm -rf %s/*"%(self.makeDiffTmpl))
             
-            selTempRange = self.selTemplateNum
-            tImgNum = len(self.imglist)
-            if tImgNum>=4*60:
-                selTempRange=4*30
-                endIdx = tImgNum-30
-            else:
-                endIdx = tImgNum
-            
-            startIdx = tImgNum-selTempRange
-            if startIdx<0:
-                startIdx = 0
-            timgN = self.imglist[-1]
-            timgNk = self.imglist[startIdx]
-            if timgN[1]!=timgNk[1]: #check if rebuilt template
-                for tIdx in range(startIdx,tImgNum):
-                    timgNm = self.imglist[tIdx]
-                    if timgN[1]==timgNm[1]:
-                        startIdx = tIdx
-                        if startIdx>endIdx:
-                            endIdx = tImgNum
-                        break
-                if startIdx == tImgNum-selTempRange:
-                    startIdx=tImgNum-1
-                    endIdx = tImgNum
-                    
-            tparms = []
-            for tIdx in range(startIdx,endIdx):
-                tparms.append(self.imglist[tIdx])
-                
-            tparms = np.array(tparms)
-            self.log.debug(tparms)
-            tfwhms = tparms[:,6].astype(np.float)
-            minIdx = np.argmin(tfwhms)
-            
-            timgCat = tparms[minIdx][0]
-            imgpre= timgCat.split(".")[0]
-            self.origTmplImgName = "%s.fit"%(imgpre)
-            self.tmplImgIdx = startIdx + minIdx
-            
-            tmsgStr = "select %dth image %s as template, it has min fwhm %.2f"%(self.tmplImgIdx, self.origTmplImgName, tfwhms[minIdx])
+            tmsgStr = "%s, select %s as template, it has fwhm %.2f, starNum %d, bg %f"%(skyName, tmplImageName, alignCatParms[5], alignCatParms[3], alignCatParms[6])
             self.log.info(tmsgStr)
             self.sendMsg(tmsgStr)
+    
+            os.system("cp %s/%s %s/%s"%(self.cmbDir, tmplImageName, self.makeDiffTmpl, self.templateImg))
             
-            os.system("rm -rf %s/*"%(self.templateDir))
-    
-    
-            oImgf = "%s/%s"%(self.srcDir,self.origTmplImgName)
-            oImgfz = "%s/%s.fz"%(self.srcDir,self.origTmplImgName)
-            fileExist = True
-            if os.path.exists(oImgf):
-                os.system("cp %s/%s %s/%s"%(self.srcDir, self.origTmplImgName, self.templateDir, self.templateImg))
-            elif os.path.exists(oImgfz):
-                os.system("cp %s/%s.fz %s/%s.fz"%(self.srcDir, self.origTmplImgName, self.templateDir, self.templateImg))
-                os.system("%s %s/%s.fz"%(self.funpackProgram, self.templateDir, self.templateImg))
+            fieldId, ra,dec = self.tools.getRaDec(self.makeDiffTmpl, self.templateImg)
+            sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
+            fpar='sex_diff.par'
+            tmplCat = self.tools.runSextractor(self.templateImg, self.makeDiffTmpl, self.makeDiffTmpl, fpar, sexConf, cmdStatus=0)
+            
+            sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5','-CATALOG_TYPE', 'FITS_LDAC']
+            tmplCat = self.tools.runSextractor(self.templateImg, self.makeDiffTmpl, self.makeDiffTmpl, fpar, sexConf, cmdStatus=0, outSuffix='_ldac.fit')
+            
+            self.tools.ldac2fits('%s/%s'%(self.makeDiffTmpl,tmplCat), '%s/ti_cat.fit'%(self.makeDiffTmpl))
+            
+            #tpath = "%s/%s"%(self.makeDiffTmpl,tmplCat)
+            runSuccess = self.tools.runWCS(self.makeDiffTmpl,'ti_cat.fit', ra, dec)
+            #ccdName = self.origTmplImgName[:4]
+            #runSuccess = self.tools.runWCSRemotePC780(self.makeDiffTmpl,'ti_cat.fit', ra, dec, ccdName)
+            
+            if runSuccess:
+                self.wcs = WCS('%s/ti_cat.wcs'%(self.makeDiffTmpl))
+                ra_center, dec_center = self.wcs.all_pix2world(self.imgSize[1]/2, self.imgSize[0]/2, 1)
+                self.log.info('read_ra_dec:(%.5f, %.5f), real_dec_center:(%.5f, %.5f)'%(ra, dec, ra_center, dec_center))
             else:
-                self.log.warning("%s not exist"%(oImgf))
-                fileExist = False
-                runSuccess = False
+                self.wcs = []
+                self.log.error('make template %s, get wcs error'%(self.origTmplImgName))
             
-            if fileExist:
-                fieldId, ra,dec = self.tools.removeHeaderAndOverScan(self.templateDir, self.templateImg)
-                sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
-                fpar='sex_diff.par'
-                tmplCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0)
-                
-                sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5','-CATALOG_TYPE', 'FITS_LDAC']
-                tmplCat = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0, outSuffix='_ldac.fit')
-                
-                self.tools.ldac2fits('%s/%s'%(self.templateDir,tmplCat), '%s/ti_cat.fit'%(self.templateDir))
-                
-                #tpath = "%s/%s"%(self.templateDir,tmplCat)
-                #self.tools.runWCS(self.templateDir,'ti_cat.fit', ra, dec)
-                ccdName = self.origTmplImgName[:4]
-                runSuccess = self.tools.runWCSRemotePC780(self.templateDir,'ti_cat.fit', ra, dec, ccdName)
-                
-                if runSuccess:
-                    self.wcs = WCS('%s/ti_cat.wcs'%(self.templateDir))
-                    ra_center, dec_center = self.wcs.all_pix2world(self.imgSize[1]/2, self.imgSize[0]/2, 1)
-                    self.log.info('read_ra_center:%.5f, read_dec_center:%.5f'%(ra, dec))
-                    self.log.info('real_ra_center:%.5f, real_dec_center:%.5f'%(ra_center, dec_center))
-                else:
-                    self.wcs = []
-                    self.log.error('make template %s, get wcs error'%(self.origTmplImgName))
-                
-                objName = 'ti.fit'
-                bkgName = 'ti_bkg.fit'
-                self.badPixCat = self.tools.processBadPix(objName, bkgName, self.templateDir, self.templateDir)
-                
-                #do astrometry, get wcs    
-                
-                endtime = datetime.now()
-                runTime = (endtime - starttime).seconds
-                self.log.info("********** make template %s use %d seconds"%(self.origTmplImgName, runTime))
+            objName = 'ti.fit'
+            bkgName = 'ti_bkg.fit'
+            badPixCat = self.tools.processBadPix(objName, bkgName, self.makeDiffTmpl, self.makeDiffTmpl)
+            
+            imgPre= tmplImageName.split(".")[0]
+            
+            fitImg = "%s/%s"%(self.makeDiffTmpl, self.templateImg)
+            cat = "%s/ti.cat"%(self.makeDiffTmpl)
+            catFit = "%s/ti_cat.fit"%(self.makeDiffTmpl)
+            wcs = '%s/ti_cat.wcs'%(self.makeDiffTmpl)
+            badPix = '%s/%s'%(self.makeDiffTmpl, badPixCat)
+            
+            os.system("cp %s %s/%s.fit"%(fitImg, self.tmplDiffDir, imgPre))
+            os.system("cp %s %s/%s.cat"%(cat, self.tmplDiffDir, imgPre))
+            os.system("cp %s %s/%s_cat.fit"%(catFit, self.tmplDiffDir, imgPre))
+            os.system("cp %s %s/%s.wcs"%(wcs, self.tmplDiffDir, imgPre))
+            os.system("cp %s %s/%s_badpix.cat"%(badPix, self.tmplDiffDir, imgPre)) 
+            
+            endtime = datetime.now()
+            runTime = (endtime - starttime).seconds
+            self.log.info("********** make template %s use %d seconds"%(self.origTmplImgName, runTime))
             
         except Exception as e:
             runSuccess = False
-            self.origTmplImgName = ''
-            self.tmplImgIdx = 0
+            self.log.error(e)
             tstr = traceback.format_exc()
             self.log.error(tstr)
             tmsgStr = "make template error"
@@ -372,39 +342,54 @@ class GWACDiff(object):
         
         return runSuccess
         
-    def diffImage(self):
+    def diffImage(self, imgName, tmplParms):
         
         starttime = datetime.now()
         
+        os.system("rm -rf %s/*"%(self.diff))
+        
         resultFlag = True
+        oImgPre = imgName.split(".")[0]
+        status = tmplParms[0]
+        tmplImgName = tmplParms[1][-1]
+        tmplImgPre = tmplImgName.split(".")[0]
+        if status=='1':
+            ttmplPath = self.tmplAlignDir
+        else:
+            ttmplPath = self.tmplDiffDir
         
-        oImgPre = self.origObjectImg[:self.origObjectImg.index(".")]
+        wcsPath = "%s/%s.wcs"%(self.doDiffTmpl, tmplImgPre)
+        if not os.path.exists(wcsPath):
+            os.system("cp %s/%s.wcs %s/%s.wcs"%(ttmplPath, tmplImgPre, self.doDiffTmpl, tmplImgPre))
+            os.system("cp %s/%s.fit %s/%s.fit"%(ttmplPath, tmplImgPre, self.doDiffTmpl, tmplImgPre))
+            os.system("cp %s/%s.cat %s/%s.cat"%(ttmplPath, tmplImgPre, self.doDiffTmpl, tmplImgPre))
+            os.system("cp %s/%s_badpix.cat %s/%s_badpix.cat"%(ttmplPath, tmplImgPre, self.doDiffTmpl, tmplImgPre))
         
-        os.system("cp %s/%s %s/%s"%(self.templateDir, self.templateImg, self.tmpDir, self.templateImg))
-        os.system("cp %s/%s %s/%s"%(self.templateDir, self.badPixCat, self.tmpDir, self.badPixCat))
-        os.system("cp %s/%s %s/%s"%(self.templateDir, self.templateImgCat, self.tmpDir, self.templateImgCat))
-        
-        #self.newImageName = self.tools.imageAlign(self.tmpDir, self.objectImg, self.transHG)
+        os.system("cp %s/%s.fit %s/oi.fit"%(self.cmbDir, oImgPre, self.diff))
+        os.system("cp %s/%s.fit %s/ti.fit"%(self.doDiffTmpl, tmplImgPre, self.diff))
+        os.system("cp %s/%s.cat %s/ti.cat"%(self.doDiffTmpl, tmplImgPre, self.diff))
+        os.system("cp %s/%s_badpix.cat %s/ti_badpix.cat"%(self.doDiffTmpl, tmplImgPre, self.diff))
+        os.system("cp %s/%s.cat %s/oi.cat"%(self.cmbCatDir, oImgPre, self.diff))
                 
-        self.objTmpResi, runSuccess = self.tools.runHotpants(self.newImageName, self.templateImg, self.tmpDir)
+        objTmpResi, runSuccess = self.tools.runHotpants('oi.fit', 'ti.fit', self.diff)
         if not runSuccess:
             return False
 
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
-        resiCat = self.tools.runSextractor(self.objTmpResi, self.tmpDir, self.tmpDir, fpar, sexConf)
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, resiCat, self.objectImgCatTrans, 1) #1 and 5 
-        badPixProps2 = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
+        resiCat = self.tools.runSextractor(objTmpResi, self.diff, self.diff, fpar, sexConf)
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, resiCat, 'oi.cat', 1) #1 and 5 
+        badPixProps2 = np.loadtxt("%s/%s"%(self.diff, nmhFile))
         
-        tdata1 = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
-        tdata2 = np.loadtxt("%s/%s"%(self.tmpDir, self.objectImgCatTrans))
-        tIdx1 = np.loadtxt("%s/%s"%(self.tmpDir, mchPair)).astype(np.int)
+        tdata1 = np.loadtxt("%s/%s"%(self.diff, mchFile))
+        tdata2 = np.loadtxt("%s/%s"%(self.diff, 'oi.cat'))
+        tIdx1 = np.loadtxt("%s/%s"%(self.diff, mchPair)).astype(np.int)
         tIdx1 = tIdx1 - 1
         origData = tdata2[tIdx1[:,1]]
         
         if origData.shape[0]==tdata1.shape[0]:
             outCatName = "%s_orgpos.cat"%(mchFile[:mchFile.index(".")])
-            outCatPath = "%s/%s"%(self.tmpDir, outCatName)
+            outCatPath = "%s/%s"%(self.diff, outCatName)
             tstr=""
             i=0
             for td in tdata1:
@@ -419,20 +404,20 @@ class GWACDiff(object):
             self.log.error("add orig pos error")
         
         '''
-        self.tools.runSelfMatch(self.tmpDir, resiCat, 1) #debug: get ds9 reg file
-        tdata = np.loadtxt("%s/%s"%(self.tmpDir, resiCat))
+        self.tools.runSelfMatch(self.diff, resiCat, 1) #debug: get ds9 reg file
+        tdata = np.loadtxt("%s/%s"%(self.diff, resiCat))
         self.log.info("resi image star %d"%(tdata.shape[0]))
         '''
         ''' '''
         mchRadius = 15 #15 10
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, mchFile, self.templateImgCat, mchRadius)
-        fotProps = np.loadtxt("%s/%s"%(self.tmpDir, mchFile))
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, mchFile, 'ti.cat', mchRadius)
+        fotProps = np.loadtxt("%s/%s"%(self.diff, mchFile))
         
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.tmpDir, nmhFile, self.badPixCat, 1) #1 and 5 
-        os.system("cp %s/%s %s/%s"%(self.tmpDir, nmhFile, self.resiCatDir, "%s.cat"%(oImgPre)))
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, nmhFile, 'ti_badpix.cat', 1) #1 and 5 
+        os.system("cp %s/%s %s/%s"%(self.diff, nmhFile, self.diffCatDir, "%s.cat"%(oImgPre)))
         
-        totProps = np.loadtxt("%s/%s"%(self.tmpDir, nmhFile))
-        #badPixProps = np.loadtxt("%s/%s"%(self.tmpDir, self.badPixCat))
+        totProps = np.loadtxt("%s/%s"%(self.diff, nmhFile))
+        #badPixProps = np.loadtxt("%s/%s"%(self.diff, self.badPixCat))
         badPixProps = np.array([])
         tstr = "orgBadPix %d, nmBad %d, match %d, noMatch %d"%(badPixProps.shape[0], badPixProps2.shape[0], fotProps.shape[0], totProps.shape[0])
         self.log.info(tstr)
@@ -441,7 +426,7 @@ class GWACDiff(object):
         size = 68
         if totProps.shape[0]<500 and totProps.shape[0]>0:
             
-            totSubImgs, totParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, totProps, size)
+            totSubImgs, totParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, totProps, size)
             if totParms.shape[0]>0:
                 tXY = totParms[:,0:2]
                 tRaDec = self.wcs.all_pix2world(tXY, 1)
@@ -453,32 +438,32 @@ class GWACDiff(object):
                 for timg in totSubImgs:
                     resiImgs.append(timg[2])
         
-                preViewPath = "%s/%s_tot.jpg"%(self.preViewDir, oImgPre)
+                preViewPath = "%s/%s_tot.jpg"%(self.subImgViewDir, oImgPre)
                 #if not os.path.exists(preViewPath):
                 psfView = genPSFView(resiImgs)
                 Image.fromarray(psfView).save(preViewPath)
             
             if fotProps.shape[0]>0 and fotProps.shape[0]<2000:
-                fotSubImgs, fotParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, fotProps, size)
+                fotSubImgs, fotParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, fotProps, size)
                 if fotParms.shape[0]>0:
                     tXY = fotParms[:,0:2]
                     tRaDec = self.wcs.all_pix2world(tXY, 1)
                     fotParms = np.concatenate((fotParms, tRaDec), axis=1)
                     fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms)
-            '''
+            ''' '''        
             if badPixProps.shape[0]>0:
-                badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps, size)
+                badSubImgs, badParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, badPixProps, size)
                 if badParms.shape[0]>0:
                     fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
             
             if badPixProps2.shape[0]>0:
-                badSubImgs, badParms = getWindowImgs(self.tmpDir, self.newImageName, self.templateImg, self.objTmpResi, badPixProps2, size)
+                badSubImgs, badParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, badPixProps2, size)
                 if badParms.shape[0]>0:
                     fotpath = '%s/%s_badimg2.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
-            '''        
+            
             resultFlag = True
         else:
             tmsgStr = "%s.fit resi image has %d tot objects, maybe wrong"%(oImgPre, totProps.shape[0])
@@ -486,25 +471,25 @@ class GWACDiff(object):
             #self.sendMsg(tmsgStr)
             resultFlag = False
         
-        '''
+        ''' '''   
         tgrid = 4
         tsize = 500
         tzoom = 1
-        timg = getThumbnail(self.tmpDir, self.objTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = getThumbnail(self.diff, self.objTmpResi, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
         #timg = scipy.ndimage.zoom(timg, tzoom, order=0)
         preViewPath = "%s/%s_resi.jpg"%(self.origPreViewDir, oImgPre)
         Image.fromarray(timg).save(preViewPath)
         '''
         '''
-        timg = getThumbnail(self.tmpDir, self.newImageName, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = getThumbnail(self.diff, self.newImageName, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
         timg = scipy.ndimage.zoom(timg, tzoom, order=0)
         preViewPath = "%s/%s_obj.jpg"%(self.origPreViewDir, oImgPre)
         Image.fromarray(timg).save(preViewPath)
-        timg = getThumbnail(self.tmpDir, self.templateImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
+        timg = getThumbnail(self.diff, self.templateImg, stampSize=(tsize,tsize), grid=(tgrid, tgrid), innerSpace = 1)
         timg = scipy.ndimage.zoom(timg, tzoom, order=0)
         preViewPath = "%s/%s_tmp.jpg"%(self.origPreViewDir, oImgPre)
         Image.fromarray(timg).save(preViewPath)
-        '''     
+          
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.info("********** image diff total use %d seconds"%(runTime))
@@ -518,9 +503,9 @@ class GWACDiff(object):
         if not os.path.exists(upDir):
             os.system("mkdir -p %s"%(upDir))
         
-        os.system("cp %s/%s %s/%s"%(self.tmpDir, self.newImageName, upDir, self.newImageName))
-        os.system("cp %s/%s %s/%s"%(self.tmpDir, self.templateImg, upDir, self.templateImg))
-        os.system("cp %s/%s %s/%s"%(self.tmpDir, self.objTmpResi, upDir, self.objTmpResi))
+        os.system("cp %s/%s %s/%s"%(self.tmpCat, self.newImageName, upDir, self.newImageName))
+        os.system("cp %s/%s %s/%s"%(self.tmpCat, self.templateImg, upDir, self.templateImg))
+        os.system("cp %s/%s %s/%s"%(self.tmpCat, self.objTmpResi, upDir, self.objTmpResi))
         
         totImgsName = '%s_totimg.npz'%(oImgPre)
         fotImgsName = '%s_fotimg.npz'%(oImgPre)
