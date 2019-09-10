@@ -254,7 +254,7 @@ class BlindMatch(object):
         
         return starTrans, xshift,yshift, xrotation, yrotation, blindStarNum
                     
-    def posTransPolynomial2(self, oiMchPos, tiMchPos, stars, imgName, srcImgPath, dstImgPath, order=3):
+    def posTransPolynomial2(self, oiMchPos, tiMchPos, stars, imgName, srcImgPath, dstImgPath, origImgName, templateImgName, order=3):
         
         tixp, tiyp = self.polynomialFit(oiMchPos, tiMchPos, order)
         
@@ -286,13 +286,14 @@ class BlindMatch(object):
         #https://docs.opencv.org/master/da/d54/group__imgproc__transform.html#gab75ef31ce5cdfb5c44b6da5f3b908ea4
         mapData = cv2.remap(imgData, imgX, imgY, cv2.INTER_CUBIC, cv2.BORDER_CONSTANT, 0)
         
-        savePath = "%s/%s_align.fit"%(dstImgPath, imgName.split('.')[0])
+        savePath = "%s/%s_align.fit"%(dstImgPath, origImgName.split('.')[0])
+        theader['AlignTmp']=templateImgName
         fits.writeto(savePath, mapData, header=theader, overwrite=True)
         
         return starTrans
     
     
-def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath):
+def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origImgName, templateImgName):
       
     oiMatch = BlindMatch()
     tiMatch = BlindMatch()
@@ -352,7 +353,7 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath):
             
             oiMchPos = oiDataMch[:,0:2]
             tiMchPos = mchPosPairs[:,2:4]
-            starOiTiPly2 = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, 3)
+            starOiTiPly2 = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, origImgName, templateImgName, 3)
 
             mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 4)
             

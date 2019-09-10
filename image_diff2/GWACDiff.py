@@ -50,7 +50,6 @@ class GWACDiff(object):
         self.modelName='model_80w_20190403_branch3_train12_79.h5'
         self.ot2Classifier = OT2Classify(self.toolPath, self.log, self.modelName)
         
-        self.ffNumber = 0
         self.funpackProgram="%s/tools/cfitsio/funpack"%(self.toolPath)
         self.tmpRoot="/dev/shm/gwacsim"
         self.tmpUpload="/dev/shm/gwacupload"
@@ -99,7 +98,7 @@ class GWACDiff(object):
 
     def sendMsg(self, tmsg):
         
-        tmsgStr = "%s, sky:%s, ffNum:%d\n %s"%(self.camName, self.skyName, self.ffNumber, tmsg)
+        tmsgStr = "%s\n %s"%(self.camName, tmsg)
         self.tools.sendTriggerMsg(tmsgStr)
     
     def initReg(self, idx):
@@ -171,11 +170,11 @@ class GWACDiff(object):
         status = tmplParms[0]
         files = tmplParms[1]
         imgName = ''
-        if status ==2: #no history template, select template from current observed image
+        if status=='2': #no history template, select template from current observed image
             imgName = files[0][0]
             imgpre = imgName.split(".")[0]
             os.system("cp %s/%s.cat %s/%s.cat"%(self.catDir, imgpre, self.tmplAlignDir, imgpre))
-        elif status==1:
+        elif status=='1':
             #/data/gwac_data/gwac_wcs_idx/00900085/G002_021/181028/G043_mon_objt_181018T18572921.fit
             tfullPaths = []
             for tfile in files:
@@ -222,9 +221,12 @@ class GWACDiff(object):
             self.log.warning("%s not exist"%(oImgf))
                 
         skyName, ra,dec = self.tools.removeHeaderAndOverScan(self.tmpAlign,objectImg)
+        
+        #if templateImg==imgName:
+        
         os.system("cp %s/%s.cat %s/%s"%(self.catDir, imgpre, self.tmpAlign, objectCat))
         os.system("cp %s/%s.cat %s/%s"%(self.tmplAlignDir, templateImg.split(".")[0] , self.tmpAlign, ttmplCat))
-        alignRst = doAll(self.tmpAlign, ttmplCat, self.tmpAlign, objectCat, self.tmpAlign, objectImg, self.alignDir)
+        alignRst = doAll(self.tmpAlign, ttmplCat, self.tmpAlign, objectCat, self.tmpAlign, objectImg, self.alignDir, imgName, templateImg)
         if alignRst[0]>0:
             totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios = alignRst
             self.log.info(alignRst)
@@ -232,11 +234,11 @@ class GWACDiff(object):
     
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
-        self.log.info("********** getCat %s use %d seconds"%(imgName, runTime))
+        self.log.info("********** alignImage %s use %d seconds"%(imgName, runTime))
         return isSuccess
         
-    def superCombine(self, imgs, regions=[2,2]):
-    
+    def superCombine(self, imgNames, regions=[2,2]):
+        print(imgNames)
         try:
             starttime = datetime.now()
             
@@ -246,9 +248,10 @@ class GWACDiff(object):
             for ty in range(regions[0]):
                 for tx in range(regions[1]):
                     imgs = []
-                    for j in range(len(imgs)):
-                        tname = imgs[j]
-                        tdata1 = fits.getdata("%s/%s"%(self.tmpAlign, tname),ext=0) #first image is template
+                    for j in range(len(imgNames)):
+                        tname = imgNames[j]
+                        tpath00="%s/%s_align.fit"%(self.alignDir, tname.split('.')[0])
+                        tdata1 = fits.getdata(tpath00,ext=0) #first image is template
                         if tCmbImg.shape[0]==0:
                             tCmbImg=np.zeros(tdata1.shape, dtype=np.uint16)
                             regWid = int(tCmbImg.shape[1]/2)
@@ -259,8 +262,11 @@ class GWACDiff(object):
                     tCmbImg[ty*regHei:(ty+1)*regHei, tx*regWid:(tx+1)*regWid] = np.median(imgArray,axis=0)
             
             #tCmbImg = tCmbImg.astype(np.uint16)
-            outImgName = "%s_cmb%03d.fit"%(imgs[0].split('.')[0], len(imgs))
-            fits.writeto("%s/%s"%(self.cmbDir, outImgName), tCmbImg, overwrite=True)
+            outImgName = "%s_cmb%03d.fit"%(imgNames[0].split('.')[0], len(imgNames))
+            print("save combineimage %s"%(outImgName))
+            tpath01="%s/%s_align.fit"%(self.alignDir, imgNames[0].split('.')[0])
+            theader = fits.getheader(tpath01)
+            fits.writeto("%s/%s"%(self.cmbDir, outImgName), tCmbImg, header=theader,overwrite=True)
             endtime = datetime.now()
             runTime = (endtime - starttime).seconds
             print("combine use %d seconds"%(runTime))
@@ -287,7 +293,9 @@ class GWACDiff(object):
             self.log.info(tmsgStr)
             self.sendMsg(tmsgStr)
     
-            os.system("cp %s/%s %s/%s"%(self.cmbDir, tmplImageName, self.makeDiffTmpl, self.templateImg))
+            tcmd = "cp %s/%s %s/%s"%(self.cmbDir, tmplImageName, self.makeDiffTmpl, self.templateImg)
+            print(tcmd)
+            os.system(tcmd)
             
             fieldId, ra,dec = self.tools.getRaDec(self.makeDiffTmpl, self.templateImg)
             sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
