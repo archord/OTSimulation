@@ -37,8 +37,9 @@ class GWACDiff(object):
          
     maxFalseNum = 5
         
-    def __init__(self, dataDest, tools): 
+    def __init__(self, camName, dataDest, tools): 
         
+        self.camName = camName
         self.tools = tools
         self.toolPath = tools.rootPath
         self.log = tools.log
@@ -54,6 +55,7 @@ class GWACDiff(object):
         self.tmpRoot="/dev/shm/gwacsim"
         self.tmpUpload="/dev/shm/gwacupload"
         self.tmpCat="%s/tmp"%(self.tmpRoot)
+        self.tmpAlign="%s/align"%(self.tmpRoot)
         self.diff="%s/diff"%(self.tmpRoot)
         self.makeDiffTmpl="%s/makeTmpl"%(self.tmpRoot)
         self.doDiffTmpl="%s/tmpl"%(self.tmpRoot)
@@ -303,11 +305,10 @@ class GWACDiff(object):
             #runSuccess = self.tools.runWCSRemotePC780(self.makeDiffTmpl,'ti_cat.fit', ra, dec, ccdName)
             
             if runSuccess:
-                self.wcs = WCS('%s/ti_cat.wcs'%(self.makeDiffTmpl))
-                ra_center, dec_center = self.wcs.all_pix2world(self.imgSize[1]/2, self.imgSize[0]/2, 1)
+                wcs = WCS('%s/ti_cat.wcs'%(self.makeDiffTmpl))
+                ra_center, dec_center = wcs.all_pix2world(self.imgSize[1]/2, self.imgSize[0]/2, 1)
                 self.log.info('read_ra_dec:(%.5f, %.5f), real_dec_center:(%.5f, %.5f)'%(ra, dec, ra_center, dec_center))
             else:
-                self.wcs = []
                 self.log.error('make template %s, get wcs error'%(self.origTmplImgName))
             
             objName = 'ti.fit'
@@ -319,13 +320,13 @@ class GWACDiff(object):
             fitImg = "%s/%s"%(self.makeDiffTmpl, self.templateImg)
             cat = "%s/ti.cat"%(self.makeDiffTmpl)
             catFit = "%s/ti_cat.fit"%(self.makeDiffTmpl)
-            wcs = '%s/ti_cat.wcs'%(self.makeDiffTmpl)
+            wcsFile = '%s/ti_cat.wcs'%(self.makeDiffTmpl)
             badPix = '%s/%s'%(self.makeDiffTmpl, badPixCat)
             
             os.system("cp %s %s/%s.fit"%(fitImg, self.tmplDiffDir, imgPre))
             os.system("cp %s %s/%s.cat"%(cat, self.tmplDiffDir, imgPre))
             os.system("cp %s %s/%s_cat.fit"%(catFit, self.tmplDiffDir, imgPre))
-            os.system("cp %s %s/%s.wcs"%(wcs, self.tmplDiffDir, imgPre))
+            os.system("cp %s %s/%s.wcs"%(wcsFile, self.tmplDiffDir, imgPre))
             os.system("cp %s %s/%s_badpix.cat"%(badPix, self.tmplDiffDir, imgPre)) 
             
             endtime = datetime.now()
@@ -358,13 +359,12 @@ class GWACDiff(object):
         else:
             ttmplPath = self.tmplDiffDir
         
-        wcsPath = "%s/%s.wcs"%(self.doDiffTmpl, tmplImgPre)
-        if not os.path.exists(wcsPath):
-            os.system("cp %s/%s.wcs %s/%s.wcs"%(ttmplPath, tmplImgPre, self.doDiffTmpl, tmplImgPre))
+        ofitPath = "%s/%s.fit"%(self.doDiffTmpl, tmplImgPre)
+        if not os.path.exists(ofitPath):
             os.system("cp %s/%s.fit %s/%s.fit"%(ttmplPath, tmplImgPre, self.doDiffTmpl, tmplImgPre))
             os.system("cp %s/%s.cat %s/%s.cat"%(ttmplPath, tmplImgPre, self.doDiffTmpl, tmplImgPre))
             os.system("cp %s/%s_badpix.cat %s/%s_badpix.cat"%(ttmplPath, tmplImgPre, self.doDiffTmpl, tmplImgPre))
-        
+                
         os.system("cp %s/%s.fit %s/oi.fit"%(self.cmbDir, oImgPre, self.diff))
         os.system("cp %s/%s.fit %s/ti.fit"%(self.doDiffTmpl, tmplImgPre, self.diff))
         os.system("cp %s/%s.cat %s/ti.cat"%(self.doDiffTmpl, tmplImgPre, self.diff))
@@ -378,6 +378,10 @@ class GWACDiff(object):
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         resiCat = self.tools.runSextractor(objTmpResi, self.diff, self.diff, fpar, sexConf)
+        
+        os.system("cp %s/%s %s/%s"%(self.diff, objTmpResi, self.diffImgDir, "%s_resi.fit"%(oImgPre)))
+        os.system("cp %s/%s %s/%s"%(self.diff, resiCat, self.diffCatDir, "%s_resi.cat"%(oImgPre)))
+        
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, resiCat, 'oi.cat', 1) #1 and 5 
         badPixProps2 = np.loadtxt("%s/%s"%(self.diff, nmhFile))
         
@@ -414,7 +418,7 @@ class GWACDiff(object):
         fotProps = np.loadtxt("%s/%s"%(self.diff, mchFile))
         
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, nmhFile, 'ti_badpix.cat', 1) #1 and 5 
-        os.system("cp %s/%s %s/%s"%(self.diff, nmhFile, self.diffCatDir, "%s.cat"%(oImgPre)))
+        os.system("cp %s/%s %s/%s"%(self.diff, nmhFile, self.diffCatDir, "%s_tot.cat"%(oImgPre)))
         
         totProps = np.loadtxt("%s/%s"%(self.diff, nmhFile))
         #badPixProps = np.loadtxt("%s/%s"%(self.diff, self.badPixCat))
@@ -426,10 +430,13 @@ class GWACDiff(object):
         size = 68
         if totProps.shape[0]<500 and totProps.shape[0]>0:
             
+            wcsPath = "%s/%s.wcs"%(ttmplPath, tmplImgPre)
+            wcs = WCS(wcsPath)
+        
             totSubImgs, totParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, totProps, size)
             if totParms.shape[0]>0:
                 tXY = totParms[:,0:2]
-                tRaDec = self.wcs.all_pix2world(tXY, 1)
+                tRaDec = wcs.all_pix2world(tXY, 1)
                 totParms = np.concatenate((totParms, tRaDec), axis=1)
                 fotpath = '%s/%s_totimg.npz'%(self.destDir, oImgPre)
                 np.savez_compressed(fotpath, imgs=totSubImgs, parms=totParms)
@@ -447,7 +454,7 @@ class GWACDiff(object):
                 fotSubImgs, fotParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, fotProps, size)
                 if fotParms.shape[0]>0:
                     tXY = fotParms[:,0:2]
-                    tRaDec = self.wcs.all_pix2world(tXY, 1)
+                    tRaDec = wcs.all_pix2world(tXY, 1)
                     fotParms = np.concatenate((fotParms, tRaDec), axis=1)
                     fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms)
@@ -496,247 +503,31 @@ class GWACDiff(object):
         
         return resultFlag
     
-    def classifyAndUpload(self):
+    def classifyAndUpload(self, imgName, tmplParms):
+                
+        os.system("rm -rf %s/*"%(self.diff))
         
-        oImgPre = self.origObjectImg[:self.origObjectImg.index(".")]
+        oImgPre = imgName.split(".")[0]
+        status = tmplParms[0]
+        tmplImgName = tmplParms[1][-1]
+        if status=='1':
+            ttmplPath = self.tmplAlignDir
+        else:
+            ttmplPath = self.tmplDiffDir
+        
         upDir = "%s/%s"%(self.tmpUpload, oImgPre)
         if not os.path.exists(upDir):
             os.system("mkdir -p %s"%(upDir))
         
-        os.system("cp %s/%s %s/%s"%(self.tmpCat, self.newImageName, upDir, self.newImageName))
-        os.system("cp %s/%s %s/%s"%(self.tmpCat, self.templateImg, upDir, self.templateImg))
-        os.system("cp %s/%s %s/%s"%(self.tmpCat, self.objTmpResi, upDir, self.objTmpResi))
+        os.system("cp %s/%s %s/%s"%(self.cmbDir, imgName, upDir, imgName))
+        os.system("cp %s/%s %s/%s"%(ttmplPath, tmplImgName, upDir, tmplImgName))
+        resiImg = "%s_resi.fit"%(oImgPre)
+        os.system("cp %s/%s %s/%s"%(self.diffImgDir, resiImg, upDir, resiImg))
         
         totImgsName = '%s_totimg.npz'%(oImgPre)
         fotImgsName = '%s_fotimg.npz'%(oImgPre)
 
         self.ot2Classifier.doClassifyAndUpload(self.destDir, totImgsName, fotImgsName, 
-                          upDir, self.newImageName, self.templateImg, self.objTmpResi, 
-                          self.origObjectImg, self.tools.serverIP)
+                          upDir, imgName, tmplImgName, resiImg, 
+                          imgName, self.tools.serverIP)
         
-    def processImg(self, dataRoot, objectImg, ffNumber):
-        
-        self.srcDir = "%s"%(dataRoot)
-
-        self.ffNumber = ffNumber
-        i = self.procNum
-        try:
-            self.log.debug("\n\n************%d, %s"%(i, objectImg))
-            if i<self.selTemplateNum or self.regSuccessNum<self.selTemplateNum:
-                regSuccess = self.register(objectImg, i-1, i)
-                if not regSuccess:
-                    self.regSuccessNum=0
-                    if self.regFalseIdx+self.regFalseNum==i:
-                        self.regFalseNum = self.regFalseNum +1
-                    else:
-                        self.regFalseIdx=i
-                        self.regFalseNum = 1
-                else:
-                    self.regSuccessNum = self.regSuccessNum +1
-            else:
-                if self.tmplImgIdx==0:
-                    tempSuccess = self.makeTemplate()
-                    if not tempSuccess:
-                        self.makeTempFalseNum = self.makeTempFalseNum + 1
-                        self.log.error("make template error %d %s"%(i, objectImg))
-                    else:
-                        self.makeTempFalseNum = 0
-
-                if len(self.origTmplImgName)>0:
-                    regSuccess = self.register(objectImg, self.tmplImgIdx, i)
-                    if regSuccess:
-                        diffResult = self.diffImage()
-                        if diffResult == False:
-                            self.diffFalseNum = self.diffFalseNum+1
-                        else:
-                            self.classifyAndUpload()
-                        #break
-                    else:
-                        if self.regFalseIdx+self.regFalseNum==i:
-                            self.regFalseNum = self.regFalseNum +1
-                        else:
-                            self.regFalseIdx=i
-                            self.regFalseNum = 1
-                        
-        except Exception as e:
-            tstr = traceback.format_exc()
-            self.log.error(tstr)
-            tmsgStr = "process %d %s error"%(i,objectImg)
-            self.sendMsg(tmsgStr)
-        finally:
-            i = i +1
-            self.procNum = i
-            if self.regFalseNum>=self.maxFalseNum:
-                tmsgStr = "from %d %s, more than %d image regist failing, rebuilt template"%(i,objectImg,self.regFalseNum)
-                self.initReg(0)
-                self.log.error(tmsgStr)
-                self.sendMsg(tmsgStr)
-            elif self.makeTempFalseNum>=self.maxFalseNum:
-                tmsgStr = "from %d %s, more than %d image make template failing, rebuilt template"%(i,objectImg,self.regFalseNum)
-                self.initReg(0)
-                self.log.info(tmsgStr)
-                self.sendMsg(tmsgStr)
-            elif i==4*10:
-                self.tmplImgIdx=0
-                tmsgStr = "10 minutes, rebuilt template from %d %s"%(i,objectImg)
-                self.log.info(tmsgStr)
-                self.sendMsg(tmsgStr)
-            elif i==4*30:
-                self.tmplImgIdx=0
-                tmsgStr = "30 minutes, rebuilt template from %d %s"%(i,objectImg)
-                self.log.info(tmsgStr)
-                self.sendMsg(tmsgStr)
-                
-            elif i>4*60 and i%(4*60)==1:
-                self.tmplImgIdx=0
-                tmsgStr = "%d hours, rebuilt template from %d %s"%(i/(4*60), i,objectImg)
-                self.log.info(tmsgStr)
-                self.sendMsg(tmsgStr)
-                ''''''
-              
-def run1(camName):
-    
-    #toolPath = os.getcwd()
-    toolPath = '/home/gwac/img_diff_xy/image_diff'
-    tools = AstroTools(toolPath)
-    query = QueryData()
-    
-    dataDest0 = "/data/gwac_diff_xy/data"
-    logDest0 = "/data/gwac_diff_xy/log"
-    
-    if not os.path.exists(dataDest0):
-        os.system("mkdir -p %s"%(dataDest0))
-    if not os.path.exists(logDest0):
-        os.system("mkdir -p %s"%(logDest0))
-    
-    startProcess = False
-    dayRun = 0
-    nigRun = 0
-    skyId = 0
-    ffId = 0
-    tfiles = []
-    while True:
-        curUtcDateTime = datetime.utcnow()
-        tDateTime = datetime.utcnow()
-        '''
-        startDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #9=17  1=9
-        endDateTime = tDateTime.replace(hour=22, minute=30, second=0)  #22=6    8=16
-        remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
-        remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
-        if remainSeconds1<0 and remainSeconds2>0:
-        '''
-        startDateTime = tDateTime.replace(hour=8, minute=0, second=0)  #9=17  1=9
-        endDateTime = tDateTime.replace(hour=9, minute=0, second=0)  #22=6    8=16
-        remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
-        remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
-        if not (remainSeconds1<0 and remainSeconds2>0):
-            dayRun = 0
-            try:
-                tfiles = query.getFileList(camName, ffId)
-                #print(tfiles)
-                for tfile in tfiles:
-                    
-                    curFfId = tfile[0]
-                    ffNumber = tfile[1]
-                    curSkyId = tfile[2]
-                    timgName = tfile[3] #G021_tom_objt_190109T13531492.fit
-                    tpath = tfile[4] #/data3/G002_021_190109/G021_tom_objt_190109T13531492.fit
-                    
-                    imgDate = timgName[14:20]
-                    pathDate = tpath[16:22]
-                    if imgDate!=pathDate:
-                        ffId=curFfId
-                        startProcess = False
-                        continue
-                    elif not startProcess:
-                        ffId=0
-                        startProcess = True
-                    
-                    srcDir= tpath[:(tpath.find(camName)-1)] #/data3/G002_021_190109
-                    dateStr = srcDir[srcDir.find('G'):] #G002_021_190109
-                    logfName0 = '%s/%s.log'%(logDest0, dateStr)
-                    
-                    if ffId==0:
-                        if os.path.exists(logfName0) and os.stat(logfName0).st_size > 0:
-                            tlastLine = getLastLine(logfName0)
-                            if len(tlastLine)>2:
-                                ffId=int(tlastLine.strip())
-
-                    if skyId!=curSkyId and curFfId>ffId:
-                        dstDir='%s/%s'%(dataDest0, dateStr)
-                        tdiff = BatchImageDiff(srcDir, dstDir, tools, camName, curSkyId)
-                        tStr = "start diff: %s"%(timgName)
-                        tdiff.log.info(tStr)
-                        tdiff.sendMsg(tStr)
-                        
-                    if curFfId>ffId:
-                        skyId=curSkyId
-                        ffId=curFfId
-                        
-                        logfile0 = open(logfName0, 'a')
-                        logfile0.write("\n\n%d\n"%(ffId))
-                        logfile0.close()
-                        
-                        tpathfz = "%s.fz"%(tpath)
-                        if os.path.exists(tpath) or os.path.exists(tpathfz):
-                            starttime = datetime.now()
-                            tdiff.processImg(srcDir, timgName, ffNumber)
-                            endtime = datetime.now()
-                            runTime = (endtime - starttime).seconds
-                            tdiff.log.info("totalTime %d seconds, sky:%d, ffNum:%d, %s"%(runTime, curSkyId, ffNumber, timgName))
-                        else:
-                            print("%s not exist"%(tpath))
-                #if curFfId>ffId:
-                #    break
-            except Exception as e:
-                print(str(e))
-                tstr = traceback.format_exc()
-                print(tstr)
-                try:
-                    if 'tdiff' in locals():
-                        tStr = "diff error"
-                        tdiff.log.info(tStr)
-                        tdiff.sendMsg(tStr)
-                except Exception as e1:
-                    print(str(e1))
-                    tstr = traceback.format_exc()
-                    print(tstr)
-            if len(tfiles)==0:
-                time.sleep(5)
-            nigRun = nigRun+1
-            #if nigRun>=1:
-            #    break
-        else:
-            # day temp file clean
-            try:
-                if ('tdiff' in locals()) and (dayRun==0):
-                     tdiff.initReg(0)
-            except Exception as e1:
-                print(str(e1))
-                tstr = traceback.format_exc()
-                print(tstr)
-                
-            nigRun = 0
-            dayRun = dayRun+1
-            skyId = 0
-            ffId = 0
-            startProcess = False
-            
-            if dayRun%6==1:
-                print("day %d wait"%(dayRun))
-            time.sleep(10*60)
-
-    
-#nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021 &
-#/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021
-if __name__ == "__main__":
-    
-    if len(sys.argv)==2:
-        camName = sys.argv[1]
-        if len(camName)==4:
-            run1(camName)
-        else:
-            print("error: camera name must like G021")
-    else:
-        print("run: python BatchDiff.py cameraName(G021)")
-    
