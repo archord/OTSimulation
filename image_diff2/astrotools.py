@@ -320,7 +320,7 @@ class AstroTools(object):
                       sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3'], 
                       fconf='OTsearch.sex',
                       cmdStatus=1, outSuffix='.cat'):
-        
+        isSuccess = False
         starttime = datetime.now()
         
         outpre= fname.split(".")[0]
@@ -355,14 +355,16 @@ class AstroTools(object):
         if os.path.exists(outFPath) and status==0:
             self.log.debug("run sextractor success.")
             self.log.debug("generate catalog %s"%(outFPath))
+            isSuccess = True
         else:
-            self.log.debug("sextractor failed.")
+            self.log.error("sextractor failed.")
+            isSuccess = False
         
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.debug("run sextractor use %d seconds"%(runTime))
             
-        return outFile
+        return outFile, isSuccess
     
         #hotpants
     def runHotpants(self, objImg, tmpImg, srcDir):
@@ -443,7 +445,6 @@ class AstroTools(object):
         fieldId = hdr['FIELD_ID']
         ra = hdr['RA']
         dec = hdr['DEC']
-        hdul.flush()
         hdul.close()
         
         return fieldId, ra,dec
@@ -491,53 +492,65 @@ class AstroTools(object):
         return tmean, tmin, trms
         
     def basicStatistic(self, srcDir, catfile, size=2000):
-    
-        catData = np.loadtxt("%s/%s"%(srcDir, catfile))
-        starNum = catData.shape[0]
         
-        #imgSize = (4136, 4196)
-        imgSize = (4136, 4096)
-        imgW = imgSize[1]
-        imgH = imgSize[0]
-        
-        halfSize = size/2
-        xStart = int(imgW/2 - halfSize)
-        xEnd = int(imgW/2 + halfSize)
-        yStart = int(imgH/2 - halfSize)
-        yEnd = int(imgH/2 + halfSize)
-        
-        fwhms = []
-        bgs = []
-        for row in catData:
-            tx = row[0]
-            ty = row[1]
-            bg = row[8]
-            fwhm = row[9]
-            if tx>=xStart and tx<xEnd and ty>=yStart and ty<yEnd:
-                fwhms.append(fwhm)
-                bgs.append(bg)
-        
-        fwhms = np.array(fwhms)
-        bgs = np.array(bgs)
-        
-        times = 2
-        for i in range(1):
-            tmean = np.mean(fwhms)
-            trms = np.std(fwhms)
-            tIdx = fwhms<(tmean+times*trms)
-            fwhms = fwhms[tIdx]
+        tpath = "%s/%s"%(srcDir, catfile)
+        try:
+            catData = np.loadtxt(tpath)
+            starNum = catData.shape[0]
             
-            tmean = np.mean(bgs)
-            trms = np.std(bgs)
-            tIdx = bgs<(tmean+times*trms)
-            bgs = bgs[tIdx]
+            #imgSize = (4136, 4196)
+            imgSize = (4136, 4096)
+            imgW = imgSize[1]
+            imgH = imgSize[0]
             
-        fwhmMean = np.mean(fwhms)
-        fwhmRms = np.std(fwhms)
-        bgMean = np.mean(bgs)
-        bgRms = np.std(bgs)
+            halfSize = size/2
+            xStart = int(imgW/2 - halfSize)
+            xEnd = int(imgW/2 + halfSize)
+            yStart = int(imgH/2 - halfSize)
+            yEnd = int(imgH/2 + halfSize)
+            
+            fwhms = []
+            bgs = []
+            for row in catData:
+                tx = row[0]
+                ty = row[1]
+                bg = row[8]
+                fwhm = row[9]
+                if tx>=xStart and tx<xEnd and ty>=yStart and ty<yEnd:
+                    fwhms.append(fwhm)
+                    bgs.append(bg)
+            
+            fwhms = np.array(fwhms)
+            bgs = np.array(bgs)
+            
+            times = 2
+            for i in range(1):
+                tmean = np.mean(fwhms)
+                trms = np.std(fwhms)
+                tIdx = fwhms<(tmean+times*trms)
+                fwhms = fwhms[tIdx]
+                
+                tmean = np.mean(bgs)
+                trms = np.std(bgs)
+                tIdx = bgs<(tmean+times*trms)
+                bgs = bgs[tIdx]
+                
+            fwhmMean = np.mean(fwhms)
+            fwhmRms = np.std(fwhms)
+            bgMean = np.mean(bgs)
+            bgRms = np.std(bgs)
         
-        return starNum, fwhmMean, fwhmRms, bgMean, bgRms
+            return starNum, fwhmMean, fwhmRms, bgMean, bgRms
+        except Exception as e:
+            
+            tcmd = "cp %s /home/xy/error/"%(tpath)
+            os.system(tcmd)
+            
+            self.log.error("basicStatistic error %s"%(tpath))
+            self.log.error(str(e))
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+            return 0,0,0,0,0
         
     def evaluatePos(self, pos1, pos2, isAbs=False):
         
@@ -714,7 +727,10 @@ class AstroTools(object):
     
         fpar='sex_diff.par'
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
-        resultCat = self.runSextractor(newName, srcPath, srcPath, fpar, sexConf)
+        resultCat, isSuccess = self.runSextractor(newName, srcPath, srcPath, fpar, sexConf)
+        if not isSuccess:
+            print("processBadPix runSextractor failure1")
+            return ''
         
         tdata = np.loadtxt("%s/%s"%(srcPath, resultCat))
         

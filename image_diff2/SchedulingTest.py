@@ -47,12 +47,14 @@ if __name__ == '__main__':
     
     job3 = multiprocessing.Process(target=testRunning, args=(fileList2, trunning))
     job3.start()
-    
+
     time.sleep(0.5)
     for i in range(60):
         fsize = len(fileList)
         try:
-            print("%d,%d:%d"%(fsize, fileList[fsize-1], queryQueue.get(False,0.1)))
+            #print("%d,%d:%d"%(fsize, fileList[fsize-1], queryQueue.get(False,0.1)))
+            #print("%d,%d:%d"%(fsize, fileList[fsize-1], queryQueue.get()))
+            print("%d,%d"%(fsize, fileList[fsize-1]))
         except Exception as e:
             print("%d error"%(i))
             #print(e)
@@ -66,7 +68,7 @@ if __name__ == '__main__':
             print("job3 is running: %d,%d"%(fsize, fileList2[fsize-1]))
             
         time.sleep(1)
-        
+
     
     print("here1")
     job1.join()

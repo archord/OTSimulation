@@ -83,8 +83,9 @@ def srcExtractLocalDir(tpath, camName, catList, imgDiff, destDir, isRunning):
     tfiles.sort()
     print("total read %d files"%(len(tfiles)))
     
+    runIdx = 1
     for i, tfile in enumerate(tfiles):
-        if i>210:
+        if runIdx>10:
             break
         try:
             curFfId = i+1
@@ -101,10 +102,11 @@ def srcExtractLocalDir(tpath, camName, catList, imgDiff, destDir, isRunning):
                     tlastLine = getLastLine(logfName0)
                     print("tlastLine %s"%(tlastLine))
                     if len(tlastLine)>=2:
-                        #ffId=int(tlastLine.strip())
+                        ffId=int(tlastLine.strip())
                         print("read ffId %d"%(ffId))
 
             if curFfId>ffId:
+                runIdx=runIdx+1
                 ffId=curFfId
                 
                 logfile0 = open(logfName0, 'a')
@@ -149,12 +151,12 @@ def getAlignTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
                         tmpls = query.getTmplList(camName, skyId)
                         if len(tmpls)>0:
                             #print('down template')
-                            tparms = ('1',tmpls,1) #status, imgList, currentSky image number
+                            tparms = ['1',tmpls,1] #status, imgList, currentSky image number
                             imgDiff.getAlignTemplate(tparms, skyName)
                             tmplMap[skyName]=tparms 
                         else:
                             #print('make new template')
-                            tmplMap[skyName]=('2', [(imgName,)],1) #status, imgList, currentSky image number
+                            tmplMap[skyName]=['2', [],1] #status, imgList, currentSky image number
                     else:
                         tparms = tmplMap[skyName]
                         status=tparms[0]
@@ -168,7 +170,7 @@ def getAlignTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
                                 tcatParms = np.array(tcatParms)
                                 tfwhm = tcatParms[:,5]
                                 selCatParms=tcatParms[np.argmin(tfwhm)] #select the image with minFwhm in 10 images
-                                tparms = ('2', [(selCatParms[2],)],skyImgNumber+1)
+                                tparms = ['2', [(selCatParms[2],)],skyImgNumber+1]
                                 imgDiff.getAlignTemplate(tparms, skyName)
                                 tmplMap[skyName] = tparms
                             else: #if skyImgNumber<newTmplSelectNum
@@ -198,7 +200,7 @@ def getAlignTemplateLocal(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
                     imgName = tcatParm[2]
                     
                     if skyName not in tmplMap:
-                        tmplMap[skyName]=('2', [],1) #status, imgList, currentSky image number
+                        tmplMap[skyName]=['2', [],1] #status, imgList, currentSky image number
                     else:
                         tparms = tmplMap[skyName]
                         status=tparms[0]
@@ -209,11 +211,11 @@ def getAlignTemplateLocal(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
                                 tcatParms = np.array(tcatParms)
                                 tfwhm = tcatParms[:,5]
                                 selCatParms=tcatParms[np.argmin(tfwhm)] #select the image with minFwhm in 10 images
-                                tparms = ('2', [(selCatParms[2],)],skyImgNumber+1)
+                                tparms = ['2', [(selCatParms[2],)],skyImgNumber+1]
                                 imgDiff.getAlignTemplate(tparms, skyName)
                                 tmplMap[skyName] = tparms
                             else: #if skyImgNumber<newTmplSelectNum
-                                tmplMap[skyName] = ('2', tparms[1], skyImgNumber+1)
+                                tmplMap[skyName] = ['2', tparms[1], skyImgNumber+1]
                     tIdx.value = i
         
                 except Exception as e:
@@ -262,7 +264,7 @@ def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning,
     isRunning.value = 1
     lastIdx = tIdx.value
     catNum = len(alignList)
-    print("doCombine catNum=%d, lastIdx=%d"%(catNum, lastIdx))
+    #print("doCombine catNum=%d, lastIdx=%d"%(catNum, lastIdx))
 
     startIdx = lastIdx+1
     if catNum>=startIdx+cmbNum:
@@ -293,7 +295,6 @@ def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning,
                     cmbImgList.append(tcatParm) #(isSuccess, ffId, timgName, starNum, skyName, fwhmMean, bgMean, curSkyId, srcDir)
                     imgDiff.log.info("%s combine %s."%(camName, cmbName))
                     tIdx.value = i
-                    print("doCombine, cmbIdx=%d"%(tIdx.value))
                     timgs = []
                     
             except Exception as e:
@@ -318,7 +319,7 @@ def srcExtractCombine(camName, cmbImgList, cmbCatList, tIdx, imgDiff, isRunning)
                 ffId = tparm[1]
                 
                 starttime = datetime.now()
-                isSuccess, skyName, starNum, fwhmMean, bgMean = imgDiff.getCat(imgDiff.cmbDir, cmbImgName, imgDiff.cmbCatDir)
+                isSuccess, skyName, starNum, fwhmMean, bgMean = imgDiff.getCat(imgDiff.cmbDir, cmbImgName, imgDiff.cmbCatDir, 'cmb')
                 if isSuccess: #we can add more filter condition, to remove bad images
                     cmbCatList.append([isSuccess, ffId, cmbImgName, starNum, skyName, fwhmMean, bgMean, skyId, imgDiff.cmbDir])
                 endtime = datetime.now()
@@ -360,22 +361,26 @@ def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDif
                             tmplParms = diffTmplMap[skyName]
                             skyImgNumber = tmplParms[2]
                             status = tmplParms[0]
-                            tmplParms = (status, tmplParms[1],skyImgNumber+1)
+                            tmplParms = [status, tmplParms[1],skyImgNumber+1]
                             
                             if status=='3': #redo template
                                 if skyImgNumber==newTmplSelectNum:
+                                    print("*****************getDiffTemplate start build diff template")
                                     tcatParms = cmbCatList[catNum-newTmplSelectNum:catNum]
                                     tcatParms = np.array(tcatParms)
                                     tfwhm = tcatParms[:,5]
                                     selCatParms=tcatParms[np.argmin(tfwhm)] #select the image with minFwhm in 10 images
-                                    tparms = ('2', [(selCatParms[2],)],skyImgNumber+1)
+                                    tparms = ['2', [(selCatParms[2],)],skyImgNumber+1]
+                                    
                                     runSuccess = imgDiff.getDiffTemplate(tparms, skyName, selCatParms)
                                     if runSuccess:
                                         diffTmplMap[skyName] = tparms
                                     else:
                                         diffTmplMap[skyName] = tmplParms
+                                    
                                 else:
                                     diffTmplMap[skyName] = tmplParms
+                                    print("getDiffTemplate wait %d combine image"%(newTmplSelectNum))
                             elif status=='2':
                                 diffTmplMap[skyName] = tmplParms
                                 #if skyImgNumber>50, update diff template
@@ -400,12 +405,18 @@ def doDiff(camName, cmbImgList, diffTmplMap, tIdx, imgDiff, diffImgList, isRunni
                 imgName = tcatParm[2]
 
                 if skyName in diffTmplMap:
+                    print("start doDiff %s"%(imgName))
                     tIdx.value = i
                     tmplParms = diffTmplMap[skyName]
-                    isSuccess = imgDiff.diffImage(imgName, tmplParms)
-                    if isSuccess:
-                        imgDiff.log.info("%s %s diff success"%(camName, imgName))
-                        diffImgList.append(tcatParm)
+                    status = tmplParms[0]
+                    if status=='2':
+                        isSuccess = imgDiff.diffImage(imgName, tmplParms)
+                        if isSuccess:
+                            imgDiff.log.info("%s %s diff success"%(camName, imgName))
+                            diffImgList.append(tcatParm)
+                    else:
+                        print("doDiff wait template")
+                        break
                 else:
                     imgDiff.log.warn("doDiff %s %s cannot find template"%(skyName, imgName))
                     break
@@ -491,6 +502,11 @@ class BatchImageDiff(object):
         
         dataPath = '/home/xy/work/imgDiffTest2/fits/190128_G004_044'
         
+        #
+        processRecord = '/home/xy/work/imgDiffTest3/log/G004_044.log'
+        os.system("rm -rf %s"%(processRecord))
+        
+        #sexLock=Lock()
         loopNum = 1
         while True:
             
@@ -501,27 +517,18 @@ class BatchImageDiff(object):
             endDateTime = tDateTime.replace(hour=22, minute=0, second=0)  #22=6    8=16
             remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
             remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
-            
-            '''
-            def srcExtract(camName, catList, imgDiff, isRunning)
-            def getAlignTemplate(camName, catList, alignTmplMap, tIdx, imgDiff, isRunning)
-            def doAlign(camName, catList, alignTmplMap, tIdx, imgDiff, isRunning)
-            def doCombine(camName, catList, alignTmplMap, tIdx, imgDiff, cmbImgList, isRunning, cmbNum=5)
-            def srcExtractCombine(camName, cmbImgList, cmbCatList, tIdx, imgDiff, isRunning)
-            def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDiff, isRunning)
-            def doDiff(camName, cmbImgList, diffTmplMap, tIdx, imgDiff, diffImgList, isRunning)
-            def doRecognitionAndUpload(camName, diffImgList, diffTmplMap, tIdx, imgDiff, isRunning):
-            '''
 
             #if not (remainSeconds1<0 and remainSeconds2>0):
             if True:
+                print(loopNum)
                 tIdx1 = loopNum%5
+                ''' '''
                 if tIdx1==1 and self.catRunning.value==0:  #cat
                         catJob = Process(target=srcExtractLocalDir, args=(dataPath, camName, self.catList, imgDiff, destDir, self.catRunning))
                         catJob.start()
-                    
+                
                 #tIdx2 = loopNum%10
-                tIdx2 = loopNum%2
+                tIdx2 = loopNum%1
                 if tIdx2==0 and self.alignTmplRunning.value==0: #template
                         alignTmplJob = Process(target=getAlignTemplateLocal, args=(
                                 camName, self.catList, self.alignTmplMap, self.alignTmplIdx, imgDiff, self.alignTmplRunning))
@@ -535,46 +542,50 @@ class BatchImageDiff(object):
                     
                 tIdx4 = loopNum%2
                 if self.cmbRunning.value==0: #combine5
-                    print("%d cmbJob is not running, cmbIdx=%d"%(loopNum, self.cmbIdx.value))
+                    print("%d cmbJob is not running, catNum=%d, alignNum=%d, cmbIdx=%d"%(loopNum, len(self.catList), len(self.alignList), self.cmbIdx.value))
                     cmbJob = Process(target=doCombine, args=(
                             camName, self.alignList, self.alignTmplMap, self.cmbIdx, imgDiff, self.cmbImgList,  self.cmbRunning))
                     cmbJob.start()
-                else:
-                    print("%d cmbJob is running"%(loopNum))
+                #else:
+                #    print("%d cmbJob is running"%(loopNum))
                  
-                    '''
                 tIdx5 = loopNum%2
                 if self.cmbCatRunning.value==0: #cat of combine5
                     cmbCatJob = Process(target=srcExtractCombine, args=(
                             camName, self.cmbImgList, self.cmbCatList, self.cmbCatIdx, imgDiff, self.cmbCatRunning))
                     cmbCatJob.start()
-                else:
-                    print("%d cmbCatJob is running"%(loopNum))
-                    
-                tIdx6 = loopNum%10
+                #else:
+                #    print("%d cmbCatJob is running"%(loopNum))      
+                
+                #tIdx6 = loopNum%10
+                tIdx6 = loopNum%1
                 if tIdx6==0 and self.diffTmplRunning.value==0: #cat of combine5
                     diffTmplJob = Process(target=getDiffTemplate, args=(
-                            camName, self.cmbCatList, self.alignTmplMap, self.diffTmplMap, self.diffTmplIdx, imgDiff, self.cmbCatRunning))
+                            camName, self.cmbCatList, self.alignTmplMap, self.diffTmplMap, self.diffTmplIdx, imgDiff, self.diffTmplRunning))
                     diffTmplJob.start()
-                else:
-                    print("%d diffTmplJob is running"%(loopNum))
+                #else:
+                #    print("%d diffTmplJob is running"%(loopNum))
                     
+                
                 if self.diffRunning.value==0: #diff
+                    #diffJob = Process(target=doDiff, args=(
+                    #        camName, self.cmbImgList, self.diffTmplMap, self.diffIdx, imgDiff, self.diffImgList, self.diffRunning))
                     diffJob = Process(target=doDiff, args=(
-                            camName, self.cmbImgList, self.diffTmplMap, self.diffIdx, imgDiff, self.diffImgList, self.diffRunning))
+                            camName, self.cmbCatList, self.diffTmplMap, self.diffIdx, imgDiff, self.diffImgList, self.diffRunning))
                     diffJob.start()
                 else:
                     print("%d diffJob is running"%(loopNum))
-                    
-                    '''
-                    '''
+                
+                '''  
+                '''
+                '''
                 if self.recgRunning.value==0: #recognition
                     recgJob = Process(target=doRecognitionAndUpload, args=(
                             camName, self.diffImgList, self.diffTmplMap, self.recgIdx, imgDiff, self.recgRunning))
                     recgJob.start()
                  '''    
                 loopNum = loopNum + 1
-                if loopNum>250:
+                if loopNum>4000:
                     break
                 
                 time.sleep(1)

@@ -65,7 +65,11 @@ def getWindowImgs(srcDir, objImg, tmpImg, resiImg, datalist, size):
     
     subImgs = []
     parms = []
+    
+    if len(datalist.shape)==1:
+        datalist=[datalist]
     for td in datalist:
+        
         try:
             objWid = getWindowImg(objData, (td[0], td[1]), size)
             tmpWid = getWindowImg(tmpData, (td[0], td[1]), size)
