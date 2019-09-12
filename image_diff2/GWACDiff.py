@@ -365,6 +365,8 @@ class GWACDiff(object):
             os.system("cp %s %s/%s.wcs"%(wcsFile, self.tmplDiffDir, imgPre))
             os.system("cp %s %s/%s_badpix.cat"%(badPix, self.tmplDiffDir, imgPre)) 
             
+            os.system("rm -rf %s/*"%(self.makeDiffTmpl))
+            
             endtime = datetime.now()
             runTime = (endtime - starttime).seconds
             self.log.info("********** getDiffTemplate %s use %d seconds"%(tmplImageName, runTime))

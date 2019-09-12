@@ -543,10 +543,7 @@ class AstroTools(object):
         
             return starNum, fwhmMean, fwhmRms, bgMean, bgRms
         except Exception as e:
-            
-            tcmd = "cp %s /home/xy/error/"%(tpath)
-            os.system(tcmd)
-            
+                        
             self.log.error("basicStatistic error %s"%(tpath))
             self.log.error(str(e))
             tstr = traceback.format_exc()
