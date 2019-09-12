@@ -163,9 +163,6 @@ def getAlignTemplate(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
                         skyImgNumber = tparms[2]
                         if status=='2':
                             if skyImgNumber==newTmplSelectNum:
-                                #imgs = []
-                                #for i in range(catNum-newTmplSelectNum, catNum):
-                                #    imgs.append((catList[i][2],))
                                 tcatParms = catList[catNum-newTmplSelectNum:catNum]
                                 tcatParms = np.array(tcatParms)
                                 tfwhm = tcatParms[:,5]
@@ -188,7 +185,7 @@ def getAlignTemplateLocal(camName, catList, tmplMap, tIdx, imgDiff, isRunning):
     isRunning.value = 1
     catNum = len(catList)
     
-    newTmplSelectNum = 5
+    newTmplSelectNum = 10
     if catNum>=1:
         lastIdx = tIdx.value
         if catNum-1>lastIdx:
@@ -337,7 +334,7 @@ def srcExtractCombine(camName, cmbImgList, cmbCatList, tIdx, imgDiff, isRunning)
 def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDiff, isRunning):
     
     isRunning.value = 1
-    newTmplSelectNum = 2
+    newTmplSelectNum = 10
     catNum = len(cmbCatList)
     if catNum>=newTmplSelectNum:
         lastIdx = tIdx.value
@@ -528,8 +525,8 @@ class BatchImageDiff(object):
                         catJob = Process(target=srcExtractLocalDir, args=(dataPath, camName, self.catList, imgDiff, destDir, self.catRunning))
                         catJob.start()
                 
-                #tIdx2 = loopNum%10
-                tIdx2 = loopNum%1
+                tIdx2 = loopNum%15
+                #tIdx2 = loopNum%1
                 if tIdx2==0 and self.alignTmplRunning.value==0: #template
                         alignTmplJob = Process(target=getAlignTemplateLocal, args=(
                                 camName, self.catList, self.alignTmplMap, self.alignTmplIdx, imgDiff, self.alignTmplRunning))
@@ -558,8 +555,8 @@ class BatchImageDiff(object):
                 #else:
                 #    print("%d cmbCatJob is running"%(loopNum))      
                 
-                #tIdx6 = loopNum%10
-                tIdx6 = loopNum%1
+                tIdx6 = loopNum%15
+                #tIdx6 = loopNum%1
                 if tIdx6==0 and self.diffTmplRunning.value==0: #cat of combine5
                     diffTmplJob = Process(target=getDiffTemplate, args=(
                             camName, self.cmbCatList, self.alignTmplMap, self.diffTmplMap, self.diffTmplIdx, imgDiff, self.diffTmplRunning))

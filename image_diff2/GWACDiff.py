@@ -177,7 +177,7 @@ class GWACDiff(object):
     
         except Exception as e:
             tstr = traceback.format_exc()
-            print(tstr)
+            self.log.error(tstr)
             self.log.error(tstr)
                     
         return False, 0, 0, 0, 0
@@ -294,9 +294,9 @@ class GWACDiff(object):
             
         except Exception as e:
             outImgName = ''
-            print(str(e))
+            self.log.error(str(e))
             tstr = traceback.format_exc()
-            print(tstr)
+            self.log.error(tstr)
         return outImgName
             
     def getDiffTemplate(self, tmplParms, skyName, alignCatParms):
@@ -324,13 +324,13 @@ class GWACDiff(object):
             fpar='sex_diff.par'
             tmplCat, isSuccess = self.tools.runSextractor(self.templateImg, self.makeDiffTmpl, self.makeDiffTmpl, fpar, sexConf, cmdStatus=0)
             if not isSuccess:
-                print("getDiffTemplate runSextractor failure1")
+                self.log.error("getDiffTemplate runSextractor failure1")
                 return isSuccess
             
             sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5','-CATALOG_TYPE', 'FITS_LDAC']
             tmplCat, isSuccess = self.tools.runSextractor(self.templateImg, self.makeDiffTmpl, self.makeDiffTmpl, fpar, sexConf, cmdStatus=0, outSuffix='_ldac.fit')
             if not isSuccess:
-                print("getDiffTemplate runSextractor failure2")
+                self.log.error("getDiffTemplate runSextractor failure2")
                 return isSuccess
             
             self.tools.ldac2fits('%s/%s'%(self.makeDiffTmpl,tmplCat), '%s/ti_cat.fit'%(self.makeDiffTmpl))
@@ -419,7 +419,7 @@ class GWACDiff(object):
         sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         resiCat, isSuccess = self.tools.runSextractor(objTmpResi, self.diff, self.diff, fpar, sexConf)
         if not isSuccess:
-            print("diffImage runSextractor failure")
+            self.log.error("diffImage runSextractor failure")
             return isSuccess
             
         os.system("cp %s/%s %s/%s_resi.fit"%(self.diff, objTmpResi, self.diffImgDir, oImgPre))
