@@ -471,7 +471,7 @@ class GWACDiff(object):
             fotProps = np.array([])
         
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, nmhFile, 'ti_badpix.cat', 1) #1 and 5 
-        os.system("cp %s/%s %s/%s"%(self.diff, nmhFile, self.diffCatDir, "%s_tot.cat"%(oImgPre)))
+        os.system("cp %s/%s %s/%s_tot.cat"%(self.diff, nmhFile, self.diffCatDir, oImgPre))
         
         totPath = "%s/%s"%(self.diff, nmhFile)
         if os.path.exists(totPath):
@@ -479,7 +479,7 @@ class GWACDiff(object):
         else:
             totProps = np.array([])
         
-        badPixPath = "%s/%s"%(self.diff, self.badPixCat)
+        badPixPath = "%s/ti_badpix.cat"%(self.diff)
         if os.path.exists(badPixPath):
             badPixProps = np.loadtxt(badPixPath)
         else:

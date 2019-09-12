@@ -382,7 +382,8 @@ class AstroTools(object):
         # run sextractor from the unix command line
         #/home/xy/program/C/hotpants/hotpants -inim oi.fit -tmplim ti.fit -outim oi_ti_resi.fit -v 0 -nrx 4 -nry 4
         cmd = [self.imgDiffProgram, '-inim', objFPath, '-tmplim', tmpFPath, '-outim', 
-                 outFPath, '-v', '0', '-nrx', '4', '-nry', '4', '-nsx', '6', '-nsy', '6', '-r', '6']
+                 outFPath, '-v', '0', '-nrx', '4', '-nry', '4', '-nsx', '6', '-nsy', '6', '-r', '6',
+                 '-tu','50000','-iu','500000','-nss','6','-ko','4','-bgo','1']
         self.log.debug(cmd)
            
         # run command
