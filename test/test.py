@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import psycopg2
-import matplotlib.pyplot as plt
-from bs4 import BeautifulSoup
+from datetime import datetime
+from datetime import timedelta
+import time
+import os
 
 #nohup python getOTImgsAll.py > /dev/null 2>&1 &
 class QueryData:
     
     connParam={
-        "host": "192.168.56.102",
+        "host": "172.28.8.28",
         "port": "5432",
-        "dbname": "objectanalyze",
-        "user": "postgres",
-        "password": "xyag902"
+        "dbname": "gwac2",
+        "user": "gwac",
+        "password": "gdb%980"
         }
     
     def __init__(self):
@@ -28,70 +30,58 @@ class QueryData:
     def closeDb(self):
         self.conn.close()
         
-    def insertData(self,name,status,name1,name2,orbit):
+    def getData(self):
         
-        sql = "insert into object(obj_name,status,name1,name2,orbit_info) "\
-            "values('%s','%s','%s','%s','%s');"%(name,status,name1,name2,orbit)
-        print(sql)
+        tsql = "select cam.name, ff2.img_name,ff2.gen_time,ff2.time_sub_second, ff2.ff_number,  "\
+            "oor.mag_aper, oor.magerr_aper, oor.flux, oor.ra_d, oor.dec_d,oor.x, oor.y, oor.threshold "\
+            "from move_object movObj "\
+            "INNER JOIN move_object_record movRec on movObj.mov_id=movRec.mov_id "\
+            "INNER JOIN ot_observe_record_his oor on oor.oor_id=movRec.oor_id "\
+            "INNER JOIN fits_file2_his ff2 on ff2.ff_id=oor.ff_id "\
+            "INNER JOIN camera cam on cam.camera_id=ff2.cam_id "\
+            "where movObj.mov_id=417540 "\
+            "ORDER BY ff2.gen_time"
+        print(tsql)
         try:
-            #self.connDb()
+            self.connDb()
     
             cur = self.conn.cursor()
-            cur.execute(sql)
-            #cur.close()
-            #cur.commit()
-            #self.closeDb()
+            cur.execute(tsql)
+            rows = cur.fetchall()
+            cur.close()
+            self.closeDb()
+            return rows
         except Exception as err:
-            print(" insert data error ")
+            print(" query data error ")
             print(err)
             
     
-
+#name, img_name,gen_time,time_sub_second, ff_number, mag_aper, magerr_aper, flux, ra_d, dec_d,x, y, threshold
 if __name__ == '__main__':
     
-    dataFile = 'e:/resource/objectList.txt'
-    #tquery = QueryData()
-    #tquery.connDb()
+    tquery = QueryData()
+    tdata = tquery.getData()
     
-    fo = open(dataFile, "r")
-    lines = fo.readlines()
-    fo.close()
+    print(len(tdata))
     
-    content = ''
-    for line in lines:
-        content = content + line
+    regFile = "data/reg.txt"
+    regData=[]
+    for td in tdata:
+        imgName=td[1]
+        dateStr = td[2].strftime("%Y-%m-%d")
+        timeStr = td[2].strftime("%H:%M:%S")
+        regData.append([td[0],imgName,imgName,dateStr,timeStr,td[3]])
+        recData = np.array([[imgName, td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12]]])
+        objData = np.array([[2,imgName, td[4]]])
+        #print(regData)
+        recFile = 'data/%s_rec.txt'%(imgName.split('.')[0])
+        objFile = 'data/%s_obj.txt'%(imgName.split('.')[0])
+        if not os.path.exists(recFile):
+            np.savetxt(recFile, recData, fmt='%s', delimiter=',')
+        if not os.path.exists(objFile):
+            np.savetxt(objFile, objData, fmt='%s', delimiter=',')
         
-    
-    pageContent = BeautifulSoup(content, 'html.parser')
-    trs = pageContent.findAll("tr")
-    
-    for tr in trs:
-        tds = tr.findAll('td')
-        if len(tds)==9:
-            '''
-            name = str(tds[1].find('a').contents[0])
-            status = str(tds[2].find('span').contents[0])
-            name1 = str(tds[3].find('span').contents[0])
-            name2 = str(tds[4].contents[0])
-            orbit = str(tds[5].find('a').contents[0])
-            '''
-            name = str(tds[1].find('a').contents[0])
-            status = str(tds[2].find('span').contents[0])
-            name1 = str(tds[3].find('span').contents[0])
-            name2 = str(tds[4].contents[0])
-            orbit = str(tds[5].find('a').contents[0])
-            '''
-            print(name)
-            print(status)
-            print(name1)
-            print(name2)
-            print(orbit)
-            print(type(name))'''
-            #tquery.insertData(name,status,name1,name2,orbit)
-            
-            sql = "insert into object(obj_name,status,name1,name2,orbit_info) "\
-                "values('%s','%s','%s','%s','%s');"%(name,status,name1,name2,orbit)
-            print(sql)
-            #break
-    #tquery.closeDb()
+        #break
+    regData=np.array(regData)
+    np.savetxt(regFile, regData, fmt='%s', delimiter=',')
     
