@@ -79,38 +79,45 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr):
             if tdateNumber<stopDateNumber and tdateNumber> 190623: #备份今天之前的所有数据，不备份今天的数据
                 dataDirs.append(tdir)
 
-    print("%s total has %d dirs"%(spath, len(dataDirs)))  
+    if len(dataDirs)==0:
+        return
+    #print("%s total has %d dirs"%(spath, len(dataDirs)))  
     dataDirs.sort()
     
     continueFileName = ""
     continueFlag = False
     logfName0 = '%s/%s_%s.log'%(logpath, ip, os.path.basename(spath))
-    '''
+    ''''''
     if os.path.exists(logfName0) and os.stat(logfName0).st_size > 0:
         tlastLine = getLastLine(logfName0)
         if len(tlastLine)>2:
             continueFileName=tlastLine.strip()
     
-    print("last backup dir is %s, new dir is %s"%(continueFileName, dataDirs[-1]))
-    '''
+    #tstr = "%s, last backup dir is %s, latest dir is %s"%(spath, continueFileName, dataDirs[-1])
+    #print(tstr)
+    #sendMsg(msgSession, tstr)
+    
     logfile0 = open(logfName0, 'a')
-    logfile0.write("190623\n\n")
+    #logfile0.write("190623\n\n")
     
     for tdir in dataDirs:
         
         #G002_023_171208
         dateStr = tdir[-6:]
         ccdStr = tdir[:8]
-        '''
+        ''' '''
         #if (not continueFlag)  and len(tdir)==len(continueFileName):
         if (not continueFlag)  and len(dateStr)==len(continueFileName):
             if dateStr!=continueFileName:
                 continue
             else:
                 continueFlag = True
-                print("%s last line is: %s, restart from next dir"%(ccdStr, continueFileName))
+                tstr = "%s, %s last line is: %s, restart from next dir"%(spath, ccdStr, continueFileName)
+                print(tstr)
+                sendMsg(msgSession, tstr)
                 continue
-        '''
+        
+        #break
         #logfile0.write("%s\n"%(tdir))
         logfile0.write("%s\n"%(dateStr))
         logfile0.flush()
@@ -216,10 +223,16 @@ def backupAllMachine(msgSession):
             backupDir(spath3, dpath, logpath, ssh, ftp, tip, msgSession, curDateStr)
         except paramiko.AuthenticationException:
             print("Authentication Failed!")
+            tstr = traceback.format_exc()
+            print(tstr)
         except paramiko.SSHException:
             print("Issues with SSH service!")
+            tstr = traceback.format_exc()
+            print(tstr)
         except Exception as e:
             print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
         
         try:
             time.sleep(1)
@@ -257,7 +270,7 @@ if __name__ == '__main__':
                 print(tstr)
                 sendMsg(msgSession, tstr)
                 backupAllMachine(msgSession)
-                time.sleep(3600)
+                time.sleep(3600*8)
                 tstr = "backup done"
                 print(tstr)
                 sendMsg(msgSession, tstr)
