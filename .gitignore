@@ -113,3 +113,5 @@ data
 *.txt
 *.emf
 *.svg
+*.obj
+*.record

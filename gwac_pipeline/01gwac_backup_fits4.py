@@ -249,9 +249,10 @@ def backupAllMachine(msgSession):
     curDateStr = datetime.strftime(curDateTime, "%Y%m%d")
     tdateStr = curDateStr[2:]
     tnum = genOneDate(tdateStr)
-    tstr = "total generate %d preImage"%(tnum)
-    print(tstr)
-    sendMsg(msgSession, tstr)
+    if tnum:
+        tstr = "total generate %d preImage"%(tnum)
+        print(tstr)
+        sendMsg(msgSession, tstr)
     
 
 if __name__ == '__main__':
@@ -268,8 +269,13 @@ if __name__ == '__main__':
                 msgSession = requests.Session()
                 tstr = "start gwac fits backup"
                 print(tstr)
-                sendMsg(msgSession, tstr)
-                backupAllMachine(msgSession)
+                try:
+                    sendMsg(msgSession, tstr)
+                    backupAllMachine(msgSession)
+                except Exception as e:
+                    print(e)
+                    tstr = traceback.format_exc()
+                    print(tstr)
                 time.sleep(3600*8)
                 tstr = "backup done"
                 print(tstr)

@@ -71,7 +71,7 @@ if __name__ == '__main__':
         dateStr = td[2].strftime("%Y-%m-%d")
         timeStr = td[2].strftime("%H:%M:%S")
         regData.append([td[0],imgName,imgName,dateStr,timeStr,td[3]])
-        recData = np.array([[imgName, td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12]]])
+        recData = np.array([[td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12]]])
         objData = np.array([[2,imgName, td[4]]])
         #print(regData)
         recFile = 'data/%s_rec.txt'%(imgName.split('.')[0])
