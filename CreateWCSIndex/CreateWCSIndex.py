@@ -209,7 +209,7 @@ class GWACWCSIndex:
     
         tsql = "select ors_id, date_str, sky_id, cam_id, img_num "\
                 "from observation_record_statistic "\
-                "where has_wcs=true and ors_id>%d and ors_id<=%d "\
+                "where has_wcs=true and img_num>=80 and ors_id>%d and ors_id<=%d "\
                 "ORDER BY ors_id"%(start, end)
         print(tsql)
         
