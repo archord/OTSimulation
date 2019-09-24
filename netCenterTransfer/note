@@ -1,0 +1,1 @@
+env -i nohup /home/gwaclc/work/software/anaconda3/bin/python gwacCatalogTransfer.py &
