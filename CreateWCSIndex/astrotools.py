@@ -136,7 +136,7 @@ class AstroTools(object):
         #scampcat = image_in.replace('.fits','.scamp')
         cmd = [self.wcsProgram, srcPath, 
                '--backend-config', self.wcsConfig,
-               '--cpulimit', '60'
+               '--cpulimit', '60',
                '--no-plots', '--no-verify', #'--no-fits2fits', cloud version of astrometry does not have this arg
                '--x-column', 'X_IMAGE', '--y-column', 'Y_IMAGE',
                '--sort-column', 'FLUX_APER',
