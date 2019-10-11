@@ -202,15 +202,12 @@ class GWACWCSIndex:
             
         return np.array(rows)
     
-    def queryObs(self, tnum, size=10):
-        
-        start = tnum*size
-        end = tnum*size + 10
+    def queryObs(self, size=10):
     
         tsql = "select ors_id, date_str, sky_id, cam_id, img_num "\
                 "from observation_record_statistic "\
-                "where has_wcs=true and ors_id>%d and ors_id<=%d "\
-                "ORDER BY ors_id"%(start, end)
+                "where do_wcs=false and date_str<'190924'"\
+                "ORDER BY ors_id limit %d"%(size)
         print(tsql)
         
         return self.getDataFromDB(tsql)
@@ -233,6 +230,22 @@ class GWACWCSIndex:
             
         tsql = "update observation_record_statistic set has_wcs=%s, real_img_num=%d, " \
             "start_obs_time='%s', end_obs_time='%s' where ors_id=%s"%(hasWCS, imgNum, startTime, endTime, orsId)
+        print(tsql)
+        
+        try:
+            self.connDb()
+            cur = self.conn.cursor()
+            cur.execute(tsql)
+            self.conn.commit()
+            cur.close()
+            self.closeDb()
+        except Exception as err:
+            self.log.error(" update science_object status error ")
+            self.log.error(err)
+            
+    def updateDoWCS(self, orsId, doWCS='true'):
+            
+        tsql = "update observation_record_statistic set do_wcs=%s where ors_id=%s"%(doWCS, orsId)
         print(tsql)
         
         try:
@@ -329,15 +342,17 @@ class GWACWCSIndex:
         totalNum = int(15038/10) +1
         stopFlag = False
         
-        for i in range(startQueryNum, totalNum):
-            tobs = self.queryObs(i)
+        while True:
+            time.sleep(10)
+            tobs = self.queryObs()
+            if tobs.shape[0]==0:
+                break
             for obs in tobs:
                 print(obs)
                 orsId = obs[0]
-                if int(orsId)<80:
-                    continue
+                self.updateDoWCS(orsId)
                 camId = int(obs[3])
-                if camId%5==0:
+                if int(orsId)<80 or camId%5==0:
                     continue
                 imgParms = self.queryImgParm(obs)
                 if imgParms.shape[0]>minNum:
@@ -364,6 +379,7 @@ class GWACWCSIndex:
                             self.updateHasWCS(orsId, tnum, minTime, maxTime, 'true')
                         #stopFlag = True
                         #break
+                            
             #if stopFlag:
             #    break
                         
