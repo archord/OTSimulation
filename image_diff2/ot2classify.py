@@ -69,29 +69,6 @@ class OT2Classify(object):
                 self.log.info("total %d subImgs, %d is valid and classified"%(timgs32.shape[0],timgs.shape[0]))
         
         return rstParms
-    
-    def doUpload(self, path, fnames, ftype, serverIP):
-        
-        try:
-            turl = "%s/gwebend/commonFileUpload.action"%(serverIP)
-            
-            sendTime = datetime.strftime(datetime.now(), "%Y%m%d%H%M%S")
-            values = {'fileType': ftype, 'sendTime': sendTime}
-            files = []
-            
-            for tfname in fnames:
-                tpath = "%s/%s"%(path, tfname)
-                files.append(('fileUpload', (tfname,  open(tpath,'rb'), 'text/plain')))
-            
-            #print(values)
-            #print(files)
-            msgSession = requests.Session()
-            r = msgSession.post(turl, files=files, data=values)
-            
-            self.log.info(r.text)
-        except Exception as e:
-            tstr = traceback.format_exc()
-            self.log.error(tstr)
         
     def doClassifyAndUpload(self, subImgPath, totFile, fotFile, 
                           fullImgPath, newImg, tmpImg, resImg, origName, serverIP, 
@@ -103,6 +80,13 @@ class OT2Classify(object):
         self.pbb_threshold = prob
         try:
             nameBase = origName[:origName.index(".")]
+            
+            dateStr = nameBase.split('_')[3][:6]
+            camName = nameBase[:4]
+            cmbNum = 5
+            #tidx = nameBase.index('_c')+2
+            #cmbNum = nameBase[tidx:tidx+3] #'G021_tom_objt_190109T13531492_c005.fit'
+            crossTaskName = "%s_%s_c%03d.fit"%(dateStr, camName, cmbNum)
             
             tParms1 = self.doClassifyFile(subImgPath, totFile)
             if tParms1.shape[0]>0:
@@ -177,8 +161,8 @@ class OT2Classify(object):
                         i=i+1
                     fp0.close()
                     
-                    self.doUpload(fullImgPath,[catName],'diffot1',serverIP)
-                    self.doUpload(fullImgPath,timgNames,'diffot1img',serverIP)
+                    self.doUpload(fullImgPath,[catName],'crossOTList',serverIP, crossTaskName)
+                    self.doUpload(fullImgPath,timgNames,'crossOTStamp',serverIP, crossTaskName)
                     
             if tParms.shape[0]==0:
                 self.log.info("after classified, no OT candidate left")
@@ -195,3 +179,50 @@ class OT2Classify(object):
         runTime = (endtime - starttime).seconds
         self.log.info("********** classifyAndUpload %s use %d seconds"%(origName, runTime))
         
+    
+    def crossTaskCreate(self, taskName, crossMethod, dateStr, cofParms, serverIP):
+        
+        try:
+            self.log.info("crossTaskCreate %s"%(taskName))
+            turl = "%s/gwebend/crossTaskCreate.action"%(serverIP)
+            
+            cofParms['taskName'] = taskName
+            cofParms['crossMethod'] = crossMethod
+            cofParms['dateStr'] = dateStr
+            
+            self.log.debug(cofParms)
+            #print(values)
+            #print(files)
+            msgSession = requests.Session()
+            r = msgSession.post(turl, data=cofParms)
+            
+            self.log.info(r.text)
+        except Exception as e:
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+            
+    
+    def doUpload(self, path, fnames, ftype, serverIP, taskName):
+        
+        try:
+            turl = "%s/gwebend/commonFileUpload.action"%(serverIP)
+            
+            sendTime = datetime.strftime(datetime.now(), "%Y%m%d%H%M%S")
+            values = {'taskName': taskName, 'fileType': ftype, 'sendTime': sendTime}
+            files = []
+            
+            for tfname in fnames:
+                tpath = "%s/%s"%(path, tfname)
+                files.append(('fileUpload', (tfname,  open(tpath,'rb'), 'text/plain')))
+            
+            #print(values)
+            #print(files)
+            msgSession = requests.Session()
+            r = msgSession.post(turl, files=files, data=values)
+            
+            self.log.info(r.text)
+        except Exception as e:
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+            
+            

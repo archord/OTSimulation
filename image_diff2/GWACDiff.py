@@ -286,7 +286,7 @@ class GWACDiff(object):
                     tCmbImg[ty*regHei:(ty+1)*regHei, tx*regWid:(tx+1)*regWid] = np.median(imgArray,axis=0)
             
             #tCmbImg = tCmbImg.astype(np.uint16)
-            outImgName = "%s_cmb%03d.fit"%(imgNames[0].split('.')[0], len(imgNames))
+            outImgName = "%s_c%03d.fit"%(imgNames[0].split('.')[0], len(imgNames))
             fits.writeto("%s/%s"%(self.cmbDir, outImgName), tCmbImg, header=theader,overwrite=True)
             endtime = datetime.now()
             runTime = (endtime - starttime).seconds

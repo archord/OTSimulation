@@ -256,7 +256,7 @@ def doAlign(camName, catList, tmplMap, tIdx, alignList, imgDiff, isRunning):
         
     isRunning.value = 0
         
-def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning, cmbNum=5):
+def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning, cofParms, cmbNum=5):
     
     isRunning.value = 1
     lastIdx = tIdx.value
@@ -280,10 +280,15 @@ def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning,
                         timgs.append(imgName)
                     else: #change sky
                         timgs = []
-                        timgs.append(imgName)
+                        timgs.append(imgName)   #G021_tom_objt_190109T13531492.fit , "%s_cmb%03d.fit"%(imgNames[0].split('.')[0], len(imgNames)) 
                         skyName0 = skyName
                         imgDiff.log.warn("skyName change from %s to %s, skip this loop."%(skyName0, skyName))
                         tIdx.value = i-1
+                        
+                        dateStr = imgName.split('_')[3][:6]
+                        crossTaskName = "%s_%s_c%03d.fit"%(dateStr, camName, cmbNum)
+                        crossMethod = '1'
+                        imgDiff.ot2Classifier.crossTaskCreate(crossTaskName, crossMethod, dateStr, cofParms, imgDiff.tools.serverIP)
                         
                 if len(timgs)==cmbNum:
                     cmbName = imgDiff.superCombine(timgs)
@@ -435,7 +440,7 @@ def doRecognitionAndUpload(camName, diffImgList, diffTmplMap, tIdx, imgDiff, isR
             try:
                 tcatParm = diffImgList[i]
                 skyName = tcatParm[4]
-                imgName = tcatParm[2]
+                imgName = tcatParm[2]  #G021_tom_objt_190109T13531492.fit , "%s_cmb%03d.fit"%(imgNames[0].split('.')[0], len(imgNames))
 
                 if skyName in diffTmplMap:
                     tIdx.value = i
@@ -480,6 +485,21 @@ class BatchImageDiff(object):
         self.diffTmplRunning = self.dataMgr.Value('i', 0)
         self.diffRunning = self.dataMgr.Value('i', 0)
         self.recgRunning = self.dataMgr.Value('i', 0)
+        self.crossTaskParms = {'mergedR': 0.0167, 
+                  'mergedMag': 20, 
+                  'cvsR': 0.0167,
+                  'cvsMag': 20, 
+                  'rc3R': 0.03333, 
+                  'rc3MinMag': -20, 
+                  'rc3MaxMag': 20, 
+                  'minorPlanetR': 0.05, 
+                  'minorPlanetMag': 16, 
+                  'ot2HisR': 0.01, 
+                  'ot2HisMag': 20, 
+                  'usnoR1': 0.016667, 
+                  'usnoMag1': 15.5, 
+                  'usnoR2': 0.041667, 
+                  'usnoMag2': 8}
             
     def mainControl(self, camName, destDir='/data/gwac_diff_xy', toolPath='/home/gwac/img_diff_xy/image_diff'):
         
@@ -508,17 +528,8 @@ class BatchImageDiff(object):
         loopNum = 1
         while True:
             
-            curUtcDateTime = datetime.utcnow()
-            tDateTime = datetime.utcnow()
+            try:
             
-            startDateTime = tDateTime.replace(hour=9, minute=0, second=0)  #9=17  1=9
-            endDateTime = tDateTime.replace(hour=22, minute=0, second=0)  #22=6    8=16
-            remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
-            remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
-
-            #if not (remainSeconds1<0 and remainSeconds2>0):
-            if True:
-                #print(loopNum)
                 tIdx1 = loopNum%5
                 ''' '''
                 if tIdx1==1 and self.catRunning.value==0:  #cat
@@ -542,7 +553,8 @@ class BatchImageDiff(object):
                 if self.cmbRunning.value==0: #combine5
                     #print("%d cmbJob is not running, catNum=%d, alignNum=%d, cmbIdx=%d"%(loopNum, len(self.catList), len(self.alignList), self.cmbIdx.value))
                     cmbJob = Process(target=doCombine, args=(
-                            camName, self.alignList, self.alignTmplMap, self.cmbIdx, imgDiff, self.cmbImgList,  self.cmbRunning))
+                            camName, self.alignList, self.alignTmplMap, self.cmbIdx, 
+                            imgDiff, self.cmbImgList,  self.cmbRunning, self.crossTaskParms, 5))
                     cmbJob.start()
                 #else:
                 #    print("%d cmbJob is running"%(loopNum))
@@ -572,32 +584,32 @@ class BatchImageDiff(object):
                             camName, self.cmbCatList, self.diffTmplMap, self.diffIdx, imgDiff, self.diffImgList, self.diffRunning))
                     diffJob.start()
                     
-                
-                '''  
-                '''
-                '''
                 if self.recgRunning.value==0: #recognition
                     recgJob = Process(target=doRecognitionAndUpload, args=(
                             camName, self.diffImgList, self.diffTmplMap, self.recgIdx, imgDiff, self.recgRunning))
                     recgJob.start()
-                 '''    
+                   
                 loopNum = loopNum + 1
-                if loopNum>4000:
-                    break
+                #if loopNum>4000:
+                #    break
                 
                 time.sleep(1)
-            else:
-                loopNum = 1
-                time.sleep(10*60)
-        
-        try:
-            catJob.join()
-            alignJob.join()
-            cmbJob.join()
-        except NameError as e:
-            tstr = traceback.format_exc()
-            print("catJob is not defined")
-            print(tstr)
+                '''
+                try:
+                    catJob.join()
+                    alignJob.join()
+                    cmbJob.join()
+                except NameError as e:
+                    tstr = traceback.format_exc()
+                    print("catJob is not defined")
+                    print(tstr)
+                    '''
+            except Exception as e:
+                tstr = traceback.format_exc()
+                print("Scheduling main error....")
+                print(tstr)
+            finally:
+                time.sleep(10)
         
     
 #nohup /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python BatchDiff.py G021 &

@@ -234,18 +234,21 @@ def uploadObservationPlanRecord(opId, state, ctime):
         
 def testUpload():
     
-    #uploadObservationPlan(obsId='2019091943075', mode='1', btime='20190919T180000', etime='20190919T180200')
-    #updateMountLinked(gid='001', uid='002', linked='false')
-    #updateMountState(gid='001', uid='002', utc='20190920T181234', state=2, errcode=10, ra=63.1, dec=77.2,azi=10.2, alt=1.5)
-    #updateCameraLinked(gid='001', uid='002', cid='003', linked='true')
-    #uploadCameraStatus(gid='001', uid='002', cid='003', utc='20190920T181234', state=2, errcode=10, coolget=-51.5)
-    #updateCameraCoverLinked(gid='001', uid='002', cid='003', linked='false')
-    #uploadCameraCoverStatus(gid='001', uid='002', cid='003', utc='20190920T181234', state=2, errcode=10)
-    #updateDomeLinked(gid='001', linked='false')
-    #uploadDomeStatus(gid='001', utc='20190920T181234', state=2, errcode=10)
-    #uploadRainfall(gid='001', utc='20190920T181234', value=28.9)
-    uploadObservationPlanRecord(opId='2019091943075', state='begin', ctime='20190920T181234')
+    #uploadObservationPlan(obsId='2019092743075', mode='1', btime='20190919T180000', etime='20190919T180200')
+    #uploadObservationPlanRecord(opId='2019091943075', state='over', ctime='20190920T181234')
+    ''''''
+    updateMountLinked(gid='001', uid='001', linked='false')
+    updateCameraLinked(gid='001', uid='001', cid='001', linked='false')
+    updateCameraCoverLinked(gid='001', uid='001', cid='001', linked='false')
+    updateDomeLinked(gid='001', linked='false')
     
+    ''' 
+    updateMountState(gid='001', uid='001', utc='20190921T181234', state=1, errcode=11, ra=63.1, dec=77.2,azi=10.2, alt=1.5)
+    uploadCameraStatus(gid='001', uid='001', cid='001', utc='20190922T181234', state=1, errcode=12, coolget=-51.5)
+    uploadCameraCoverStatus(gid='001', uid='001', cid='001', utc='20190923T181234', state=1, errcode=13)
+    uploadDomeStatus(gid='001', utc='20190924T181234', state=1, errcode=14)
+    uploadRainfall(gid='001', utc='20190925T181234', value=128.9)
+    '''
 if __name__ == "__main__":
     
     testUpload()
