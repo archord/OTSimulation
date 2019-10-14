@@ -570,23 +570,27 @@ class GWACDiff(object):
     
     def classifyAndUpload(self, imgName, tmplParms):
                 
-        os.system("rm -rf %s/*"%(self.diff))
+        #os.system("rm -rf %s/*"%(self.diff))
         
         oImgPre = imgName.split(".")[0]
         status = tmplParms[0]
-        tmplImgName = tmplParms[1][-1]
+        tmplImgName = tmplParms[1][-1][0]
         if status=='1':
             ttmplPath = self.tmplAlignDir
         else:
             ttmplPath = self.tmplDiffDir
         
         upDir = "%s/%s"%(self.tmpUpload, oImgPre)
+        print("classifyAndUpload %s"%(upDir))
         if not os.path.exists(upDir):
             os.system("mkdir -p %s"%(upDir))
         
+        print("cp %s/%s %s/%s"%(self.cmbDir, imgName, upDir, imgName))
         os.system("cp %s/%s %s/%s"%(self.cmbDir, imgName, upDir, imgName))
+        print("cp %s/%s %s/%s"%(ttmplPath, tmplImgName, upDir, tmplImgName))
         os.system("cp %s/%s %s/%s"%(ttmplPath, tmplImgName, upDir, tmplImgName))
         resiImg = "%s_resi.fit"%(oImgPre)
+        print("cp %s/%s %s/%s"%(self.diffImgDir, resiImg, upDir, resiImg))
         os.system("cp %s/%s %s/%s"%(self.diffImgDir, resiImg, upDir, resiImg))
         
         totImgsName = '%s_totimg.npz'%(oImgPre)

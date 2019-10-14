@@ -22,7 +22,8 @@ class AstroTools(object):
         self.verbose = False
         
         #self.serverIP = "http://172.28.8.8:8080"
-        self.serverIP = "http://10.0.10.236:9995"
+        #self.serverIP = "http://10.0.10.236:9995"
+        self.serverIP = "http://10.36.1.77:8080"
         
         self.rootPath = rootPath
         self.varDir = "%s/tools/simulate_tools"%(rootPath)

@@ -50,31 +50,38 @@ class OT2Classify(object):
     
     def doClassifyFile(self, tpath, fname):
     
-        rstParms = np.array([])
-        tpath0 = "%s/%s"%(tpath, fname)
-        if len(fname)>0 and os.path.exists(tpath0):
+        try:
+            rstParms = np.array([])
+            tpath0 = "%s/%s"%(tpath, fname)
+            if len(fname)>0 and os.path.exists(tpath0):
+                    
+                tdata1 = np.load(tpath0)
+                timgs32 = tdata1['imgs']
+                parms = tdata1['parms']
+                #fs2n = 1.087/props[:,12].astype(np.float)
                 
-            tdata1 = np.load(tpath0)
-            timgs32 = tdata1['imgs']
-            parms = tdata1['parms']
-            #fs2n = 1.087/props[:,12].astype(np.float)
+                if timgs32.shape[0]>0:
+                    timgs = getImgStamp(timgs32, size=self.imgSize, padding = 1, transMethod='none')
+                    preY = self.model.predict(timgs, batch_size=128)
+                    
+                    predProbs = preY[:, 1]
+                    predProbs = predProbs.reshape([predProbs.shape[0],1])
+                    rstParms = np.concatenate((parms, predProbs), axis=1)
+                    self.log.info("total %d subImgs, %d is valid and classified"%(timgs32.shape[0],timgs.shape[0]))
             
-            if timgs32.shape[0]>0:
-                timgs = getImgStamp(timgs32, size=self.imgSize, padding = 1, transMethod='none')
-                preY = self.model.predict(timgs, batch_size=128)
-                
-                predProbs = preY[:, 1]
-                predProbs = predProbs.reshape([predProbs.shape[0],1])
-                rstParms = np.concatenate((parms, predProbs), axis=1)
-                self.log.info("total %d subImgs, %d is valid and classified"%(timgs32.shape[0],timgs.shape[0]))
-        
+        except Exception as e:
+            tstr = traceback.format_exc()
+            print("doClassifyFile")
+            print(tstr)
+            self.log.error(tstr)
+            
         return rstParms
         
     def doClassifyAndUpload(self, subImgPath, totFile, fotFile, 
                           fullImgPath, newImg, tmpImg, resImg, origName, serverIP, 
                           prob=0.01, maxNEllip=0.6, maxMEllip=0.5, reverse=False):
 
-        self.log.debug("start new thread classifyAndUpload %s"%(origName))        
+        self.log.info("start new thread classifyAndUpload %s"%(origName))        
         
         starttime = datetime.now()
         self.pbb_threshold = prob
@@ -205,7 +212,7 @@ class OT2Classify(object):
     def doUpload(self, path, fnames, ftype, serverIP, taskName):
         
         try:
-            turl = "%s/gwebend/commonFileUpload.action"%(serverIP)
+            turl = "%s/gwebend/crossTaskUpload.action"%(serverIP)
             
             sendTime = datetime.strftime(datetime.now(), "%Y%m%d%H%M%S")
             values = {'taskName': taskName, 'fileType': ftype, 'sendTime': sendTime}
@@ -215,7 +222,7 @@ class OT2Classify(object):
                 tpath = "%s/%s"%(path, tfname)
                 files.append(('fileUpload', (tfname,  open(tpath,'rb'), 'text/plain')))
             
-            #print(values)
+            print(values)
             #print(files)
             msgSession = requests.Session()
             r = msgSession.post(turl, files=files, data=values)

@@ -263,6 +263,7 @@ def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning,
     catNum = len(alignList)
     #print("doCombine catNum=%d, lastIdx=%d"%(catNum, lastIdx))
 
+    newSky = False
     startIdx = lastIdx+1
     if catNum>=startIdx+cmbNum:
         timgs = []
@@ -275,20 +276,28 @@ def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning,
                 if len(timgs)==0:
                     timgs.append(imgName)
                     skyName0 = tcatParm[4]
+                    if startIdx==0:
+                        newSky = True
+                        print("%d, %s, %s, %s"%(i, skyName0, skyName, imgName))
                 else:
                     if skyName==skyName0:
                         timgs.append(imgName)
+                        newSky = False
                     else: #change sky
                         timgs = []
                         timgs.append(imgName)   #G021_tom_objt_190109T13531492.fit , "%s_cmb%03d.fit"%(imgNames[0].split('.')[0], len(imgNames)) 
                         skyName0 = skyName
                         imgDiff.log.warn("skyName change from %s to %s, skip this loop."%(skyName0, skyName))
                         tIdx.value = i-1
+                        newSky = True
+                        print("%d, %s, %s, %s"%(i, skyName0, skyName, imgName))
                         
-                        dateStr = imgName.split('_')[3][:6]
-                        crossTaskName = "%s_%s_c%03d.fit"%(dateStr, camName, cmbNum)
-                        crossMethod = '1'
-                        imgDiff.ot2Classifier.crossTaskCreate(crossTaskName, crossMethod, dateStr, cofParms, imgDiff.tools.serverIP)
+                if newSky:
+                    dateStr = imgName.split('_')[3][:6]
+                    crossTaskName = "%s_%s_c%03d"%(dateStr, camName, cmbNum)
+                    print("doCombine %s"%(crossTaskName))
+                    crossMethod = '1'
+                    imgDiff.ot2Classifier.crossTaskCreate(crossTaskName, crossMethod, dateStr, cofParms, imgDiff.tools.serverIP)
                         
                 if len(timgs)==cmbNum:
                     cmbName = imgDiff.superCombine(timgs)
@@ -339,7 +348,8 @@ def srcExtractCombine(camName, cmbImgList, cmbCatList, tIdx, imgDiff, isRunning)
 def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDiff, isRunning):
     
     isRunning.value = 1
-    newTmplSelectNum = 10
+    #newTmplSelectNum = 10
+    newTmplSelectNum = 2
     catNum = len(cmbCatList)
     if catNum>=newTmplSelectNum:
         lastIdx = tIdx.value
@@ -448,7 +458,7 @@ def doRecognitionAndUpload(camName, diffImgList, diffTmplMap, tIdx, imgDiff, isR
                     imgDiff.classifyAndUpload(imgName, tmplParms)
                 else:
                     imgDiff.log.warn("doRecognitionAndUpload %s %s cannot find template"%(skyName, imgName))
-                    break
+                    #break
     
             except Exception as e:
                 tstr = traceback.format_exc()
@@ -536,8 +546,8 @@ class BatchImageDiff(object):
                         catJob = Process(target=srcExtractLocalDir, args=(dataPath, camName, self.catList, imgDiff, destDir, self.catRunning))
                         catJob.start()
                 
-                tIdx2 = loopNum%15
-                #tIdx2 = loopNum%1
+                #tIdx2 = loopNum%15
+                tIdx2 = loopNum%5
                 if tIdx2==0 and self.alignTmplRunning.value==0: #template
                         alignTmplJob = Process(target=getAlignTemplateLocal, args=(
                                 camName, self.catList, self.alignTmplMap, self.alignTmplIdx, imgDiff, self.alignTmplRunning))
@@ -585,9 +595,12 @@ class BatchImageDiff(object):
                     diffJob.start()
                     
                 if self.recgRunning.value==0: #recognition
+                    print("%d doRecognitionAndUpload start run"%(loopNum))
                     recgJob = Process(target=doRecognitionAndUpload, args=(
                             camName, self.diffImgList, self.diffTmplMap, self.recgIdx, imgDiff, self.recgRunning))
                     recgJob.start()
+                else:
+                    print("%d doRecognitionAndUpload is running"%(loopNum))
                    
                 loopNum = loopNum + 1
                 #if loopNum>4000:
