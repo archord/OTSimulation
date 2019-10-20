@@ -80,6 +80,7 @@ def getWindowImgs(srcDir, objImg, tmpImg, resiImg, datalist, size):
                 parms.append(td)
                 
         except Exception as e:
+            print("getWindowImgs error")
             tstr = traceback.format_exc()
             print(tstr)
             

@@ -7,6 +7,7 @@ import os
 from astropy.wcs import WCS
 from datetime import datetime
 import traceback
+import paramiko
 from astrotools import AstroTools
 
 #nohup python getOTImgsAll.py > /dev/null 2>&1 &
@@ -40,6 +41,11 @@ class GWACWCSIndex:
         }
     
     
+    webUser  =  'gwac'
+    webPassword  =  'xyag902'
+    webIp = '172.28.8.8'
+    
+    
     def __init__(self):
         
         self.conn = False
@@ -51,7 +57,9 @@ class GWACWCSIndex:
         if not os.path.exists(self.templateDir):
             os.system("mkdir -p %s"%(self.templateDir))
         
-        self.toolPath = '/data/work/program/image_diff'
+        #/home/gwac/img_diff_xy/image_diff
+        #/data/work/program/image_diff
+        self.toolPath = '/home/gwac/img_diff_xy/image_diff'
         self.funpackProgram="%s/tools/cfitsio/funpack"%(self.toolPath)
         
         logPath = os.getcwd()
@@ -78,10 +86,10 @@ class GWACWCSIndex:
             
             os.system("rm -rf %s/*"%(self.templateDir))
     
-    
-            oImgf = "%s/%s"%(imgPath,imgName)
+            #oImgf = "%s/%s"%(imgPath,imgName)
+            oImgf = imgPath
             print(oImgf)
-            oImgfz = "%s/%s.fz"%(imgPath,imgName)
+            oImgfz = "%s.fz"%(imgPath)
             if os.path.exists(oImgfz):
                 os.system("cp %s %s/%s.fz"%(oImgfz, self.templateDir, self.templateImg))
                 os.system("%s %s/%s.fz"%(self.funpackProgram, self.templateDir, self.templateImg))
@@ -133,29 +141,90 @@ class GWACWCSIndex:
                 badPixCat = self.tools.processBadPix(objName, bkgName, self.templateDir, self.templateDir)
                 
                 imgPre = imgName.split('.')[0]
-                tpaths = imgPath.split('/')
-                storePath = "%s/%s/%s/%s"%(self.wcsIdxRoot,fieldId,tpaths[-1], tpaths[-2])
-                if not os.path.exists(storePath):
-                    os.system("mkdir -p %s"%(storePath))
+                tpaths = imgPath.split('/')  #/data2/G004_041_191015/G041_Mon_objt_191015T20282227.fit
+                tpath0 = tpaths[-2]
+                tcamName = tpath0[:8]
+                tdateStr = tpath0[9:]
                 
-                fitImg = "%s/%s"%(self.templateDir, self.templateImg)
-                cat = "%s/ti.cat"%(self.templateDir)
-                catFit = "%s/ti_cat.fit"%(self.templateDir)
-                wcs = '%s/ti_cat.wcs'%(self.templateDir)
-                badPix = '%s/%s'%(self.templateDir, badPixCat)
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy( paramiko.AutoAddPolicy() )
                 
                 try:
-                    os.system("cp %s %s/%s.fit"%(fitImg, storePath, imgPre))
-                    os.system("cp %s %s/%s.cat"%(cat, storePath, imgPre))
-                    os.system("cp %s %s/%s_cat.fit"%(catFit, storePath, imgPre))
-                    os.system("cp %s %s/%s.wcs"%(wcs, storePath, imgPre))
-                    os.system("cp %s %s/%s_badpix.cat"%(badPix, storePath, imgPre))
-                except Exception as e:
-                    self.log.error(e)
+                    #/data/gwac_data/gwac_wcs_idx/12854925/G003_031/180210
+                    storePath = "%s/%s/%s/%s"%(self.wcsIdxRoot,fieldId,tcamName, tdateStr)
+                    if not os.path.exists(storePath):
+                        tcmd = "mkdir -p %s;"%(storePath)
+                        stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
+                        for line in iter(stdout.readline, ""):
+                            self.log.debug(line)
+                    
+                    fitImg = "%s/%s"%(self.templateDir, self.templateImg)
+                    cat = "%s/ti.cat"%(self.templateDir)
+                    catFit = "%s/ti_cat.fit"%(self.templateDir)
+                    wcs = '%s/ti_cat.wcs'%(self.templateDir)
+                    badPix = '%s/%s'%(self.templateDir, badPixCat)
+                    
+                    try:
+                        os.system("cp %s %s/%s.fit"%(fitImg, storePath, imgPre))
+                        os.system("cp %s %s/%s.cat"%(cat, storePath, imgPre))
+                        os.system("cp %s %s/%s_cat.fit"%(catFit, storePath, imgPre))
+                        os.system("cp %s %s/%s.wcs"%(wcs, storePath, imgPre))
+                        os.system("cp %s %s/%s_badpix.cat"%(badPix, storePath, imgPre))
+                    except Exception as e:
+                        self.log.error(e)
+                        runSuccess = False
+                        tstr = traceback.format_exc()
+                        self.log.error(tstr)
+                        self.log.error('make template %s, copy data to dest error'%(imgName))
+                    
+                    ssh.connect(self.webIp, username=self.webUser, password=self.webPassword)
+                    tcmd = "rm -rf %s;mkdir -p %s;"%(remoteSrcRoot,remoteSrcRoot)
+                    stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
+                    for line in iter(stdout.readline, ""):
+                        self.log.debug(line)
+                    
+                    ftp = ssh.open_sftp()
+                    ftp.put(srcPath,remoteSrcPath)
+                    
+                    wcsParm2 = "--width %d --height %d --tweak-order %d --ra %f --dec %f --radius %f"%(width, height, astronet_tweak_order, ra, dec, astronet_radius)
+                    wcsCMD = "%s %s %s %s"%(self.wcsProgramPC780, remoteSrcPath, wcsParm1, wcsParm2)
+                    self.log.info(wcsCMD)
+                    stdin, stdout, stderr = ssh.exec_command(wcsCMD, get_pty=True)
+                    for line in iter(stdout.readline, ""):
+                        self.log.debug(line)
+                    
+                    ftp.chdir(remoteSrcRoot)
+                    tfiles = ftp.listdir()
+                    tfiles.sort()
+                    remoteWCSExist = False
+                    for tfile in tfiles:
+                        if tfile==wcsfile:
+                            remoteWCSExist=True
+                            break
+                    if remoteWCSExist:
+                        ftp.get(remoteWcsPath,wcsPath)
+                        
+                    if (not remoteWCSExist) or (not os.path.exists(wcsPath)):
+                        self.log.error("astrometry failed.")
+                        runSuccess = False
+                    else:
+                        self.log.info("astrometry success.")
+                            
+                except paramiko.AuthenticationException:
+                    self.log.error("Authentication Failed!")
                     runSuccess = False
                     tstr = traceback.format_exc()
                     self.log.error(tstr)
-                    self.log.error('make template %s, copy data to dest error'%(imgName))
+                except paramiko.SSHException:
+                    self.log.error("Issues with SSH service!")
+                    runSuccess = False
+                    tstr = traceback.format_exc()
+                    self.log.error(tstr)
+                except Exception as e:
+                    self.log.error(str(e))
+                    runSuccess = False
+                    tstr = traceback.format_exc()
+                    self.log.error(tstr)
             
             else:
                 self.log.error('make template %s, get wcs error'%(imgName))
@@ -202,24 +271,24 @@ class GWACWCSIndex:
             
         return np.array(rows)
     
-    def queryObs(self, size=10):
+    def queryObs(self, camName):
     
-        #"where do_wcs=false and date_str<'190924'"\
         tsql = "select ors_id, date_str, sky_id, cam_id, img_num "\
-                "from observation_record_statistic "\
-                "where do_wcs=false "\
-                "ORDER BY ors_id limit %d"%(size)
+                "from observation_record_statistic ors "\
+                "INNER JOIN camera cam on cam.camera_id=ors.cam_id "\
+                "where do_wcs=false and cam.name='%s' "\
+                "ORDER BY ors_id "%(camName)
         print(tsql)
         
         return self.getDataFromDB(tsql)
     
-    def queryImgParm(self, obs):
+    def queryImgParm(self, obs, ffTable='fits_file2_his'):
     
-        tsql = "SELECT ff.img_name, isp.fwhm, ff.ff_number, isp.obj_num, isp.time_obs_ut, ff.ff_id "\
+        tsql = "SELECT ff.img_name, isp.fwhm, ff.ff_number, isp.obj_num, isp.time_obs_ut, ff.ff_id, ff.img_path "\
             "from image_status_parameter_his isp "\
-            "INNER JOIN fits_file2_his ff on isp.ff_id=ff.ff_id "\
-            "where isp.fwhm>1 and ff.sky_id=%s and ff.cam_id=%s and substr(ff.img_name, 15 , 6)='%s' "\
-            "ORDER BY ff_number"%(obs[2], obs[3], obs[1])
+            "INNER JOIN %s ff on isp.ff_id=ff.ff_id "\
+            "where isp.fwhm>1 and ff.sky_id=%s and ff.cam_id=%s and to_char(ff.gen_time, 'YYMMDD')='%s' "\
+            "ORDER BY ff_number"%(ffTable, obs[2], obs[3], obs[1])
         print(tsql)
         
         return self.getDataFromDB(tsql)
@@ -311,11 +380,12 @@ class GWACWCSIndex:
             camId2 = 5
         camName = "G%03d_%02d%d"%(mountId, mountId, camId2)
         #print(dateStr,skyId, camName)
-        fullPath = "%s/%s/%s"%(self.orgImgRoot, dateStr, camName)
+        fullPath = "%s/%s/%s"%(self.orgImgRoot, dateStr, camName) #/data2/G002_023_191015 /data/gwac_data/gwac_orig_fits/191015/G004_043
         
         tparms = []
         for tparm in imgParms:
-            imgPath = "%s/%s"%(fullPath, tparm[0])
+            imgPath = tparm[6]
+            #imgPath = "%s/%s"%(fullPath, tparm[0])
             imgPathfz = "%s.fz"%(imgPath)
             if os.path.exists(imgPathfz) or os.path.exists(imgPath):
                 tparms.append((tparm[0],tparm[1],tparm[2],tparm[3],fullPath,tparm[5]))
@@ -338,16 +408,10 @@ class GWACWCSIndex:
         
         return doSuccess
         
-    def createWCS(self, startQueryNum=7, minNum=50):
+    def createWCS(self, camName, minNum=50):
         
-        totalNum = int(15038/10) +1
-        stopFlag = False
-        
-        while True:
-            time.sleep(10)
-            tobs = self.queryObs()
-            if tobs.shape[0]==0:
-                break
+        tobs = self.queryObs(camName)
+        if tobs.shape[0]>0:
             for obs in tobs:
                 print(obs)
                 orsId = obs[0]
@@ -378,11 +442,6 @@ class GWACWCSIndex:
                             doSuccess = self.doAstrometry(orsId, tparms)
                         if doSuccess:
                             self.updateHasWCS(orsId, tnum, minTime, maxTime, 'true')
-                        #stopFlag = True
-                        #break
-                            
-            #if stopFlag:
-            #    break
                         
 if __name__ == '__main__':
     

@@ -411,7 +411,12 @@ class GWACDiff(object):
         
         os.system("cp %s/%s.fit %s/oi.fit"%(self.cmbDir, oImgPre, self.diff))
         os.system("cp %s/%s.cat %s/oi.cat"%(self.cmbCatDir, oImgPre, self.diff))
-                
+        
+        theader = fits.getheader("%s/oi.fit"%(self.diff))
+        dateObs = theader['DATE-OBS']
+        timeObs = theader['TIME-OBS']
+        dtStr = "%sT%s"%(dateObs, timeObs)
+        
         objTmpResi, runSuccess = self.tools.runHotpants('oi.fit', 'ti.fit', self.diff)
         if not runSuccess:
             self.log.error("diffImage failure: %s"%(imgName))
@@ -501,10 +506,11 @@ class GWACDiff(object):
             totSubImgs, totParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, totProps, size)
             if totParms.shape[0]>0:
                 tXY = totParms[:,0:2]
+                #tdates = np.repeat(dtStr,tXY.shape[0]).reshape((tXY.shape[0],1))
                 tRaDec = wcs.all_pix2world(tXY, 1)
                 totParms = np.concatenate((totParms, tRaDec), axis=1)
                 fotpath = '%s/%s_totimg.npz'%(self.destDir, oImgPre)
-                np.savez_compressed(fotpath, imgs=totSubImgs, parms=totParms)
+                np.savez_compressed(fotpath, imgs=totSubImgs, parms=totParms, obsUtc=dtStr)
                 
                 resiImgs = []
                 for timg in totSubImgs:
@@ -519,10 +525,11 @@ class GWACDiff(object):
                 fotSubImgs, fotParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, fotProps, size)
                 if fotParms.shape[0]>0:
                     tXY = fotParms[:,0:2]
+                    #tdates = np.repeat(dtStr,tXY.shape[0]).reshape((tXY.shape[0],1))
                     tRaDec = wcs.all_pix2world(tXY, 1)
                     fotParms = np.concatenate((fotParms, tRaDec), axis=1)
                     fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
-                    np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms)
+                    np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms, obsUtc=dtStr)
             ''' '''        
             if badPixProps.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, badPixProps, size)
@@ -581,7 +588,9 @@ class GWACDiff(object):
             ttmplPath = self.tmplDiffDir
         
         upDir = "%s/%s"%(self.tmpUpload, oImgPre)
-        print("classifyAndUpload %s"%(upDir))
+        tstr = "classifyAndUpload %s"%(upDir)
+        self.log.info(tstr)
+        print(tstr)
         if not os.path.exists(upDir):
             os.system("mkdir -p %s"%(upDir))
         

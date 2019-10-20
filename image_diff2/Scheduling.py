@@ -348,8 +348,8 @@ def srcExtractCombine(camName, cmbImgList, cmbCatList, tIdx, imgDiff, isRunning)
 def getDiffTemplate(camName, cmbCatList, alignTmplMap, diffTmplMap, tIdx, imgDiff, isRunning):
     
     isRunning.value = 1
-    #newTmplSelectNum = 10
-    newTmplSelectNum = 2
+    newTmplSelectNum = 10
+    #newTmplSelectNum = 2
     catNum = len(cmbCatList)
     if catNum>=newTmplSelectNum:
         lastIdx = tIdx.value
@@ -513,6 +513,9 @@ class BatchImageDiff(object):
             
     def mainControl(self, camName, destDir='/data/gwac_diff_xy', toolPath='/home/gwac/img_diff_xy/image_diff'):
         
+        #os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+        #os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        
         dateStr = datetime.strftime(datetime.utcnow(), "%Y%m%d")
         dataDest0 = "%s/data/%s"%(destDir, dateStr)
         logDest0 = "%s/log"%(destDir)
@@ -596,9 +599,10 @@ class BatchImageDiff(object):
                     
                 if self.recgRunning.value==0: #recognition
                     print("%d doRecognitionAndUpload start run"%(loopNum))
-                    recgJob = Process(target=doRecognitionAndUpload, args=(
-                            camName, self.diffImgList, self.diffTmplMap, self.recgIdx, imgDiff, self.recgRunning))
-                    recgJob.start()
+                    #recgJob = Process(target=doRecognitionAndUpload, args=(
+                    #        camName, self.diffImgList, self.diffTmplMap, self.recgIdx, imgDiff, self.recgRunning))
+                    #recgJob.start()
+                    doRecognitionAndUpload(camName, self.diffImgList, self.diffTmplMap, self.recgIdx, imgDiff, self.recgRunning)
                 else:
                     print("%d doRecognitionAndUpload is running"%(loopNum))
                    

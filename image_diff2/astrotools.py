@@ -842,3 +842,5 @@ class AstroTools(object):
         except Exception as e:
             self.log.error(" send trigger msg error ")
             self.log.error(str(e))
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
