@@ -7,12 +7,16 @@ from datetime import datetime
 import traceback
 
 def getIpList():
-    
+
     ipPrefix   =  '172.28.2.'
-    
+
     ips = []
     for i in range(2,5):
+        if i==3:
+            continue
         for j in range(1,5):
+            if j==2:
+                continue
             ip = "%s%d%d"%(ipPrefix, i,j)
             ips.append(ip)
     return ips
@@ -25,7 +29,8 @@ def checkStatus(loopNum, cmdName):
     dpathProgram = r'/home/gwac/img_diff_xy'
     pythonPath = '%s/anaconda3/envs/imgdiff3/bin/python'%(dpathProgram)
     diffDaemonLog = 'diffDaemonLog.txt'
-    procName = "BatchDiff"
+    #procName = "BatchDiff"
+    procName = "Scheduling"
     
     ips = getIpList()
         
@@ -41,16 +46,17 @@ def checkStatus(loopNum, cmdName):
         
         ssh.connect(ip, username=sftpUser, password=sftpPass)
         
-        pid = -1
+        pids = []
         is2Alive = False
         stdin, stdout, stderr = ssh.exec_command('ps aux | grep %s'%(procName), get_pty=True)
         for line in iter(stdout.readline, ""): 
             if line.find("%s.py"%(procName))>-1 and line.find("imgdiff3")>-1:
                 strArr = line.split()
                 if len(strArr)>1:
-                    pid = int(strArr[1])
+                    tpid = int(strArr[1])
+                    pids.append(tpid)
                 is2Alive = True       
-                break
+                #break
             
         if is2Alive:
             tstr = "%s %s.py is running\n"%(ip, procName)
@@ -69,19 +75,34 @@ def checkStatus(loopNum, cmdName):
             logfile0.write(tstr)
             logfile0.flush()
             camName = "G0%s"%(ip[-2:])
-            tcommand = 'cd %s/image_diff ; nohup %s %s.py %s > log1.txt &'%(dpathProgram, pythonPath, procName, camName)
+            tcommand = 'cd %s/image_diff; echo "#!/bin/bash\nnohup %s %s.py %s > log1.txt &" > run.sh'\
+                %(dpathProgram, pythonPath, procName, camName)
+            #print(tcommand)
             ssh.exec_command(tcommand)
+            tcommand = 'bash %s/image_diff/run.sh'%(dpathProgram)
+            #print(tcommand)
+            stdin, stdout, stderr = ssh.exec_command(tcommand)
+            #print("print stdout")
+            ##print(stdout.readlines())
+            #print("print stderr")
+            #print(stderr.readlines())
+            #transport = ssh.get_transport()
+            #channel = transport.open_session()
+            #tcommand = 'cd %s/image_diff ; %s %s.py %s > log1.txt &'%(dpathProgram, pythonPath, procName, camName)
+            #channel.exec_command(tcommand)
             
-        if is2Alive and cmdName == "stop" and pid>0:
-            tstr = "%s %s.py is running, kill %d\n"%(ip,procName,pid)
-            print(tstr)
-            logfile0.write(tstr)
-            logfile0.flush()
-            tcommand = 'kill -9 %d'%(pid)
-            ssh.exec_command(tcommand)
+        if is2Alive and cmdName == "stop" and len(pids)>0:
+            for pid in pids:
+                tstr = "%s %s.py is running, kill %d\n"%(ip,procName,pid)
+                print(tstr)
+                logfile0.write(tstr)
+                logfile0.flush()
+                tcommand = 'kill -9 %d'%(pid)
+                ssh.exec_command(tcommand)
             
         time.sleep(1)
         ssh.close()
+        #break
         
     logfile0.close()
         
@@ -99,7 +120,7 @@ if __name__ == '__main__':
             
             curUtcDateTime = datetime.utcnow()
             tDateTime = datetime.utcnow()
-            startDateTime = tDateTime.replace(hour=9, minute=00, second=0)  #9=17  1=9
+            startDateTime = tDateTime.replace(hour=1, minute=00, second=0)  #9=17  1=9
             endDateTime = tDateTime.replace(hour=22, minute=30, second=0)  #22=6    8=16
             remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
             remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()

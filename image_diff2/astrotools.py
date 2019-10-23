@@ -21,17 +21,17 @@ class AstroTools(object):
         
         self.verbose = False
         
-        #self.serverIP = "http://172.28.8.8:8080"
+        self.serverIP = "http://172.28.8.8:8080"
         #self.serverIP = "http://10.0.10.236:9995"
-        self.serverIP = "http://10.36.1.77:8080"
+        #self.serverIP = "http://10.36.1.77:8080"
         
         self.rootPath = rootPath
         self.varDir = "%s/tools/simulate_tools"%(rootPath)
         self.matchProgram="%s/tools/CrossMatchLibrary/dist/Debug/GNU-Linux/crossmatchlibrary"%(rootPath)
         self.imgDiffProgram="%s/tools/hotpants/hotpants"%(rootPath)
         self.funpackProgram="%s/tools/cfitsio/funpack"%(rootPath)
-        self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
-        #self.wcsProgram="solve-field"
+        #self.wcsProgram="%s/tools/astrometry.net/bin/solve-field"%(rootPath)
+        self.wcsProgram="solve-field"
         self.wcsProgramPC780="/home/xy/Downloads/myresource/deep_data2/image_diff/tools/astrometry.net/bin/solve-field"
     
         os.environ['VER_DIR'] = self.varDir
@@ -44,7 +44,7 @@ class AstroTools(object):
         self.log.setLevel(logging.INFO) #set level of logger, DEBUG INFO
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s") #set format of logger
         logging.Formatter.converter = time.gmtime #convert time in logger to UCT
-        filehandler = logging.FileHandler("%s/gwac_diff.log"%(self.rootPath), 'w+')
+        filehandler = logging.FileHandler("%s/gwac_diff2.log"%(self.rootPath), 'w+')
         filehandler.setFormatter(formatter) #add format to log file
         self.log.addHandler(filehandler) #link log file to logger
         if self.verbose:

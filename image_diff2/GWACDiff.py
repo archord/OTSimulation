@@ -47,7 +47,7 @@ class GWACDiff(object):
         self.modelPath="%s/tools/mlmodel"%(self.toolPath)
         #self.modelName='model_128_5_RealFOT_8_190111.h5'
         #self.modelName='model_RealFOT_64_100_fot10w_20190122_dropout.h5'
-        self.modelName='model_80w_20190403_branch3_train12_79.h5'
+        self.modelName='model_RealFOT_createModel_08_16_32_60_2.h5' #model_RealFOT_createModel_08_16_32_60_2.h5 model_80w_20190403_branch3_train12_79
         self.ot2Classifier = OT2Classify(self.toolPath, self.log, self.modelName)
         
         self.funpackProgram="%s/tools/cfitsio/funpack"%(self.toolPath)
@@ -391,7 +391,8 @@ class GWACDiff(object):
         os.system("rm -rf %s/*"%(self.diff))
         
         status = tmplParms[0]
-        tmplImgName = tmplParms[1][-1][0]
+        #tmplImgName = tmplParms[1][-1][0]
+        tmplImgName = tmplParms[1][0][0]
         tmplImgPre = tmplImgName.split(".")[0]
         if status=='1':
             ttmplPath = self.tmplAlignDir
@@ -581,7 +582,8 @@ class GWACDiff(object):
         
         oImgPre = imgName.split(".")[0]
         status = tmplParms[0]
-        tmplImgName = tmplParms[1][-1][0]
+        #tmplImgName = tmplParms[1][-1][0]
+        tmplImgName = tmplParms[1][0][0]
         if status=='1':
             ttmplPath = self.tmplAlignDir
         else:

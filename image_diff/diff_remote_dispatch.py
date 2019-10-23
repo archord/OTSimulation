@@ -40,31 +40,38 @@ if __name__ == '__main__':
         ips = getIpList()
         for ip in ips:
             
-            tnum = int(ip[-2:])
-            #if tnum<24:
-            #    continue
-            
-            print("process %s"%(ip))
-            ssh.connect(ip, username=sftpUser, password=sftpPass)
-            
-            #tcommand = 'mkdir %s'%(droot)
-            #print(tcommand)
-            #stdin, stdout, stderr = ssh.exec_command(tcommand, get_pty=True)
-            #for line in iter(stdout.readline, ""):
-            #    print(line)
-    
-            ftp = ssh.open_sftp()
-            #print("send %s"%(sanaconda2))
-            #ftp.put(sanaconda2, danaconda2)
-            print("send %s"%(sprogramDirTar))
-            ftp.put(sprogramDirTar, dprogramDirTar)
-            ftp.close()
-            
-            #ssh.exec_command('cd %s ; tar -xf %s'%(droot, danaconda2))
-            ssh.exec_command('cd %s ; tar -xf %s'%(droot, dprogramDirTar))
-            
-            ssh.close()
-            time.sleep(1)
+            try:
+                tnum = int(ip[-2:])
+                #if tnum<24:
+                #    continue
+                
+                print("process %s"%(ip))
+                ssh.connect(ip, username=sftpUser, password=sftpPass)
+                
+                #tcommand = 'mkdir %s'%(droot)
+                #print(tcommand)
+                #stdin, stdout, stderr = ssh.exec_command(tcommand, get_pty=True)
+                #for line in iter(stdout.readline, ""):
+                #    print(line)
+        
+                ftp = ssh.open_sftp()
+                #print("send %s"%(sanaconda2))
+                #ftp.put(sanaconda2, danaconda2)
+                print("send %s"%(sprogramDirTar))
+                ftp.put(sprogramDirTar, dprogramDirTar)
+                ftp.close()
+                
+                #ssh.exec_command('cd %s ; tar -xf %s'%(droot, danaconda2))
+                ssh.exec_command('cd %s ; rm -rf %s/*'%(droot, programDir))
+                ssh.exec_command('cd %s ; tar -xf %s'%(droot, dprogramDirTar))
+                
+                ssh.close()
+                time.sleep(1)
+                
+            except Exception as e:
+                print(e)
+                tstr = traceback.format_exc()
+                print(tstr)
         
     except Exception as e:
         print(e)

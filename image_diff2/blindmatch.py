@@ -212,10 +212,10 @@ class BlindMatch(object):
 
         tipos = dataTi.copy()
         tipos[:,0] = tipos[:,0] + 20
-        self.saveReg(tipos, "data/tipos%d.reg"%(stars.shape[0]), radius=8, width=1, color='green')
+        #self.saveReg(tipos, "data/tipos%d.reg"%(stars.shape[0]), radius=8, width=1, color='green')
         oipos = dataOi.copy()
         oipos[:,0] = oipos[:,0] + 20
-        self.saveReg(oipos, "data/oipos%d.reg"%(stars.shape[0]), radius=8, width=1, color='green')
+        #self.saveReg(oipos, "data/oipos%d.reg"%(stars.shape[0]), radius=8, width=1, color='green')
  
         
         blindStarNum = dataOi.shape[0]
