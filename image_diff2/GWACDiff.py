@@ -164,10 +164,14 @@ class GWACDiff(object):
             
             objectImgCat, isSuccess = self.tools.runSextractor(objectImg, tmpCat, tmpCat, fpar, sexConf)
             if os.path.exists("%s/%s"%(tmpCat, objectImgCat)):
-                isSuccess = True
                 starNum, fwhmMean, fwhmRms, bgMean, bgRms = self.tools.basicStatistic(tmpCat, objectImgCat)
-                os.system("cp %s/%s %s/%s.cat"%(tmpCat, objectImgCat, destDir, imgpre))
+                if starNum>0 and fwhmMean>1.5:
+                    isSuccess = True
+                    os.system("cp %s/%s %s/%s.cat"%(tmpCat, objectImgCat, destDir, imgpre))
+                else:
+                    isSuccess = False
             else:
+                isSuccess = False
                 starNum, fwhmMean, fwhmRms, bgMean, bgRms = 0,0,0,0,0
             
             endtime = datetime.now()
@@ -496,6 +500,7 @@ class GWACDiff(object):
         #badPixProps = np.array([])
         tstr = "orgBadPix %d, nmBad %d, match %d, noMatch %d"%(badPixProps.shape[0], badPixProps2.shape[0], fotProps.shape[0], totProps.shape[0])
         self.log.info(tstr)
+        print(tstr)
         
         #size = self.subImgSize
         size = 68
@@ -531,12 +536,13 @@ class GWACDiff(object):
                     fotParms = np.concatenate((fotParms, tRaDec), axis=1)
                     fotpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=fotSubImgs, parms=fotParms, obsUtc=dtStr)
-            ''' '''        
+            '''        
             if badPixProps.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, badPixProps, size)
                 if badParms.shape[0]>0:
                     fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
+            ''' 
             
             if badPixProps2.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, badPixProps2, size)
@@ -576,7 +582,7 @@ class GWACDiff(object):
         
         return resultFlag
     
-    def classifyAndUpload(self, imgName, tmplParms):
+    def classifyAndUpload(self, imgName, tmplParms, runName):
                 
         #os.system("rm -rf %s/*"%(self.diff))
         
@@ -609,5 +615,5 @@ class GWACDiff(object):
 
         self.ot2Classifier.doClassifyAndUpload(self.destDir, totImgsName, fotImgsName, 
                           upDir, imgName, tmplImgName, resiImg, 
-                          imgName, self.tools.serverIP)
+                          imgName, self.tools.serverIP, runName)
         

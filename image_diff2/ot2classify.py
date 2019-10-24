@@ -83,7 +83,9 @@ class OT2Classify(object):
                     predProbs = preY[:, 1]
                     predProbs = predProbs.reshape([predProbs.shape[0],1])
                     rstParms = np.concatenate((parms, predProbs), axis=1)
-                    self.log.info("total %d subImgs, %d is valid and classified"%(timgs32.shape[0],timgs.shape[0]))
+                    tstr = "total %d subImgs, %d is valid and classified"%(timgs32.shape[0],timgs.shape[0])
+                    self.log.info(tstr)
+                    print(tstr)
             
             #print("end doClassifyFile")
         except Exception as e:
@@ -95,7 +97,7 @@ class OT2Classify(object):
         return rstParms, obsUtc
         
     def doClassifyAndUpload(self, subImgPath, totFile, fotFile, 
-                          fullImgPath, newImg, tmpImg, resImg, origName, serverIP, 
+                          fullImgPath, newImg, tmpImg, resImg, origName, serverIP, runName, 
                           prob=0.0000001, maxNEllip=0.6, maxMEllip=0.5, reverse=False):
 
         self.log.info("start new thread classifyAndUpload %s"%(origName))   
@@ -112,33 +114,52 @@ class OT2Classify(object):
             #tidx = nameBase.index('_c')+2
             #cmbNum = nameBase[tidx:tidx+3] #'G021_tom_objt_190109T13531492_c005.fit'
             crossTaskName = "%s_%s_C%03d"%(dateStr, camName, cmbNum)
+            if runName!='p1':
+                crossTaskName = "%s_%s"%(crossTaskName, runName)
             #self.log.info("crossTaskName %s"%(crossTaskName))   
             #print("crossTaskName %s"%(crossTaskName))
             
             tParms1, obsUtc1 = self.doClassifyFile(subImgPath, totFile)
             #print("doClassifyAndUpload 001")
             if tParms1.shape[0]>0:
-                tParms1 = tParms1[tParms1[:,6]<maxNEllip]
-                #tParms1 = tParms1[(tParms1[:,6]<maxMEllip) & (tParms1[:,15]>=prob)]
-                if tParms1.shape[0]>0:
-                    tflags1 = np.ones((tParms1.shape[0],1)) #OT FLAG 
-                    tParms1 = np.concatenate((tParms1, tflags1), axis=1)
+                tParms1t = tParms1[tParms1[:,6]<maxNEllip]
+                #tParms1t = tParms1[(tParms1[:,6]<maxMEllip) & (tParms1[:,15]>=prob)]
+                if tParms1t.shape[0]>0:
+                    tflags1t = np.ones((tParms1t.shape[0],1)) #OT FLAG 
+                    tParms1t = np.concatenate((tParms1t, tflags1t), axis=1)
             
             #print("doClassifyAndUpload 002")
             tParms2, obsUtc2 = self.doClassifyFile(subImgPath, fotFile)
             if tParms2.shape[0]>0:
-                tParms2 = tParms2[(tParms2[:,6]<maxMEllip) & (tParms2[:,15]>=prob)]
-                if tParms2.shape[0]>0:
-                    tflags2 = np.zeros((tParms2.shape[0],1)) #OT FLAG 
-                    tParms2 = np.concatenate((tParms2, tflags2), axis=1)
+                tParms2t = tParms2[(tParms2[:,6]<maxMEllip) & (tParms2[:,15]>=prob)]
+                if tParms2t.shape[0]>0:
+                    tflags2t = np.zeros((tParms2t.shape[0],1)) #OT FLAG 
+                    tParms2t = np.concatenate((tParms2t, tflags2t), axis=1)
+            
+            badotFile = fotFile.replace('fotimg', 'badimg2')
+            tParms3, obsUtc3 = self.doClassifyFile(subImgPath, badotFile)
+            if tParms3.shape[0]>0:
+                tParms3t = tParms3[(tParms3[:,6]<maxMEllip) & (tParms3[:,15]>=prob)]
+                if tParms3t.shape[0]>0:
+                    tflags3t = np.zeros((tParms3t.shape[0],1)) #OT FLAG 
+                    tParms3t = np.concatenate((tParms3t, tflags3t), axis=1)
+            
+            tParms1t2 = tParms1[(tParms1[:,6]<maxMEllip) & (tParms1[:,15]>=prob)]
+            
+            print("classify result: %d tot(%d), %d fot(%d), %d badot(%d)"%(
+                    tParms1t2.shape[0],tParms1.shape[0],
+                  tParms2t.shape[0],tParms2.shape[0],
+                  tParms3t.shape[0],tParms3.shape[0]))
             
             #print("doClassifyAndUpload 003")
-            if tParms1.shape[0]>0 and tParms1.shape[0]<100 and tParms2.shape[0]>0 and tParms2.shape[0]<50:
-                tParms = np.concatenate((tParms1, tParms2), axis=0)
-            elif tParms1.shape[0]>0 and tParms1.shape[0]<100:
-                tParms = tParms1
-            elif tParms2.shape[0]>0 and tParms2.shape[0]<50:
-                tParms = tParms2
+            if tParms1t.shape[0]>0 and tParms1t.shape[0]<100 and tParms2t.shape[0]>0 and tParms2t.shape[0]<50 and tParms3t.shape[0]>0 and tParms3t.shape[0]<50:
+                tParms = np.concatenate((tParms1t, tParms2t, tParms3t), axis=0)
+            elif tParms1t.shape[0]>0 and tParms1t.shape[0]<100:
+                tParms = tParms1t
+            elif tParms2t.shape[0]>0 and tParms2t.shape[0]<50:
+                tParms = tParms2t
+            elif tParms3t.shape[0]>0 and tParms3t.shape[0]<50:
+                tParms = tParms3t
             else:
                 tParms = np.array([])
                 

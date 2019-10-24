@@ -13,10 +13,9 @@ from QueryData import QueryData
 from astrotools import AstroTools
 from gwac_util import getLastLine
 
-def srcExtract(camName, catList, imgDiff, destDir, isRunning):
+def srcExtract(camName, catList, imgDiff, logDestDir, isRunning):
     
     isRunning.value = 1
-    logDest0 = "%s/log"%(destDir)
     
     catNum = len(catList)
     if catNum>0:
@@ -40,7 +39,7 @@ def srcExtract(camName, catList, imgDiff, destDir, isRunning):
             
             srcDir= tpath[:(tpath.find(camName)-1)] #/data3/G002_021_190109
             dateStr = srcDir[srcDir.find('G'):] #G002_021_190109
-            logfName0 = '%s/%s.log'%(logDest0, dateStr)
+            logfName0 = '%s/%s.log'%(logDestDir, dateStr)
             
             if ffId==0:
                 if os.path.exists(logfName0) and os.stat(logfName0).st_size > 0:
@@ -73,10 +72,9 @@ def srcExtract(camName, catList, imgDiff, destDir, isRunning):
 
     isRunning.value = 0
     
-def srcExtractLocalDir(tpath, camName, catList, imgDiff, destDir, isRunning):
+def srcExtractLocalDir(tpath, camName, catList, imgDiff, logDestDir, isRunning):
     
     isRunning.value = 1
-    logDest0 = "%s/log"%(destDir)
     #print("srcExtractLocalDir: catNum=%d"%(len(catList)))
     
     ffId = 0
@@ -96,7 +94,7 @@ def srcExtractLocalDir(tpath, camName, catList, imgDiff, destDir, isRunning):
             
             srcDir= tpath #/data3/G002_021_190109 /home/xy/work/imgDiffTest2/fits/190128_G004_044
             dateStr = srcDir[srcDir.find('G'):] #G002_021_190109
-            logfName0 = '%s/%s.log'%(logDest0, dateStr)
+            logfName0 = '%s/%s.log'%(logDestDir, dateStr)
             
             if ffId==0:
                 if os.path.exists(logfName0) and os.stat(logfName0).st_size > 0:
@@ -256,7 +254,7 @@ def doAlign(camName, catList, tmplMap, tIdx, alignList, imgDiff, isRunning):
         
     isRunning.value = 0
         
-def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning, cofParms, cmbNum=5):
+def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning, cofParms, runName, cmbNum=5):
     
     isRunning.value = 1
     lastIdx = tIdx.value
@@ -295,6 +293,8 @@ def doCombine(camName, alignList, tmplMap, tIdx, imgDiff, cmbImgList, isRunning,
                 if newSky:
                     dateStr = imgName.split('_')[3][:6]
                     crossTaskName = "%s_%s_C%03d"%(dateStr, camName, cmbNum)
+                    if runName!='p1':
+                        crossTaskName = "%s_%s"%(crossTaskName, runName)
                     print("doCombine %s"%(crossTaskName))
                     crossMethod = '1'
                     imgDiff.ot2Classifier.crossTaskCreate(crossTaskName, crossMethod, dateStr, cofParms, imgDiff.tools.serverIP)
@@ -452,7 +452,7 @@ def doDiff(camName, cmbImgList, diffTmplMap, tIdx, imgDiff, diffImgList, isRunni
         
     isRunning.value = 0
         
-def doRecognitionAndUpload(camName, diffImgList, diffTmplMap, tIdx, imgDiff, isRunning):
+def doRecognitionAndUpload(camName, diffImgList, diffTmplMap, tIdx, imgDiff, isRunning, runName):
     
     isRunning.value = 1
     tNum = len(diffImgList)
@@ -467,7 +467,7 @@ def doRecognitionAndUpload(camName, diffImgList, diffTmplMap, tIdx, imgDiff, isR
                 if skyName in diffTmplMap:
                     tIdx.value = i
                     tmplParms = diffTmplMap[skyName]
-                    imgDiff.classifyAndUpload(imgName, tmplParms)
+                    imgDiff.classifyAndUpload(imgName, tmplParms, runName)
                 else:
                     imgDiff.log.warn("doRecognitionAndUpload %s %s cannot find template"%(skyName, imgName))
                     #break
@@ -523,14 +523,14 @@ class BatchImageDiff(object):
                   'usnoR2': 0.041667, 
                   'usnoMag2': 8}
             
-    def mainControl(self, camName, destDir='/data/gwac_diff_xy', toolPath='/home/gwac/img_diff_xy/image_diff'):
+    def mainControl(self, camName, runName = 'p1', destDir='/data/gwac_diff_xy', toolPath='/home/gwac/img_diff_xy/image_diff'):
         
         #os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
         #os.environ["CUDA_VISIBLE_DEVICES"] = ""
         
         dateStr = datetime.strftime(datetime.utcnow(), "%Y%m%d")
-        dataDest0 = "%s/data/%s"%(destDir, dateStr)
-        logDest0 = "%s/log"%(destDir)
+        dataDest0 = "%s/data/%s_%s"%(destDir, dateStr, runName)
+        logDest0 = "%s/log_%s"%(destDir, runName)
         if not os.path.exists(logDest0):
             os.system("mkdir -p %s"%(logDest0))
         if not os.path.exists(dataDest0):
@@ -558,8 +558,8 @@ class BatchImageDiff(object):
                 tIdx1 = loopNum%5
                 ''' '''
                 if tIdx1==1 and self.catRunning.value==0:  #cat
-                        #catJob = Process(target=srcExtractLocalDir, args=(dataPath, camName, self.catList, imgDiff, destDir, self.catRunning))
-                        catJob = Process(target=srcExtract, args=(camName, self.catList, imgDiff, destDir, self.catRunning))
+                        #catJob = Process(target=srcExtractLocalDir, args=(dataPath, camName, self.catList, imgDiff, logDest0, self.catRunning))
+                        catJob = Process(target=srcExtract, args=(camName, self.catList, imgDiff, logDest0, self.catRunning))
                         catJob.start()
                 
                 tIdx2 = loopNum%15

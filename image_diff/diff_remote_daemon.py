@@ -30,7 +30,9 @@ def checkStatus(loopNum, cmdName):
     pythonPath = '%s/anaconda3/envs/imgdiff3/bin/python'%(dpathProgram)
     diffDaemonLog = 'diffDaemonLog.txt'
     #procName = "BatchDiff"
-    procName = "Scheduling"
+    #procName = "Scheduling"
+    procName = "SchedulingSingle"
+    runName = "p2"
     
     ips = getIpList()
         
@@ -75,12 +77,8 @@ def checkStatus(loopNum, cmdName):
             logfile0.write(tstr)
             logfile0.flush()
             camName = "G0%s"%(ip[-2:])
-            tcommand = 'cd %s/image_diff; echo "#!/bin/bash\nnohup %s %s.py %s > log1.txt &" > run.sh'\
-                %(dpathProgram, pythonPath, procName, camName)
-            #print(tcommand)
-            ssh.exec_command(tcommand)
-            tcommand = 'bash %s/image_diff/run.sh'%(dpathProgram)
-            #print(tcommand)
+            tcommand = 'cd %s/image_diff; nohup %s %s.py %s %s > log1.txt & '%(dpathProgram, pythonPath, procName, camName, runName)
+            print(tcommand)
             stdin, stdout, stderr = ssh.exec_command(tcommand)
             #print("print stdout")
             ##print(stdout.readlines())
