@@ -356,6 +356,7 @@ class AstroTools(object):
         #self.log.info(stderrstr)
         
         if os.path.exists(outFPath) and status==0:
+        #if os.path.exists(outFPath):
             self.log.debug("run sextractor success.")
             self.log.debug("generate catalog %s"%(outFPath))
             isSuccess = True

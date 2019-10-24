@@ -78,7 +78,7 @@ def checkStatus(loopNum, cmdName):
             logfile0.flush()
             camName = "G0%s"%(ip[-2:])
             tcommand = 'cd %s/image_diff; nohup %s %s.py %s %s > log1.txt & '%(dpathProgram, pythonPath, procName, camName, runName)
-            print(tcommand)
+            #print(tcommand)
             stdin, stdout, stderr = ssh.exec_command(tcommand)
             #print("print stdout")
             ##print(stdout.readlines())

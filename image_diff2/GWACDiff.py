@@ -251,7 +251,9 @@ class GWACDiff(object):
         os.system("cp %s/%s.cat %s/%s"%(self.tmplAlignDir, templateImg.split(".")[0] , self.tmpAlign, ttmplCat))
         alignRst = doAll(self.tmpAlign, ttmplCat, self.tmpAlign, objectCat, self.tmpAlign, objectImg, self.alignDir, imgName, templateImg)
         if alignRst[0]>0:
+            #print("totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios")
             totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios = alignRst
+            print("alignImage: %s, xshift=%f,yshift=%f"%(imgName, xshift,yshift))
             self.log.info(alignRst)
             isSuccess = True
     
@@ -291,6 +293,7 @@ class GWACDiff(object):
             
             #tCmbImg = tCmbImg.astype(np.uint16)
             outImgName = "%s_c%03d.fit"%(imgNames[0].split('.')[0], len(imgNames))
+            #print("superCombine: get %s"%(outImgName))
             fits.writeto("%s/%s"%(self.cmbDir, outImgName), tCmbImg, header=theader,overwrite=True)
             endtime = datetime.now()
             runTime = (endtime - starttime).seconds
@@ -547,8 +550,11 @@ class GWACDiff(object):
             if badPixProps2.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, badPixProps2, size)
                 if badParms.shape[0]>0:
+                    tXY = badParms[:,0:2]
+                    tRaDec = wcs.all_pix2world(tXY, 1)
+                    badParms = np.concatenate((badParms, tRaDec), axis=1)
                     fotpath = '%s/%s_badimg2.npz'%(self.destDir, oImgPre)
-                    np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
+                    np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms, obsUtc=dtStr)
             
             resultFlag = True
         else:

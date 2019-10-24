@@ -154,7 +154,7 @@ class OT2Classify(object):
             #print("doClassifyAndUpload 003")
             if tParms1t.shape[0]>0 and tParms1t.shape[0]<100 and tParms2t.shape[0]>0 and tParms2t.shape[0]<50 and tParms3t.shape[0]>0 and tParms3t.shape[0]<50:
                 tParms = np.concatenate((tParms1t, tParms2t, tParms3t), axis=0)
-            elif tParms1t.shape[0]>0 and tParms1t.shape[0]<100:
+            elif tParms1t.shape[0]>0 and tParms1t.shape[0]<50:
                 tParms = tParms1t
             elif tParms2t.shape[0]>0 and tParms2t.shape[0]<50:
                 tParms = tParms2t
@@ -211,6 +211,8 @@ class OT2Classify(object):
                     fp0.write(self.theader2)
                     i=0
                     for td in tParms:
+                        print(td)
+                        print(td[15])
                         tstr = self.catFormate%\
                             (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12],td[13],
                              td[14],td[15],td[16], timgNames[i], obsUtc1, td[0],td[1])
