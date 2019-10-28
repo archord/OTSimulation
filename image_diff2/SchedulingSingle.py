@@ -16,6 +16,26 @@ from gwac_util import getLastLine
 class BatchImageDiff(object):
     
     def __init__(self):
+        
+        self.initData()
+        
+        self.crossTaskParms = {'mergedR': 0.0167, 
+                  'mergedMag': 20, 
+                  'cvsR': 0.0167,
+                  'cvsMag': 20, 
+                  'rc3R': 0.03333, 
+                  'rc3MinMag': -20, 
+                  'rc3MaxMag': 20, 
+                  'minorPlanetR': 0.05, 
+                  'minorPlanetMag': 16, 
+                  'ot2HisR': 0.01, 
+                  'ot2HisMag': 20, 
+                  'usnoR1': 0.016667, 
+                  'usnoMag1': 15.5, 
+                  'usnoR2': 0.041667, 
+                  'usnoMag2': 8}
+    
+    def initData(self):
         self.catList = []
         self.alignTmplMap = {}
         self.alignList = []
@@ -43,22 +63,7 @@ class BatchImageDiff(object):
         
         self.skyName0 = ""
         self.curFFId = 0
-        
-        self.crossTaskParms = {'mergedR': 0.0167, 
-                  'mergedMag': 20, 
-                  'cvsR': 0.0167,
-                  'cvsMag': 20, 
-                  'rc3R': 0.03333, 
-                  'rc3MinMag': -20, 
-                  'rc3MaxMag': 20, 
-                  'minorPlanetR': 0.05, 
-                  'minorPlanetMag': 16, 
-                  'ot2HisR': 0.01, 
-                  'ot2HisMag': 20, 
-                  'usnoR1': 0.016667, 
-                  'usnoMag1': 15.5, 
-                  'usnoR2': 0.041667, 
-                  'usnoMag2': 8}
+        self.loopNum = 0
                 
     def srcExtract(self, camName, catList, imgDiff, logDestDir, runName):
         
@@ -440,18 +445,17 @@ class BatchImageDiff(object):
         #os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
         #os.environ["CUDA_VISIBLE_DEVICES"] = ""
         
-        dateStr = datetime.strftime(datetime.utcnow(), "%Y%m%d")
-        dataDest0 = "%s/data/%s_%s"%(destDir, dateStr, runName)
+        tools = AstroTools(toolPath)
         logDest0 = "%s/log"%(destDir)
         if not os.path.exists(logDest0):
             os.system("mkdir -p %s"%(logDest0))
+            
+        dateStr = datetime.strftime(datetime.utcnow(), "%Y%m%d")
+        dataDest0 = "%s/data/%s_%s"%(destDir, dateStr, runName)
         if not os.path.exists(dataDest0):
             os.system("mkdir -p %s"%(dataDest0))
-        
-        tools = AstroTools(toolPath)
-        
         imgDiff = GWACDiff(camName, dataDest0, tools)
-        tStr = "start diff..."
+        tStr = "%s: start combine diff..."%(camName)
         imgDiff.log.info(tStr)
         imgDiff.sendMsg(tStr)
         
@@ -462,50 +466,72 @@ class BatchImageDiff(object):
         #os.system("rm -rf %s"%(processRecord))
         
         #sexLock=Lock()
-        loopNum = 1
+        self.loopNum = 1
         while True:
             
+            curUtcDateTime = datetime.utcnow()
+            tDateTime = datetime.utcnow()
+            startDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #9=17  1=9
+            endDateTime = tDateTime.replace(hour=9, minute=30, second=10)  #22=6    8=16
+            remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
+            remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
+            if not (remainSeconds1<0 and remainSeconds2>0):
+                
+                if os.path.exists(dataDest0):
+                    os.system("rm -rf %s"%(dataDest0))
+                
+                self.initData()
+                dateStr = datetime.strftime(datetime.utcnow(), "%Y%m%d")
+                dataDest0 = "%s/data/%s_%s"%(destDir, dateStr, runName)
+                if not os.path.exists(dataDest0):
+                    os.system("mkdir -p %s"%(dataDest0))
+                imgDiff = GWACDiff(camName, dataDest0, tools)
+                tStr = "%s: combine diff reInit data"%(camName)
+                imgDiff.log.info(tStr)
+                imgDiff.sendMsg(tStr)
+                time.sleep(10)
+            
             try:
-                print("\n\nmain loop %d****************"%(loopNum))
-                tIdx1 = loopNum%5
+                print("\n\nmain loop %d****************"%(self.loopNum))
+                tIdx1 = self.loopNum%5
                 #tIdx1 = loopNum%1
                 ''' '''
                 if tIdx1==0 and self.catRunning==0:  #cat
                     self.srcExtract(camName, self.catList, imgDiff, logDest0, runName)
                 
                 #tIdx2 = loopNum%15
-                tIdx2 = loopNum%2
+                tIdx2 = self.loopNum%2
                 if tIdx2==0 and self.alignTmplRunning==0: #template getAlignTemplateLocal
                     self.getAlignTemplate(camName, self.catList, self.alignTmplMap, imgDiff)
                     
-                tIdx3 = loopNum%2
+                tIdx3 = self.loopNum%2
                 if tIdx3==0 and self.alignRunning==0: #align
                     self.doAlign(camName, self.catList, self.alignTmplMap, self.alignList, imgDiff)
                     
-                tIdx4 = loopNum%2
+                tIdx4 = self.loopNum%2
                 if tIdx4==0 and self.cmbRunning==0: #combine5
                     self.doCombine(camName, self.alignList, self.alignTmplMap,  
                             imgDiff, self.cmbImgList, self.crossTaskParms, runName, 5)
 
-                tIdx5 = loopNum%2
+                tIdx5 = self.loopNum%2
                 if tIdx5==0 and self.cmbCatRunning==0: #cat of combine5
                     self.srcExtractCombine(camName, self.cmbImgList, self.cmbCatList, imgDiff)
                 #else:
                 #    print("%d cmbCatJob is running"%(loopNum))      
                 
                 #tIdx6 = loopNum%15
-                tIdx6 = loopNum%2
+                tIdx6 = self.loopNum%2
                 if tIdx6==0 and self.diffTmplRunning==0: #cat of combine5
                     self.getDiffTemplate(camName, self.cmbCatList, self.alignTmplMap, self.diffTmplMap, imgDiff)
                 
                 #tIdx7 = loopNum%5
-                tIdx7 = loopNum%2
+                tIdx7 = self.loopNum%2
                 if tIdx7==0:
                     if self.diffRunning==0: #diff
                         self.doDiff(camName, self.cmbCatList, self.diffTmplMap, imgDiff, self.diffImgList)
                     
                 #tIdx8 = loopNum%2
-                tIdx8 = loopNum%2
+                tIdx8 = self.loopNum%2
                 if tIdx8==0:
                     if self.recgRunning==0: #recognition
                         #print("%d doRecognitionAndUpload start run"%(loopNum))
@@ -513,7 +539,7 @@ class BatchImageDiff(object):
                     #else:
                     #    print("%d doRecognitionAndUpload is running"%(loopNum))
                    
-                loopNum = loopNum + 1
+                self.loopNum = self.loopNum + 1
                 
                 time.sleep(1)
             except Exception as e:

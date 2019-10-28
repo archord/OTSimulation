@@ -545,7 +545,6 @@ class GWACDiff(object):
                 if badParms.shape[0]>0:
                     fotpath = '%s/%s_badimg.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms)
-            ''' 
             
             if badPixProps2.shape[0]>0:
                 badSubImgs, badParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, badPixProps2, size)
@@ -555,6 +554,7 @@ class GWACDiff(object):
                     badParms = np.concatenate((badParms, tRaDec), axis=1)
                     fotpath = '%s/%s_badimg2.npz'%(self.destDir, oImgPre)
                     np.savez_compressed(fotpath, imgs=badSubImgs, parms=badParms, obsUtc=dtStr)
+            ''' 
             
             resultFlag = True
         else:
@@ -608,12 +608,12 @@ class GWACDiff(object):
         if not os.path.exists(upDir):
             os.system("mkdir -p %s"%(upDir))
         
-        print("cp %s/%s %s/%s"%(self.cmbDir, imgName, upDir, imgName))
+        #print("cp %s/%s %s/%s"%(self.cmbDir, imgName, upDir, imgName))
         os.system("cp %s/%s %s/%s"%(self.cmbDir, imgName, upDir, imgName))
-        print("cp %s/%s %s/%s"%(ttmplPath, tmplImgName, upDir, tmplImgName))
+        #print("cp %s/%s %s/%s"%(ttmplPath, tmplImgName, upDir, tmplImgName))
         os.system("cp %s/%s %s/%s"%(ttmplPath, tmplImgName, upDir, tmplImgName))
         resiImg = "%s_resi.fit"%(oImgPre)
-        print("cp %s/%s %s/%s"%(self.diffImgDir, resiImg, upDir, resiImg))
+        #print("cp %s/%s %s/%s"%(self.diffImgDir, resiImg, upDir, resiImg))
         os.system("cp %s/%s %s/%s"%(self.diffImgDir, resiImg, upDir, resiImg))
         
         totImgsName = '%s_totimg.npz'%(oImgPre)

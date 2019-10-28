@@ -366,7 +366,7 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
             
             return (totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios2)
         else:
-            #print("no point match")
+            print("blindmatch: no feature point match")
             return (0,)
             
         

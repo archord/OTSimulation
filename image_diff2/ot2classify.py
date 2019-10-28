@@ -18,7 +18,7 @@ class OT2Classify(object):
         self.dataRoot=dataRoot
         self.modelName=modelName
         #model_RealFOT_createModel_08_16_32_60_2.h5  model_80w_20190403_branch3_train12_79
-        self.modelName3='model_RealFOT_createModel_08_16_32_60_2.h5'
+        self.modelName3='model_80w_20190403_branch3_train12_79.h5'
         self.modelPath="%s/tools/mlmodel/%s"%(dataRoot,self.modelName3)
         
         self.imgSize = 64
@@ -119,6 +119,9 @@ class OT2Classify(object):
             #self.log.info("crossTaskName %s"%(crossTaskName))   
             #print("crossTaskName %s"%(crossTaskName))
             
+            tParms1t2 = np.array([])
+            tParms2t = np.array([])
+            
             tParms1, obsUtc1 = self.doClassifyFile(subImgPath, totFile)
             #print("doClassifyAndUpload 001")
             if tParms1.shape[0]>0:
@@ -135,7 +138,8 @@ class OT2Classify(object):
                 if tParms2t.shape[0]>0:
                     tflags2t = np.zeros((tParms2t.shape[0],1)) #OT FLAG 
                     tParms2t = np.concatenate((tParms2t, tflags2t), axis=1)
-            
+            '''
+            tParms3t = np.array([])
             badotFile = fotFile.replace('fotimg', 'badimg2')
             tParms3, obsUtc3 = self.doClassifyFile(subImgPath, badotFile)
             if tParms3.shape[0]>0:
@@ -143,23 +147,20 @@ class OT2Classify(object):
                 if tParms3t.shape[0]>0:
                     tflags3t = np.zeros((tParms3t.shape[0],1)) #OT FLAG 
                     tParms3t = np.concatenate((tParms3t, tflags3t), axis=1)
-            
+            '''
             tParms1t2 = tParms1[(tParms1[:,6]<maxMEllip) & (tParms1[:,15]>=prob)]
             
-            print("classify result: %d tot(%d), %d fot(%d), %d badot(%d)"%(
+            print("classify result: %d tot(%d), %d fot(%d)"%(
                     tParms1t2.shape[0],tParms1.shape[0],
-                  tParms2t.shape[0],tParms2.shape[0],
-                  tParms3t.shape[0],tParms3.shape[0]))
+                  tParms2t.shape[0],tParms2.shape[0]))
             
             #print("doClassifyAndUpload 003")
-            if tParms1t.shape[0]>0 and tParms1t.shape[0]<100 and tParms2t.shape[0]>0 and tParms2t.shape[0]<50 and tParms3t.shape[0]>0 and tParms3t.shape[0]<50:
-                tParms = np.concatenate((tParms1t, tParms2t, tParms3t), axis=0)
-            elif tParms1t.shape[0]>0 and tParms1t.shape[0]<50:
+            if tParms1t.shape[0]>0 and tParms1t.shape[0]<100 and tParms2t.shape[0]>0 and tParms2t.shape[0]<50:
+                tParms = np.concatenate((tParms1t, tParms2t), axis=0)
+            elif tParms1t.shape[0]>0 and tParms1t.shape[0]<100:
                 tParms = tParms1t
             elif tParms2t.shape[0]>0 and tParms2t.shape[0]<50:
                 tParms = tParms2t
-            elif tParms3t.shape[0]>0 and tParms3t.shape[0]<50:
-                tParms = tParms3t
             else:
                 tParms = np.array([])
                 
@@ -198,6 +199,18 @@ class OT2Classify(object):
                         spaceLine = np.ones((objWidz.shape[0],5), dtype=np.uint8)*255
                         spaceLine = spaceLine.reshape(spaceLine.shape[0], spaceLine.shape[1],1).repeat(3,2)
                         sub2Con = np.concatenate((objWidz, spaceLine, tmpWidz, spaceLine, resiWidz), axis=1)
+                        
+                        tstrs = tmpImg.split('_') #G044_mon_objt_190128T10264248.fit
+                        if len(tstrs)==4:
+                            tmpDateTime = tstrs[3]
+                            cv2.putText(
+                             sub2Con, #numpy array on which text is written
+                             tmpDateTime[:tmpDateTime.index('.')], #text 
+                             (objWidz.shape[1]+25,objWidz.shape[0]-10), #position at which writing has to start
+                             cv2.FONT_HERSHEY_SIMPLEX, #font family
+                             0.5, #font size
+                             (0, 255, 0), #font color
+                             2)
                         
                         tImgName = "%s_%05d.jpg"%(nameBase,i)
                         timgNames.append(tImgName)
