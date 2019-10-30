@@ -21,7 +21,7 @@ def getIpList():
             ips.append(ip)
     return ips
     
-def checkStatus(loopNum, cmdName):
+def checkStatus(loopNum, cmdName, procName = "SchedulingSingle"):
 
     sftpUser  =  'gwac'
     sftpPass  =  'gwac1234'
@@ -31,8 +31,9 @@ def checkStatus(loopNum, cmdName):
     diffDaemonLog = 'diffDaemonLog.txt'
     #procName = "BatchDiff"
     #procName = "Scheduling"
-    procName = "SchedulingSingle"
-    runName = "p2"
+    #procName = "SchedulingSingle"
+    #procName2 = "CreateWCSIndex_local"
+    runName = "p1"
     
     ips = getIpList()
         
@@ -77,7 +78,7 @@ def checkStatus(loopNum, cmdName):
             logfile0.write(tstr)
             logfile0.flush()
             camName = "G0%s"%(ip[-2:])
-            tcommand = 'cd %s/image_diff; nohup %s %s.py %s %s > log1.txt & '%(dpathProgram, pythonPath, procName, camName, runName)
+            tcommand = 'cd %s/image_diff; nohup %s %s.py %s %s > %s_log.txt & '%(dpathProgram, pythonPath, procName, camName, runName, procName)
             #print(tcommand)
             stdin, stdout, stderr = ssh.exec_command(tcommand)
             #print("print stdout")
@@ -106,10 +107,16 @@ def checkStatus(loopNum, cmdName):
         
 if __name__ == '__main__':
     
-    if len(sys.argv)==2:
-        cmdName = sys.argv[1] #start stop status
+    if len(sys.argv)==3:
+        procName = sys.argv[1] #"SchedulingSingle"
+        cmdName = sys.argv[2] #start stop status
     else:
+        procName = "SchedulingSingle"
         cmdName = "status"
+        print("default command is: diff_remote_daemon.py %s %s"%(procName, cmdName))
+        
+    if len(procName)<5 or procName=="*":
+        print("procName %s is error, stop run."%(procName))
     
     if cmdName == "start":
 
@@ -125,7 +132,7 @@ if __name__ == '__main__':
             if remainSeconds1<0 and remainSeconds2>0:
                 
                 try:
-                    checkStatus(loopNum, cmdName)
+                    checkStatus(loopNum, cmdName, procName)
             
                 except Exception as e:
                     print(str(e))
@@ -139,4 +146,4 @@ if __name__ == '__main__':
             else:
                 time.sleep(60*5)
     else:
-        checkStatus(1, cmdName)
+        checkStatus(1, cmdName, procName)

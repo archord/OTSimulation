@@ -60,7 +60,35 @@ class GWACDiff(object):
         self.makeDiffTmpl="%s/makeTmpl"%(self.tmpRoot)
         self.doDiffTmpl="%s/tmpl"%(self.tmpRoot)
         
-        self.initReg(0)
+        self.reInitDataDir(dataDest)
+
+    def sendMsg(self, tmsg):
+        
+        tmsgStr = "%s\n %s"%(self.camName, tmsg)
+        self.tools.sendTriggerMsg(tmsgStr)
+    
+    def reInitDataDir(self, dataDest):
+        
+        if not os.path.exists(self.tmpRoot):
+            os.system("mkdir -p %s"%(self.tmpRoot))
+        if not os.path.exists(self.tmpUpload):
+            os.system("mkdir -p %s"%(self.tmpUpload))
+                
+        os.system("rm -rf %s/*"%(self.tmpRoot))
+        os.system("rm -rf %s/*"%(self.tmpUpload))
+        
+        if not os.path.exists(self.makeDiffTmpl):
+            os.system("mkdir -p %s"%(self.makeDiffTmpl))
+        if not os.path.exists(self.tmpCat):
+            os.system("mkdir -p %s"%(self.tmpCat))
+        if not os.path.exists(self.cmbCat):
+            os.system("mkdir -p %s"%(self.cmbCat))
+        if not os.path.exists(self.diff):
+            os.system("mkdir -p %s"%(self.diff))
+        if not os.path.exists(self.tmpAlign):
+            os.system("mkdir -p %s"%(self.tmpAlign))
+        if not os.path.exists(self.doDiffTmpl):
+            os.system("mkdir -p %s"%(self.doDiffTmpl))
         
         self.catDir="%s/A_cat"%(dataDest)
         self.tmplAlignDir="%s/B_template_align"%(dataDest)
@@ -96,35 +124,6 @@ class GWACDiff(object):
             os.system("mkdir -p %s"%(self.destDir))
         if not os.path.exists(self.subImgViewDir):
             os.system("mkdir -p %s"%(self.subImgViewDir))
-
-    def sendMsg(self, tmsg):
-        
-        tmsgStr = "%s\n %s"%(self.camName, tmsg)
-        self.tools.sendTriggerMsg(tmsgStr)
-    
-    def initReg(self, idx):
-        
-        if not os.path.exists(self.tmpRoot):
-            os.system("mkdir -p %s"%(self.tmpRoot))
-                
-        if idx<=0:
-            idx =0
-            os.system("rm -rf %s/*"%(self.tmpRoot))
-            os.system("rm -rf %s/*"%(self.tmpUpload))
-            if not os.path.exists(self.tmpUpload):
-                os.system("mkdir -p %s"%(self.tmpUpload))
-            if not os.path.exists(self.makeDiffTmpl):
-                os.system("mkdir -p %s"%(self.makeDiffTmpl))
-            if not os.path.exists(self.tmpCat):
-                os.system("mkdir -p %s"%(self.tmpCat))
-            if not os.path.exists(self.cmbCat):
-                os.system("mkdir -p %s"%(self.cmbCat))
-            if not os.path.exists(self.diff):
-                os.system("mkdir -p %s"%(self.diff))
-            if not os.path.exists(self.tmpAlign):
-                os.system("mkdir -p %s"%(self.tmpAlign))
-            if not os.path.exists(self.doDiffTmpl):
-                os.system("mkdir -p %s"%(self.doDiffTmpl))
                 
         
     def getCat(self, srcDir, imgName, destDir, dtype='cat'):
@@ -588,7 +587,7 @@ class GWACDiff(object):
         
         return resultFlag
     
-    def classifyAndUpload(self, imgName, tmplParms, runName):
+    def classifyAndUpload(self, imgName, tmplParms, runName, skyName):
                 
         #os.system("rm -rf %s/*"%(self.diff))
         
@@ -621,5 +620,5 @@ class GWACDiff(object):
 
         self.ot2Classifier.doClassifyAndUpload(self.destDir, totImgsName, fotImgsName, 
                           upDir, imgName, tmplImgName, resiImg, 
-                          imgName, self.tools.serverIP, runName)
+                          imgName, self.tools.serverIP, runName, skyName)
         

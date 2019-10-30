@@ -18,7 +18,7 @@ class OT2Classify(object):
         self.dataRoot=dataRoot
         self.modelName=modelName
         #model_RealFOT_createModel_08_16_32_60_2.h5  model_80w_20190403_branch3_train12_79
-        self.modelName3='model_80w_20190403_branch3_train12_79.h5'
+        self.modelName3='model_RealFOT_createModel_08_16_32_60_2.h5'
         self.modelPath="%s/tools/mlmodel/%s"%(dataRoot,self.modelName3)
         
         self.imgSize = 64
@@ -97,7 +97,7 @@ class OT2Classify(object):
         return rstParms, obsUtc
         
     def doClassifyAndUpload(self, subImgPath, totFile, fotFile, 
-                          fullImgPath, newImg, tmpImg, resImg, origName, serverIP, runName, 
+                          fullImgPath, newImg, tmpImg, resImg, origName, serverIP, runName, skyName, 
                           prob=0.0000001, maxNEllip=0.6, maxMEllip=0.5, reverse=False):
 
         self.log.info("start new thread classifyAndUpload %s"%(origName))   
@@ -113,7 +113,7 @@ class OT2Classify(object):
             cmbNum = 5
             #tidx = nameBase.index('_c')+2
             #cmbNum = nameBase[tidx:tidx+3] #'G021_tom_objt_190109T13531492_c005.fit'
-            crossTaskName = "%s_%s_C%03d"%(dateStr, camName, cmbNum)
+            crossTaskName = "%s_%s_%s_C%03d"%(dateStr, camName, skyName, cmbNum)
             if runName!='p1':
                 crossTaskName = "%s_%s"%(crossTaskName, runName)
             #self.log.info("crossTaskName %s"%(crossTaskName))   
@@ -224,8 +224,8 @@ class OT2Classify(object):
                     fp0.write(self.theader2)
                     i=0
                     for td in tParms:
-                        print(td)
-                        print(td[15])
+                        #print(td)
+                        #print(td[15])
                         tstr = self.catFormate%\
                             (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12],td[13],
                              td[14],td[15],td[16], timgNames[i], obsUtc1, td[0],td[1])

@@ -364,7 +364,7 @@ class GWACWCSIndex:
                     tparms = self.checkImg(obs, imgParms)
                     tnum = tparms.shape[0]
                     
-                    tstr = "%s,%s,%s observe %s img, %d has parameter, %d backup."\
+                    tstr = "%s,%s,%s observe %s img, %d has parameter, %d backup to web server."\
                         %(obs[1], obs[2], obs[3], obs[4], imgParms.shape[0], tnum)
                     self.log.debug(tstr)
                     

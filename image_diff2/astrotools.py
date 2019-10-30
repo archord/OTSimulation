@@ -17,7 +17,7 @@ import paramiko
 
 class AstroTools(object):
     
-    def __init__(self, rootPath): 
+    def __init__(self, rootPath, logFile="gwac_diff"): 
         
         self.verbose = False
         
@@ -36,15 +36,15 @@ class AstroTools(object):
     
         os.environ['VER_DIR'] = self.varDir
                 
-        self.initLog()
+        self.initLog(logFile)
         
-    def initLog(self):
+    def initLog(self, logFile):
         
         self.log = logging.getLogger() #create logger
         self.log.setLevel(logging.INFO) #set level of logger, DEBUG INFO
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s") #set format of logger
         logging.Formatter.converter = time.gmtime #convert time in logger to UCT
-        filehandler = logging.FileHandler("%s/gwac_diff2.log"%(self.rootPath), 'w+')
+        filehandler = logging.FileHandler("%s/%s.log"%(self.rootPath, logFile), 'w+')
         filehandler.setFormatter(formatter) #add format to log file
         self.log.addHandler(filehandler) #link log file to logger
         if self.verbose:

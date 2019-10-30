@@ -250,7 +250,7 @@ class BatchImageDiff(object):
                             
                     if newSky:
                         dateStr = imgName.split('_')[3][:6]
-                        crossTaskName = "%s_%s_C%03d"%(dateStr, camName, cmbNum)
+                        crossTaskName = "%s_%s_%s_C%03d"%(dateStr, camName, skyName, cmbNum)
                         if runName!='p1':
                             crossTaskName = "%s_%s"%(crossTaskName, runName)
                         print("doCombine %d: register crossTask: %s"%(i, crossTaskName))
@@ -429,7 +429,7 @@ class BatchImageDiff(object):
                     if skyName in diffTmplMap:
                         self.recgIdx = i
                         tmplParms = diffTmplMap[skyName]
-                        imgDiff.classifyAndUpload(imgName, tmplParms, runName)
+                        imgDiff.classifyAndUpload(imgName, tmplParms, runName, skyName)
                     else:
                         imgDiff.log.warn("doRecognitionAndUpload %d: %s %s cannot find template"%(i, skyName, imgName))
                         #break
@@ -469,37 +469,45 @@ class BatchImageDiff(object):
         self.loopNum = 1
         while True:
             
-            curUtcDateTime = datetime.utcnow()
-            tDateTime = datetime.utcnow()
-            startDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #9=17  1=9
-            endDateTime = tDateTime.replace(hour=9, minute=30, second=10)  #22=6    8=16
-            remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
-            remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
-            if not (remainSeconds1<0 and remainSeconds2>0):
-                
-                if os.path.exists(dataDest0):
-                    os.system("rm -rf %s"%(dataDest0))
-                
-                self.initData()
-                dateStr = datetime.strftime(datetime.utcnow(), "%Y%m%d")
-                dataDest0 = "%s/data/%s_%s"%(destDir, dateStr, runName)
-                if not os.path.exists(dataDest0):
-                    os.system("mkdir -p %s"%(dataDest0))
-                imgDiff = GWACDiff(camName, dataDest0, tools)
-                tStr = "%s: combine diff reInit data"%(camName)
-                imgDiff.log.info(tStr)
-                imgDiff.sendMsg(tStr)
-                time.sleep(10)
+            try:
+                curUtcDateTime = datetime.utcnow()
+                tDateTime = datetime.utcnow()
+                startDateTime = tDateTime.replace(hour=9, minute=30, second=0)  #9=17  1=9
+                endDateTime = tDateTime.replace(hour=9, minute=30, second=10)  #22=6    8=16
+                remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
+                remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
+                if remainSeconds1<0 and remainSeconds2>0:
+                    
+                    if os.path.exists(dataDest0):
+                        os.system("rm -rf %s"%(dataDest0))
+                    
+                    self.initData()
+                    dateStr = datetime.strftime(datetime.utcnow(), "%Y%m%d")
+                    dataDest0 = "%s/data/%s_%s"%(destDir, dateStr, runName)
+                    if not os.path.exists(dataDest0):
+                        os.system("mkdir -p %s"%(dataDest0))
+                    imgDiff.reInitDataDir(dataDest0)
+                    tStr = "%s: combine diff reInit data"%(camName)
+                    print(tStr)
+                    imgDiff.log.info(tStr)
+                    imgDiff.sendMsg(tStr)
+                    time.sleep(10)
             
+            except Exception as e:
+                tstr = traceback.format_exc()
+                print("combine diff reInit data error....")
+                print(tstr)
+                time.sleep(10)
+                
             try:
                 print("\n\nmain loop %d****************"%(self.loopNum))
                 tIdx1 = self.loopNum%5
-                #tIdx1 = loopNum%1
+                #tIdx1 = self.loopNum%1
                 ''' '''
                 if tIdx1==0 and self.catRunning==0:  #cat
                     self.srcExtract(camName, self.catList, imgDiff, logDest0, runName)
                 
-                #tIdx2 = loopNum%15
+                #tIdx2 = self.loopNum%15
                 tIdx2 = self.loopNum%2
                 if tIdx2==0 and self.alignTmplRunning==0: #template getAlignTemplateLocal
                     self.getAlignTemplate(camName, self.catList, self.alignTmplMap, imgDiff)
@@ -517,27 +525,27 @@ class BatchImageDiff(object):
                 if tIdx5==0 and self.cmbCatRunning==0: #cat of combine5
                     self.srcExtractCombine(camName, self.cmbImgList, self.cmbCatList, imgDiff)
                 #else:
-                #    print("%d cmbCatJob is running"%(loopNum))      
+                #    print("%d cmbCatJob is running"%(self.loopNum))      
                 
-                #tIdx6 = loopNum%15
+                #tIdx6 = self.loopNum%15
                 tIdx6 = self.loopNum%2
                 if tIdx6==0 and self.diffTmplRunning==0: #cat of combine5
                     self.getDiffTemplate(camName, self.cmbCatList, self.alignTmplMap, self.diffTmplMap, imgDiff)
                 
-                #tIdx7 = loopNum%5
+                #tIdx7 = self.loopNum%5
                 tIdx7 = self.loopNum%2
                 if tIdx7==0:
                     if self.diffRunning==0: #diff
                         self.doDiff(camName, self.cmbCatList, self.diffTmplMap, imgDiff, self.diffImgList)
                     
-                #tIdx8 = loopNum%2
+                #tIdx8 = self.loopNum%2
                 tIdx8 = self.loopNum%2
                 if tIdx8==0:
                     if self.recgRunning==0: #recognition
-                        #print("%d doRecognitionAndUpload start run"%(loopNum))
+                        #print("%d doRecognitionAndUpload start run"%(self.loopNum))
                         self.doRecognitionAndUpload(camName, self.diffImgList, self.diffTmplMap, imgDiff, runName)
                     #else:
-                    #    print("%d doRecognitionAndUpload is running"%(loopNum))
+                    #    print("%d doRecognitionAndUpload is running"%(self.loopNum))
                    
                 self.loopNum = self.loopNum + 1
                 

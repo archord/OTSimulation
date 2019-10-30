@@ -10,6 +10,8 @@ def getIpList():
     
     ips = []
     for i in range(2,5):
+        if i==3:
+            continue
         for j in range(1,5):
             ip = "%s%d%d"%(ipPrefix, i,j)
             ips.append(ip)
@@ -62,8 +64,12 @@ if __name__ == '__main__':
                 ftp.close()
                 
                 #ssh.exec_command('cd %s ; tar -xf %s'%(droot, danaconda2))
-                ssh.exec_command('cd %s ; rm -rf %s/*'%(droot, programDir))
-                ssh.exec_command('cd %s ; tar -xf %s'%(droot, dprogramDirTar))
+                #ssh.exec_command('cd %s ; rm -rf %s/*'%(droot, programDir))
+                stdin, stdout, stderr = ssh.exec_command('cd %s ; tar -xf %s'%(droot, dprogramDirTar))
+                print("print stdout")
+                print(stdout.readlines())
+                print("print stderr")
+                print(stderr.readlines())
                 
                 ssh.close()
                 time.sleep(1)
