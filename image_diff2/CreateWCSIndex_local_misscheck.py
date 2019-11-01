@@ -105,6 +105,7 @@ class GWACWCSIndex:
             sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
             fpar='sex_diff.par'
             tmplCat, isSuccess = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0)
+            starNum, fwhmMean, fwhmRms, bgMean, bgRms = self.tools.basicStatistic(self.templateDir, tmplCat)
             
             sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5','-CATALOG_TYPE', 'FITS_LDAC']
             tmplCat, isSuccess = self.tools.runSextractor(self.templateImg, self.templateDir, self.templateDir, fpar, sexConf, cmdStatus=0, outSuffix='_ldac.fit')
@@ -219,13 +220,17 @@ class GWACWCSIndex:
             
         except Exception as e:
             runSuccess = False
+            tRaDec = np.array([])
+            starNum = 0
+            fwhmMean = 0
+            bgMean  = 0
             self.log.error(e)
             tstr = traceback.format_exc()
             self.log.error(tstr)
             tmsgStr = "%s make template error"%(imgName)
             self.tools.sendTriggerMsg(tmsgStr)
         
-        return runSuccess, tRaDec
+        return runSuccess, tRaDec, starNum, fwhmMean, bgMean
     
     def connDb(self):
         
@@ -256,11 +261,12 @@ class GWACWCSIndex:
     
     def queryObs(self, camName):
     
+        #and start_obs_time is null  
         tsql = "select ors_id, date_str, sky_id, cam_id, img_num "\
                 "from observation_record_statistic ors "\
                 "INNER JOIN camera cam on cam.camera_id=ors.cam_id "\
-                "where do_wcs=false and cam.name='%s' "\
-                "ORDER BY ors_id "%(camName)
+                "where do_wcs=true and has_wcs=false and date_str>'181001' and start_obs_time is null  and cam.name='%s' "\
+                "ORDER BY ors_id desc limit 10"%(camName)
         #print(tsql)
         
         return self.getDataFromDB(tsql)
@@ -272,6 +278,17 @@ class GWACWCSIndex:
             "INNER JOIN fits_file2%s ff on isp.ff_id=ff.ff_id "\
             "where isp.fwhm>1 and ff.sky_id=%s and ff.cam_id=%s and to_char(ff.gen_time, 'YYMMDD')='%s' "\
             "ORDER BY ff_number"%(isHis, isHis, obs[2], obs[3], obs[1])
+        
+        trst = self.getDataFromDB(tsql)
+        
+        return trst
+    
+    def queryImgParm2(self, obs, isHis='_his'):
+    
+        tsql = "SELECT ff.img_name, 0, ff.ff_number, 0, ff.gen_time, ff.ff_id, ff.img_path "\
+            "from fits_file2%s ff "\
+            "where ff.sky_id=%s and ff.cam_id=%s and to_char(ff.gen_time, 'YYMMDD')='%s' "\
+            "ORDER BY ff_number"%(isHis, obs[2], obs[3], obs[1])
         
         trst = self.getDataFromDB(tsql)
         
@@ -333,12 +350,14 @@ class GWACWCSIndex:
             self.log.error(" update science_object status error ")
             self.log.error(err)
             
-    def insertObsWcs(self, orsId, tparms, getWCS='true'):
+    def insertObsWcs(self, orsId, tparms, starNum, fwhm, background, getWCS='true'):
         
         #print(orsId)
         #print(tparms)
-        tsql = "insert into observation_record_statistic_wcs(ff_id,fwhm,star_num,ors_id,get_wcs)"\
-            "values(%d,%f,%d,%s,%s)"%(tparms[5],tparms[1],tparms[3],orsId,getWCS)
+        #tsql = "insert into observation_record_statistic_wcs(ff_id,fwhm,star_num,ors_id,get_wcs)"\
+        #    "values(%d,%f,%d,%s,%s)"%(tparms[5],tparms[1],tparms[3],orsId,getWCS)
+        tsql = "insert into observation_record_statistic_wcs(ff_id,fwhm,star_num,ors_id,get_wcs, background)"\
+            "values(%d,%f,%d,%s,%s, %f)"%(tparms[5],fwhm,starNum,orsId,getWCS, background)
         #print(tsql)
         
         try:
@@ -379,17 +398,24 @@ class GWACWCSIndex:
         trst=np.array(tparms, dtype=dtype)
         return trst
     
-    def doAstrometry(self, orsId, tparms):
+    def doAstrometry(self, orsId, tparms, hasParms=True):
         
         doSuccess = False
-        sortParms = np.sort(tparms,order='fwhm')
+        if hasParms:
+            sortParms = np.sort(tparms,order='fwhm')
+            starIdx = 0
+        else:
+            tnum = tparms.shape[0]
+            starIdx = int(tnum*2.0/3)
+            sortParms = tparms
         #print(sortParms)
         for i in range(3):
-            runSuccess, tRaDec = self.makeTemplate(sortParms[i])
+            tIdx = starIdx + i
+            runSuccess, tRaDec, starNum, fwhmMean, bgMean = self.makeTemplate(sortParms[tIdx])
             if runSuccess:
                 doSuccess = True
                 self.updateWCSCoors(orsId, tRaDec)
-                self.insertObsWcs(orsId, sortParms[i])
+                self.insertObsWcs(orsId, sortParms[tIdx], starNum, fwhmMean, bgMean)
                 break
             else:
                 print("%dth run failure, try next image"%(i+1))
@@ -399,44 +425,108 @@ class GWACWCSIndex:
         
     def createWCS(self, camName, minNum=50):
         
-        tobs = self.queryObs(camName)
-        if tobs.shape[0]>0:
-            for obs in tobs:
-                print(obs)
-                orsId = obs[0]
-                dateStr = obs[1]
-                self.updateDoWCS(orsId)
-                camId = int(obs[3])
-                if int(orsId)<80 or camId%5==0:
-                    continue
-                imgParms = self.queryImgParm(obs)
-                if imgParms.shape[0]==0:
-                    imgParms = self.queryImgParm(obs, " ")
-                if imgParms.shape[0]>minNum:
-                    timeObsUt = imgParms[:,4]
-                    minTime = np.min(timeObsUt)
-                    maxTime = np.max(timeObsUt)
-                    #self.log.debug(imgParms.shape[0])
-                    tparms = self.checkImg(obs, imgParms)
-                    tnum = tparms.shape[0]
-                    
-                    tstr = "%s,%s,%s observe %s img, %d has parameter, %d still in local path."\
-                        %(obs[1], obs[2], obs[3], obs[4], imgParms.shape[0], tnum)
-                    self.log.debug(tstr)
-                    print(tstr)
-                    
-                    if tnum<minNum:
-                        print("%s,%s,%s has %d images, small than minimum %d number, skip"%(obs[1], obs[2], obs[3], tnum, minNum))
-                        self.updateHasWCS(orsId, tnum, minTime, maxTime, 'false')
-                    else:
-                        if tnum>100:
-                            tparms = tparms[25:-25]
-                            doSuccess = self.doAstrometry(orsId, tparms)
+        while(True):
+            tobs = self.queryObs(camName)
+            if tobs.shape[0]>0:
+                for obs in tobs:
+                    print(obs)
+                    orsId = obs[0]
+                    dateStr = obs[1]
+                    imgNum = int(obs[4])
+                    #self.updateDoWCS(orsId)
+                    camId = int(obs[3])
+                    if camId%5==0:
+                        continue
+                    imgParms = self.queryImgParm(obs)
+                    if imgParms.shape[0]==0:
+                        print("cannot image parameters form history table, refind from current table ")
+                        imgParms = self.queryImgParm(obs, " ")
+                        
+                    if imgParms.shape[0]>minNum:
+                        timeObsUt = imgParms[:,4]
+                        minTime = np.min(timeObsUt)
+                        maxTime = np.max(timeObsUt)
+                        #self.log.debug(imgParms.shape[0])
+                        tparms = self.checkImg(obs, imgParms)
+                        tnum = tparms.shape[0]
+                        
+                        tstr = "%s,%s,%s observe %s img, %d has parameter, %d still in local path."\
+                            %(obs[1], obs[2], obs[3], obs[4], imgParms.shape[0], tnum)
+                        self.log.debug(tstr)
+                        print(tstr)
+                        
+                        if tnum<minNum:
+                            print("%s,%s,%s has %d images, small than minimum %d number, skip"%(obs[1], obs[2], obs[3], tnum, minNum))
+                            self.updateHasWCS(orsId, tnum, minTime, maxTime, 'false')
                         else:
-                            doSuccess = self.doAstrometry(orsId, tparms)
-                        if doSuccess:
-                            self.updateHasWCS(orsId, tnum, minTime, maxTime, 'true')
-                        #break
+                            if tnum>100:
+                                tparms = tparms[25:-25]
+                                doSuccess = self.doAstrometry(orsId, tparms)
+                            else:
+                                doSuccess = self.doAstrometry(orsId, tparms)
+                            if doSuccess:
+                                self.updateHasWCS(orsId, tnum, minTime, maxTime, 'true')
+                            else:
+                                self.updateHasWCS(orsId, tnum, minTime, maxTime, 'false')
+                            #break
+                    else:
+                        print("image parameter number is %d less than min number %d"%(imgParms.shape[0], minNum))
+                        if imgParms.shape[0]==0 and imgNum>minNum:
+                            print("directly build wcs from orig image.")
+                            #ff.img_name, isp.fwhm, ff.ff_number, isp.obj_num, isp.time_obs_ut, ff.ff_id, ff.img_path
+                            imgParms = self.queryImgParm2(obs)
+                            if imgParms.shape[0]==0:
+                                print("cannot image parameters form history table, refind from current table ")
+                                imgParms = self.queryImgParm2(obs, " ")
+                                
+                            
+                            if imgParms.shape[0]>minNum:
+                                #self.log.debug(imgParms.shape[0])
+                                timeObsUt = imgParms[:,4]
+                                minTime = np.min(timeObsUt)
+                                maxTime = np.max(timeObsUt)
+                                tparms = self.checkImg(obs, imgParms)
+                                tnum = tparms.shape[0]
+                                
+                                tstr = "%s,%s,%s observe %s img, 0 has parameter, %d still in local path."\
+                                    %(obs[1], obs[2], obs[3], obs[4], tnum)
+                                self.log.debug(tstr)
+                                print(tstr)
+                                
+                                if tnum<minNum:
+                                    print("%s,%s,%s has %d images, small than minimum %d number, skip"%(obs[1], obs[2], obs[3], tnum, minNum))
+                                    self.updateHasWCS(orsId, tnum, minTime, maxTime, 'false')
+                                else:
+                                    if tnum>100:
+                                        tparms = tparms[25:-25]
+                                        doSuccess = self.doAstrometry(orsId, tparms, False)
+                                    else:
+                                        doSuccess = self.doAstrometry(orsId, tparms, False)
+                                    if doSuccess:
+                                        self.updateHasWCS(orsId, tnum, minTime, maxTime, 'true')
+                                    else:
+                                        self.updateHasWCS(orsId, tnum, minTime, maxTime, 'false')
+                            else:
+                                minTime = datetime.now()
+                                maxTime = minTime
+                                tnum = 0
+                                self.updateHasWCS(orsId, tnum, minTime, maxTime, 'false')
+                        else:
+                            try:
+                                timeObsUt = imgParms[:,4]
+                                minTime = np.min(timeObsUt)
+                                maxTime = np.max(timeObsUt)
+                            except Exception as err:
+                                minTime = datetime.now()
+                                maxTime = minTime
+                                self.log.error(err)
+            
+                            tnum = 0
+                            self.updateHasWCS(orsId, tnum, minTime, maxTime, 'false')
+                #break
+            else:
+                print("already completely built all wcs")
+                break
 
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python
 if __name__ == '__main__':

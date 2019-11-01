@@ -6,7 +6,7 @@ from datetime import datetime
 import traceback
 
     
-def checkIsDaemonRun(procName):
+def checkIsDaemonRun(procName, parms):
     
     #procName='diff_remote_daemon'
     tcmd = 'ps aux | grep %s'%(procName)
@@ -20,7 +20,11 @@ def checkIsDaemonRun(procName):
     is2Alive = False
     fullName = "%s.py"%(procName)
     if stdoutstr.find(fullName)>-1: #.decode("utf-8")  .encode('ascii')
-        is2Alive = True       
+        if len(parms)>0:
+            if stdoutstr.find(parms)>-1:
+                is2Alive = True 
+        else:
+            is2Alive = True       
         
     return is2Alive
         
@@ -28,15 +32,16 @@ if __name__ == '__main__':
     
     pythonPath = '/home/gwac/software/anaconda3/envs/imgdiff3/bin/python'
     
-    procList=[{'name':'diff_remote_daemon','path':'/data/work/program/batch_script', 'parms':'status'},
+    #{'name':'MonitorShutter','path':'/data/work/program/chbsoft', 'parms':''},
+    procList=[{'name':'diff_remote_daemon','path':'/data/work/program/batch_script', 'parms':'SchedulingSingle start'},
+            {'name':'diff_remote_daemon','path':'/data/work/program/batch_script', 'parms':'CreateWCSIndex_local start'},
               {'name':'04MachineParameterCollection','path':'/data/work/program/batch_script', 'parms':''},
-            {'name':'MonitorShutter','path':'/data/work/program/chbsoft', 'parms':''},
-            {'name':'01gwac_backup_fits2','path':'/data/gwac_data/batch_script', 'parms':''}]
+            {'name':'01gwac_backup_fits4','path':'/data/gwac_data/batch_script', 'parms':''}]
             
     for proc in procList:
         
-        if checkIsDaemonRun(proc['name']):
-            print("process %s is running"%(proc['name']))
+        if checkIsDaemonRun(proc['name'], proc['parms']):
+            print("process %s %s is running"%(proc['name'], proc['parms']))
         else:
             print("process %s is not running, start..."%(proc['name']))
             tcommand = 'cd %s ; nohup %s %s.py %s > %s.txt &'%(proc['path'], pythonPath, proc['name'], proc['parms'], proc['name'])
