@@ -304,7 +304,7 @@ def planProject(cRa, cDec, radius, startDate='', endDate='', getImgs='false', ge
     if len(searchList)>0:
         
         if getImgs=='true':
-            theader = 'imgPath, imgX, imgY\n'
+            theader = '#imgPath, imgX, imgY\n'
             savePath = "imgList_%.5f_%.5f.txt"%(cRa, cDec)
             tfile = open(savePath, 'w')
             tfile.write(theader)
@@ -325,7 +325,7 @@ def planProject(cRa, cDec, radius, startDate='', endDate='', getImgs='false', ge
             print("save image list to %s, total %d images."%(savePath, tnum))
         
         if getSkys=='true':
-            theader = 'dateStr, skyName, camName, startObsTime, endObsTime, imgNum, templateName, imgX, imgY\n'
+            theader = '#dateStr, skyName, camName, startObsTime, endObsTime, imgNum, templateName, imgX, imgY\n'
             savePath = "obsList_%.5f_%.5f.txt"%(cRa, cDec)
             tfile = open(savePath, 'w')
             tfile.write(theader)
