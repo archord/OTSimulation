@@ -58,7 +58,7 @@ class GWACWCSIndex:
     
     def connDb(self):
         
-        self.conn = psycopg2.connect(**self.connParam2)
+        self.conn = psycopg2.connect(**self.connParam)
         
     def closeDb(self):
         self.conn.close()
@@ -380,4 +380,4 @@ if __name__ == '__main__':
         print("1, GWACImageSearch.py centerRa(degree), centerDec(degree), radius(degree), isGetImgs(true|false), isGetSkys(true|false)")
         print("2, GWACImageSearch.py centerRa(degree), centerDec(degree), radius(degree), startDate(2019-10-31T18:02:48), endDate(2019-10-31T18:02:48), isGetImgs(true|false), isGetSkys(true|false)")
         print("3, In GWAC Data process machine, query G191030_C14687 as an example: /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python GWACImageSearch.py 72.33214 -8.366754 0.1 2019-10-29T18:02:48 2019-10-31T18:02:48 false true")
-        print("4, Default, this tools can only use in GWAC dome. If you want use this tools in Beijing, change the connParam2 in function connDb to connParam2.")
+        print("4, Default, this tools can only use in GWAC dome. If you want use this tools in Beijing, change the connParam in function connDb to connParam3.")
