@@ -58,7 +58,7 @@ class GWACWCSIndex:
     
     def connDb(self):
         
-        self.conn = psycopg2.connect(**self.connParam3)
+        self.conn = psycopg2.connect(**self.connParam2)
         
     def closeDb(self):
         self.conn.close()
@@ -118,14 +118,14 @@ class GWACWCSIndex:
         #print(tsql)
         return self.getDataFromDB(tsql)
     
-    def getImgList(self, orsId):
+    def getImgList(self, orsId, his='_his'):
         
         tsql = "select ff2.img_path "\
-            "from fits_file2_his ff2 "\
+            "from fits_file2%s ff2 "\
             "INNER JOIN observation_record_statistic ors on ors.cam_id=ff2.cam_id and  "\
             "ors.sky_id=ff2.sky_id and ors.date_str=to_char(ff2.gen_time, 'YYMMDD') "\
-            "WHERE ors.ors_id in (%d) "\
-            "ORDER BY ff2.ff_id"%(orsId)
+            "WHERE ors.ors_id=%d "\
+            "ORDER BY ff2.ff_id"%(his, orsId)
             
         #print(tsql)
         return self.getDataFromDB(tsql)
@@ -149,7 +149,21 @@ class GWACWCSIndex:
         #print(tsql)
         return self.getDataFromDB(tsql)
     
-    def getObsListDetail(self, orsIds):
+    def getObsListDetail(self, orsId, his='_his'):
+                
+        tsql = "select ors.date_str, osky.sky_name, cam.name, ors.start_obs_time, ors.end_obs_time, ors.real_img_num, ff2.img_name  "\
+            "from  observation_record_statistic ors  "\
+            "INNER JOIN observation_sky osky on ors.sky_id = osky.sky_id  "\
+            "INNER JOIN camera cam on cam.camera_id=ors.cam_id  "\
+            "INNER JOIN observation_record_statistic_wcs orsWcs on orsWcs.ors_id=ors.ors_id  "\
+            "INNER JOIN fits_file2%s ff2 on ff2.ff_id=orsWcs.ff_id  "\
+            "WHERE ors.ors_id=%d  "\
+            "ORDER BY ors.ors_id desc"%(his, orsId)
+            
+        #print(tsql)
+        return self.getDataFromDB(tsql)
+    
+    def getObsListDetail2(self, orsIds, his='_his'):
         
         tstr = ""
         for orsId in orsIds:
@@ -158,12 +172,14 @@ class GWACWCSIndex:
             else:
                 tstr = "%s,%d"%(tstr, orsId)
         
-        tsql = "select ors.date_str, osky.sky_name, cam.name, ors.start_obs_time, ors.end_obs_time, ors.real_img_num  "\
+        tsql = "select ors.date_str, osky.sky_name, cam.name, ors.start_obs_time, ors.end_obs_time, ors.real_img_num, ff2.img_name  "\
             "from  observation_record_statistic ors  "\
             "INNER JOIN observation_sky osky on ors.sky_id = osky.sky_id  "\
             "INNER JOIN camera cam on cam.camera_id=ors.cam_id  "\
-            "WHERE ors_id in (%s)  "\
-            "ORDER BY ors_id desc"%(tstr)
+            "INNER JOIN observation_record_statistic_wcs orsWcs on orsWcs.ors_id=ors.ors_id  "\
+            "INNER JOIN fits_file2%s ff2 on ff2.ff_id=orsWcs.ff_id  "\
+            "WHERE ors.ors_id in (%s)  "\
+            "ORDER BY ors.ors_id desc"%(his, tstr)
             
         #print(tsql)
         return self.getDataFromDB(tsql)
@@ -297,27 +313,38 @@ def planProject(cRa, cDec, radius, startDate='', endDate='', getImgs='false', ge
                 orId = int(tl[0])
                 imgX = tl[1]
                 imgY = tl[2]
+                imgList = wcsIdx.getImgList(orId, '')
+                for timg in imgList:
+                    tfile.write("%s,%.1f,%.1f\n"%(timg[0], imgX, imgY))
+                    tnum = tnum+1
                 imgList = wcsIdx.getImgList(orId)
                 for timg in imgList:
-                    tfile.write("%s,%f,%f\n"%(timg[0], imgX, imgY))
+                    tfile.write("%s,%.1f,%.1f\n"%(timg[0], imgX, imgY))
                     tnum = tnum+1
             tfile.close()
             print("save image list to %s, total %d images."%(savePath, tnum))
         
         if getSkys=='true':
-            theader = 'dateStr, skyName, camName, startObsTime, endObsTime, imgNum\n'
+            theader = 'dateStr, skyName, camName, startObsTime, endObsTime, imgNum, templateName, imgX, imgY\n'
             savePath = "obsList_%.5f_%.5f.txt"%(cRa, cDec)
             tfile = open(savePath, 'w')
             tfile.write(theader)
             
-            orIds = []
+            tnum =0
             for tl in searchList:
-                orIds.append(int(tl[0]))
-            obsList = wcsIdx.getObsListDetail(orIds)
-            for obs in obsList:
-                tfile.write("%s,%s,G%s,%s,%s,%s\n"%(obs[0],obs[1],obs[2],obs[3],obs[4],obs[5]))
+                orId = int(tl[0])
+                imgX = tl[1]
+                imgY = tl[2]
+                obsList = wcsIdx.getObsListDetail(orId, '')
+                for obs in obsList:
+                    tfile.write("%s,%s,G%s,%s,%s,%s,%s,%.1f,%.1f\n"%(obs[0],obs[1],obs[2],obs[3],obs[4],obs[5],obs[6],imgX, imgY))
+                    tnum = tnum+1
+                obsList = wcsIdx.getObsListDetail(orId)
+                for obs in obsList:
+                    tfile.write("%s,%s,G%s,%s,%s,%s,%s,%.1f,%.1f\n"%(obs[0],obs[1],obs[2],obs[3],obs[4],obs[5],obs[6],imgX, imgY))
+                    tnum = tnum+1
             tfile.close()
-            print("save observation list to %s, total %d observations."%(savePath, len(obsList)))
+            print("save observation list to %s, total %d observations."%(savePath, tnum))
 
 #GWACImageSearch.py 72.33214 -8.366754 0.1 2019-10-29T18:02:48 2019-10-31T18:02:48 false true
 if __name__ == '__main__':
@@ -352,4 +379,5 @@ if __name__ == '__main__':
         print("Notice, only 2 types of parameters are accepted:")
         print("1, GWACImageSearch.py centerRa(degree), centerDec(degree), radius(degree), isGetImgs(true|false), isGetSkys(true|false)")
         print("2, GWACImageSearch.py centerRa(degree), centerDec(degree), radius(degree), startDate(2019-10-31T18:02:48), endDate(2019-10-31T18:02:48), isGetImgs(true|false), isGetSkys(true|false)")
-        print("3, Query G191030_C14687 as an example: python GWACImageSearch.py 72.33214 -8.366754 0.1 2019-10-29T18:02:48 2019-10-31T18:02:48 false true")
+        print("3, In GWAC Data process machine, query G191030_C14687 as an example: /home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python GWACImageSearch.py 72.33214 -8.366754 0.1 2019-10-29T18:02:48 2019-10-31T18:02:48 false true")
+        print("4, Default, this tools can only use in GWAC dome. If you want use this tools in Beijing, change the connParam2 in function connDb to connParam2.")
