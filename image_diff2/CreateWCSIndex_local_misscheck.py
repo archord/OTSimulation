@@ -433,7 +433,7 @@ class GWACWCSIndex:
                     orsId = obs[0]
                     dateStr = obs[1]
                     imgNum = int(obs[4])
-                    #self.updateDoWCS(orsId)
+                    self.updateDoWCS(orsId)
                     camId = int(obs[3])
                     if camId%5==0:
                         continue

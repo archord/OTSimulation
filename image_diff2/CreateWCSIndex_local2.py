@@ -425,13 +425,14 @@ class GWACWCSIndex:
     def createWCS(self, camName, minNum=50):
     
         tobs = self.queryObs(camName)
+        print("query %d sky..."%(tobs.shape[0]))
         if tobs.shape[0]>0:
             for obs in tobs:
                 print(obs)
                 orsId = obs[0]
                 dateStr = obs[1]
                 imgNum = int(obs[4])
-                #self.updateDoWCS(orsId)
+                self.updateDoWCS(orsId)
                 camId = int(obs[3])
                 if camId%5==0:
                     continue
@@ -533,13 +534,13 @@ class GWACWCSIndex:
                 curUtcDateTime = datetime.now()
                 tDateTime = datetime.now()
                 startDateTime = tDateTime.replace(hour=7, minute=10, second=0) 
-                endDateTime = tDateTime.replace(hour=7, minute=20, second=10) 
+                endDateTime = tDateTime.replace(hour=8, minute=10, second=10) 
                 remainSeconds1 = (startDateTime - curUtcDateTime).total_seconds()
                 remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
                 if remainSeconds1<0 and remainSeconds2>0:
                     
                     self.createWCS(camName)
-                    time.sleep(10*60)
+                    time.sleep(15*60)
                 else:
                     time.sleep(60)
             
