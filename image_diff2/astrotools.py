@@ -427,10 +427,18 @@ class AstroTools(object):
         hdul = fits.open(fullPath, mode='update', memmap=False)
         hdu1 = hdul[0]
         hdr = hdu1.header
-        fieldId = hdr['FIELD_ID']
-        ra = hdr['RA']
-        dec = hdr['DEC']
-        self.log.debug("%s skyId %s"%(fname, hdr['FIELD_ID']))
+        
+        try:
+            fieldId = hdr['FIELD_ID']
+            ra = hdr['RA']
+            dec = hdr['DEC']
+        except Exception as e:
+            fieldId = '0'
+            ra = 0
+            dec = 0
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+            
         for kw in keyword:
             hdr.remove(kw,ignore_missing=True)
         data = hdu1.data
@@ -447,9 +455,16 @@ class AstroTools(object):
         hdul = fits.open(fullPath)
         hdu1 = hdul[0]
         hdr = hdu1.header
-        fieldId = hdr['FIELD_ID']
-        ra = hdr['RA']
-        dec = hdr['DEC']
+        try:
+            fieldId = hdr['FIELD_ID']
+            ra = hdr['RA']
+            dec = hdr['DEC']
+        except Exception as e:
+            fieldId = '0'
+            ra = 0
+            dec = 0
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
         hdul.close()
         
         return fieldId, ra,dec

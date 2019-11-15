@@ -64,8 +64,8 @@ def regImg(tdata):
     microSecond=tdata[4]
     
     try:
-        #serverIP='172.28.8.8'
-        serverIP='127.0.0.1'
+        serverIP='172.28.9.14'
+        #serverIP='127.0.0.1'
         turl = "http://%s:8080/gwebend/regOrigImg.action"%(serverIP)
         
         values = {'camId': camName, 
@@ -74,8 +74,12 @@ def regImg(tdata):
                   'genTime': dateStr, 
                   'microSecond': microSecond}
         
+        files = []
+        tpath = "%s/%s"%(imgPath, imgName)
+        files.append(('fileUpload', (imgName,  open(tpath,'rb'), 'text/plain')))
+        
         msgSession = requests.Session()
-        r = msgSession.post(turl, data=values)
+        r = msgSession.post(turl, files=files, data=values)
         
         print(r.text)
     except Exception as e:
@@ -144,4 +148,7 @@ def testUpload():
         
 if __name__ == "__main__":
     
-    testUpload()
+    #testUpload()
+    
+    regData=['011', 'G011_objt_191107T21020903.fit', 'data4', '20191109T160112', '1234']
+    regImg(regData)

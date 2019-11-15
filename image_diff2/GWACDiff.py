@@ -150,7 +150,7 @@ class GWACDiff(object):
                 os.system("%s %s/%s.fz"%(self.funpackProgram, tmpCat, objectImg))
             else:
                 self.log.warning("%s not exist"%(oImgf))
-                return False
+                return False, 0, 0, 0, 0
             
             if dtype=='cat':
                 skyName, ra,dec = self.tools.removeHeaderAndOverScan(tmpCat,objectImg)
@@ -383,7 +383,7 @@ class GWACDiff(object):
             tstr = traceback.format_exc()
             self.log.error(tstr)
             tmsgStr = "make template error"
-            self.sendMsg(tmsgStr)
+            #self.sendMsg(tmsgStr)
         
         return runSuccess
         
