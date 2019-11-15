@@ -8,8 +8,28 @@ import os
 
 def cleanDisk():
     spath1 = r'/data/wata_data/fits_orig'
-    dpath1 = r'/data/wata_data/fits_preview'
+    spath2 = r'/data/wata_data/fits_preview'
     
+    dirs = os.listdir(spath1)
+    dirs.sort()
+    tdirs2=[]
+    for tdir in dirs:
+        if tdir>'20191101' and len(tdir)==8:
+            tdirs2.append(tdir)
+    
+    delDirs = []
+    for i, tdir in enumerate(tdirs2):
+        delDirs.append(tdir)
+        tfullPath = '%s/%s'%(spath1, tdir)
+        print("delete path %s"%(tfullPath))
+        os.system("rm -rf %s"%(tfullPath))
+        if i>0:
+            break
+    
+    for tdir in delDirs:
+        tfullPath = '%s/%s'%(spath2, tdir)
+        print("delete path %s"%(tfullPath))
+        os.system("rm -rf %s"%(tfullPath))
 
 def diskUsePercentage():
 
@@ -23,7 +43,7 @@ def diskUsePercentage():
         process= subprocess.Popen(tcmd, shell=True, stdout=subprocess.PIPE)
         (stdoutstr,stderrstr) = process.communicate()
         stdoutstr = stdoutstr.decode("utf-8")
-        for line in iter(stdout.readline, ""):
+        for line in stdoutstr.split('\n'):
             for ii, tdev in enumerate(devs):
                 if line.find(tdev)>-1:
                     strs = line.split()
@@ -33,34 +53,18 @@ def diskUsePercentage():
                         tused = float(strs[3])
                         uses[ii]=tused/tsize
                         break
+        
+        for i, tuse in enumerate(uses):
+            print("%s usage %.2f%%"%(paths[i], tuse*100))
+            
+        if uses[1]>0.9:
+            cleanDisk()
 
     except Exception as err:
         print(" update disk use error ")
         print(err)
         tstr = traceback.format_exc()
         print(tstr)
-    
-def checkIsDaemonRun(procName, parms):
-    
-    #procName='diff_remote_daemon'
-    tcmd = 'ps aux | grep %s'%(procName)
-    process= subprocess.Popen(tcmd, shell=True, stdout=subprocess.PIPE)
-    #output = process.stdout.read()
-    #process.stdout.close()
-    #process.wait()
-    (stdoutstr,stderrstr) = process.communicate()
-    stdoutstr = stdoutstr.decode("utf-8")
-    
-    is2Alive = False
-    fullName = "%s.py"%(procName)
-    if stdoutstr.find(fullName)>-1: #.decode("utf-8")  .encode('ascii')
-        if len(parms)>0:
-            if stdoutstr.find(parms)>-1:
-                is2Alive = True 
-        else:
-            is2Alive = True       
-        
-    return is2Alive
         
 if __name__ == '__main__':
     

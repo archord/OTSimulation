@@ -261,12 +261,12 @@ class GWACWCSIndex:
     
     def queryObs(self, camName):
     
-        #and start_obs_time is null  
+        #and start_obs_time is null   do_wcs=true and has_wcs=false and     limit 10
         tsql = "select ors_id, date_str, sky_id, cam_id, img_num "\
                 "from observation_record_statistic ors "\
                 "INNER JOIN camera cam on cam.camera_id=ors.cam_id "\
-                "where do_wcs=true and has_wcs=false and date_str>'181001' and start_obs_time is null  and cam.name='%s' "\
-                "ORDER BY ors_id desc limit 10"%(camName)
+                "where has_wcs=false and date_str>='191111'  and cam.name='%s' "\
+                "ORDER BY ors_id desc "%(camName)
         #print(tsql)
         
         return self.getDataFromDB(tsql)
@@ -425,8 +425,9 @@ class GWACWCSIndex:
         
     def createWCS(self, camName, minNum=50):
         
-        while(True):
+        #while(True):
             tobs = self.queryObs(camName)
+            print("query %d obs"%(tobs.shape[0]))
             if tobs.shape[0]>0:
                 for obs in tobs:
                     print(obs)
@@ -526,7 +527,7 @@ class GWACWCSIndex:
                 #break
             else:
                 print("already completely built all wcs")
-                break
+                #break
 
 #/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python
 if __name__ == '__main__':
