@@ -430,7 +430,8 @@ class GWACDiff(object):
             return False
         
         fpar='sex_diff.par'
-        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        #sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+        sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']
         resiCat, isSuccess = self.tools.runSextractor(objTmpResi, self.diff, self.diff, fpar, sexConf)
         if not isSuccess:
             self.log.error("diffImage runSextractor failure")

@@ -47,58 +47,63 @@ def checkStatus(loopNum, cmdName, procName = "SchedulingSingle"):
     
     for ip in ips:
         
-        ssh.connect(ip, username=sftpUser, password=sftpPass)
-        
-        pids = []
-        is2Alive = False
-        stdin, stdout, stderr = ssh.exec_command('ps aux | grep %s'%(procName), get_pty=True)
-        for line in iter(stdout.readline, ""): 
-            if line.find("%s.py"%(procName))>-1 and line.find("imgdiff3")>-1:
-                strArr = line.split()
-                if len(strArr)>1:
-                    tpid = int(strArr[1])
-                    pids.append(tpid)
-                is2Alive = True       
-                #break
+        try:
+            ssh.connect(ip, username=sftpUser, password=sftpPass)
             
-        if is2Alive:
-            tstr = "%s %s.py is running\n"%(ip, procName)
-            print(tstr)
-            logfile0.write(tstr)
-            logfile0.flush()
-        else:
-            tstr = "%s %s.py is not running\n"%(ip, procName)
-            print(tstr)
-            logfile0.write(tstr)
-            logfile0.flush()
-            
-        if not is2Alive and cmdName == "start":
-            tstr = "%s %s.py is not running, rerun\n"%(ip,procName)
-            print(tstr)
-            logfile0.write(tstr)
-            logfile0.flush()
-            camName = "G0%s"%(ip[-2:])
-            tcommand = 'cd %s/image_diff; nohup %s %s.py %s %s > %s_log.txt & '%(dpathProgram, pythonPath, procName, camName, runName, procName)
-            #print(tcommand)
-            stdin, stdout, stderr = ssh.exec_command(tcommand)
-            #print("print stdout")
-            ##print(stdout.readlines())
-            #print("print stderr")
-            #print(stderr.readlines())
-            #transport = ssh.get_transport()
-            #channel = transport.open_session()
-            #tcommand = 'cd %s/image_diff ; %s %s.py %s > log1.txt &'%(dpathProgram, pythonPath, procName, camName)
-            #channel.exec_command(tcommand)
-            
-        if is2Alive and cmdName == "stop" and len(pids)>0:
-            for pid in pids:
-                tstr = "%s %s.py is running, kill %d\n"%(ip,procName,pid)
+            pids = []
+            is2Alive = False
+            stdin, stdout, stderr = ssh.exec_command('ps aux | grep %s'%(procName), get_pty=True)
+            for line in iter(stdout.readline, ""): 
+                if line.find("%s.py"%(procName))>-1 and line.find("imgdiff3")>-1:
+                    strArr = line.split()
+                    if len(strArr)>1:
+                        tpid = int(strArr[1])
+                        pids.append(tpid)
+                    is2Alive = True       
+                    #break
+                
+            if is2Alive:
+                tstr = "%s %s.py is running\n"%(ip, procName)
                 print(tstr)
                 logfile0.write(tstr)
                 logfile0.flush()
-                tcommand = 'kill -9 %d'%(pid)
-                ssh.exec_command(tcommand)
-            
+            else:
+                tstr = "%s %s.py is not running\n"%(ip, procName)
+                print(tstr)
+                logfile0.write(tstr)
+                logfile0.flush()
+                
+            if not is2Alive and cmdName == "start":
+                tstr = "%s %s.py is not running, rerun\n"%(ip,procName)
+                print(tstr)
+                logfile0.write(tstr)
+                logfile0.flush()
+                camName = "G0%s"%(ip[-2:])
+                tcommand = 'cd %s/image_diff; nohup %s %s.py %s %s > %s_log.txt & '%(dpathProgram, pythonPath, procName, camName, runName, procName)
+                #print(tcommand)
+                stdin, stdout, stderr = ssh.exec_command(tcommand)
+                #print("print stdout")
+                ##print(stdout.readlines())
+                #print("print stderr")
+                #print(stderr.readlines())
+                #transport = ssh.get_transport()
+                #channel = transport.open_session()
+                #tcommand = 'cd %s/image_diff ; %s %s.py %s > log1.txt &'%(dpathProgram, pythonPath, procName, camName)
+                #channel.exec_command(tcommand)
+                
+            if is2Alive and cmdName == "stop" and len(pids)>0:
+                for pid in pids:
+                    tstr = "%s %s.py is running, kill %d\n"%(ip,procName,pid)
+                    print(tstr)
+                    logfile0.write(tstr)
+                    logfile0.flush()
+                    tcommand = 'kill -9 %d'%(pid)
+                    ssh.exec_command(tcommand)
+                
+        except Exception as e:
+            print(str(e))
+            tstr = traceback.format_exc()
+            print(tstr)
         time.sleep(1)
         ssh.close()
         #break

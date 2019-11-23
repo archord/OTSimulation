@@ -255,7 +255,7 @@ class BatchImageDiff(object):
                             crossTaskName = "%s_%s"%(crossTaskName, runName)
                         print("doCombine %d: register crossTask: %s"%(i, crossTaskName))
                         crossMethod = '1'
-                        imgDiff.ot2Classifier.crossTaskCreate(crossTaskName, crossMethod, dateStr, crossTaskParms, imgDiff.tools.serverIP)
+                        imgDiff.ot2Classifier.crossTaskCreate(camName, crossTaskName, crossMethod, dateStr, crossTaskParms, imgDiff.tools.serverIP)
                             
                     if len(timgs)==cmbNum:
                         print("doCombine %d: already stack %dth(%d) image, start superCombine"%(i, len(timgs), cmbNum))

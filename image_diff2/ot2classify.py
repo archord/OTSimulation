@@ -103,6 +103,9 @@ class OT2Classify(object):
         self.log.info("start new thread classifyAndUpload %s"%(origName))   
         print("start new thread classifyAndUpload %s"%(origName))
         
+        minFwhm = 1.5
+        maxFwhm = 3.0
+        
         starttime = datetime.now()
         self.pbb_threshold = prob
         try:
@@ -119,13 +122,13 @@ class OT2Classify(object):
             #self.log.info("crossTaskName %s"%(crossTaskName))   
             #print("crossTaskName %s"%(crossTaskName))
             
-            tParms1t2 = np.array([])
+            tParms1t = np.array([])
             tParms2t = np.array([])
             
             tParms1, obsUtc1 = self.doClassifyFile(subImgPath, totFile)
             #print("doClassifyAndUpload 001")
             if tParms1.shape[0]>0:
-                tParms1t = tParms1[tParms1[:,6]<maxNEllip]
+                tParms1t = tParms1[(tParms1[:,6]<maxNEllip)&(tParms1[:,9]<maxFwhm)&(tParms1[:,9]>minFwhm)]
                 #tParms1t = tParms1[(tParms1[:,6]<maxMEllip) & (tParms1[:,15]>=prob)]
                 if tParms1t.shape[0]>0:
                     tflags1t = np.ones((tParms1t.shape[0],1)) #OT FLAG 
@@ -134,7 +137,7 @@ class OT2Classify(object):
             #print("doClassifyAndUpload 002")
             tParms2, obsUtc2 = self.doClassifyFile(subImgPath, fotFile)
             if tParms2.shape[0]>0:
-                tParms2t = tParms2[(tParms2[:,6]<maxMEllip) & (tParms2[:,15]>=prob)]
+                tParms2t = tParms2[(tParms2[:,6]<maxMEllip) & (tParms2[:,15]>=prob)&(tParms2[:,9]<maxFwhm)&(tParms2[:,9]>minFwhm)]
                 if tParms2t.shape[0]>0:
                     tflags2t = np.zeros((tParms2t.shape[0],1)) #OT FLAG 
                     tParms2t = np.concatenate((tParms2t, tflags2t), axis=1)
@@ -148,10 +151,9 @@ class OT2Classify(object):
                     tflags3t = np.zeros((tParms3t.shape[0],1)) #OT FLAG 
                     tParms3t = np.concatenate((tParms3t, tflags3t), axis=1)
             '''
-            tParms1t2 = tParms1[(tParms1[:,6]<maxMEllip) & (tParms1[:,15]>=prob)]
             
             print("classify result: %d tot(%d), %d fot(%d)"%(
-                    tParms1t2.shape[0],tParms1.shape[0],
+                    tParms1t.shape[0],tParms1.shape[0],
                   tParms2t.shape[0],tParms2.shape[0]))
             
             #print("doClassifyAndUpload 003")
@@ -250,7 +252,7 @@ class OT2Classify(object):
         self.log.info("********** classifyAndUpload %s use %d seconds"%(origName, runTime))
         
     
-    def crossTaskCreate(self, taskName, crossMethod, dateStr, cofParms, serverIP):
+    def crossTaskCreate(self, camName, taskName, crossMethod, dateStr, cofParms, serverIP):
         
         try:
             self.log.info("crossTaskCreate %s"%(taskName))
@@ -259,6 +261,7 @@ class OT2Classify(object):
             cofParms['taskName'] = taskName
             cofParms['crossMethod'] = crossMethod
             cofParms['dateStr'] = dateStr
+            cofParms['teleName'] = camName[1:]
             
             self.log.debug(cofParms)
             #print(values)

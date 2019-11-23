@@ -201,8 +201,8 @@ def getJpeg(imgName, spath, dpath):
         tpath0 = "%s/%s"%(spath, imgName)
         imgData = fits.getdata(tpath0)
         
-        #imgStampfull = zscale_image(imgData)
-        imgStampfull = getFullThumbnail_(imgData)
+        imgStampfull = zscale_image(imgData)
+        #imgStampfull = getFullThumbnail_(imgData)
         imgStampz = scipy.ndimage.zoom(imgStampfull, 0.3, order=0)
         preViewPath = "%s/%s.jpg"%(dpath, imgName.split('.')[0])
         Image.fromarray(imgStampfull).save(preViewPath, quality=50)

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import warnings
+from astropy.modeling import models, fitting
 from astropy.io import fits
 from astropy.stats import sigma_clip
 import numpy as np
@@ -12,7 +14,7 @@ import traceback
 import scipy.ndimage
 
 
-def zscale_image(input_img, contrast=0.3):
+def zscale_image(input_img, contrast=0.4):
 
     """This emulates ds9's zscale feature. Returns the suggested minimum and
     maximum values to display."""
@@ -54,7 +56,7 @@ def zscale_image(input_img, contrast=0.3):
     
     return zimg
 
-def getFullThumbnail_(tdata, grid=(4, 4)):
+def backgroundRemove(tdata, grid=(40, 40)):
     
     imgSize = tdata.shape
     imgW = imgSize[1]
@@ -82,33 +84,55 @@ def getFullThumbnail_(tdata, grid=(4, 4)):
             if maxX>imgW:
                 maxX = imgW
             subRegions.append((minY, maxY, minX, maxX))
-    
-    #print(subRegions)
-    stampImgs = []
+            
+    bgAvgs = []
     for treg in subRegions:
         timg = tdata[treg[0]:treg[1], treg[2]:treg[3]]
-        timgz = zscale_image(timg)
-        if timgz.shape[0] == 0:
-            timgz = timg
-            tmin = np.min(timgz)
-            tmax = np.max(timgz)
-            timgz=(((timgz-tmin)/(tmax-tmin))*255).astype(np.uint8)
-        stampImgs.append(timgz)
+        samples = timg.flatten()
+        tIdx = np.random.choice(samples.shape[0], int(samples.shape[0]*0.05), replace=False)
+        samples = samples[tIdx]
+        samples[samples<0]=0
+        filtered_data = sigma_clip(samples, sigma=2.5, iters=2, copy=False)
+        imgbg = filtered_data.data[~filtered_data.mask]
+        imgbgAvg = np.average(imgbg)
+        
+        avgX=(treg[2]+treg[3])/2
+        avgY=(treg[0]+treg[1])/2
+        bgAvgs.append((avgX, avgY, imgbgAvg))
     
-    for y in range(grid[1]):
-        for x in range(grid[0]):
-            tidx = y*grid[0] + x
-            timg = stampImgs[tidx]
-            if x ==0:
-                rowImg = timg
-            else:
-                rowImg = np.concatenate((rowImg, timg), axis=1)
-        if y ==0:
-            conImg = rowImg
-        else:
-            conImg = np.concatenate((conImg, rowImg), axis=0)
-
-    return conImg    
+    bgAvgs = np.array(bgAvgs)
+    zoomSize = 2
+    imgX = bgAvgs[:,0]/zoomSize
+    imgY = bgAvgs[:,1]/zoomSize
+    imgBg = bgAvgs[:,2]
+    
+    p_init = models.Polynomial2D(2)
+    fit_p = fitting.LevMarLSQFitter()
+    
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        bgfitter = fit_p(p_init, imgX, imgY, imgBg)
+    
+        print("imgW=%f,imgH=%f"%(imgW, imgH))
+        imgW=int(imgW/zoomSize)
+        imgH=int(imgH/zoomSize)
+        print("imgW=%f,imgH=%f"%(imgW, imgH))
+        imgWs = np.arange(imgW)
+        xIdx = np.repeat(imgWs, imgH)
+        xIdx = np.reshape(xIdx, (imgW, imgH)).transpose().flatten()
+        imgHs = np.arange(imgH)
+        yIdx = np.repeat(imgHs,imgW)
+        
+        bgTran = bgfitter(xIdx, yIdx)
+        bgTran = np.reshape(bgTran, (imgH, imgW))
+        bgTran = scipy.ndimage.zoom(bgTran, zoomSize)
+        
+        #dstImgPath = r'G:\SuperNova20190113\test\test18'
+        #savePath = "%s/abc.fit"%(dstImgPath)
+        #fits.writeto(savePath, bgTran, overwrite=True)
+        
+        tdata= tdata-bgTran
+    return tdata  
  
 def getJpeg(imgName, spath, dpath):
     
@@ -119,9 +143,10 @@ def getJpeg(imgName, spath, dpath):
         starttime = datetime.now()
         tpath0 = "%s/%s"%(spath, imgName)
         imgData = fits.getdata(tpath0)
-        
-        imgStampz = zscale_image(imgData, contrast=0.4)
-        #imgStampz = getFullThumbnail_(imgData)
+        imgData=imgData.astype(np.float)
+        #imgData = backgroundRemove(imgData, (100, 100))
+        imgData = backgroundRemove(imgData, (10, 10))
+        imgStampz = zscale_image(imgData)
         #imgStampz = scipy.ndimage.zoom(imgStampz, 0.3, order=0)
         preViewPath = "%s/%s.jpg"%(dpath, imgName.split('.')[0])
         Image.fromarray(imgStampz).save(preViewPath, quality=50)
@@ -137,7 +162,7 @@ def getJpeg(imgName, spath, dpath):
 
 if __name__ == "__main__":
     
-    imgName = 'G011_objt_191107T21020902.fit'
+    imgName = 'G011_objt_190610T12322600.fit'
     spath = r'G:\SuperNova20190113\test\test18'
     dpath = r'G:\SuperNova20190113\test\test18'
     getJpeg(imgName, spath, dpath)
