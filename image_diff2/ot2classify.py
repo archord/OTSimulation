@@ -97,7 +97,7 @@ class OT2Classify(object):
         return rstParms, obsUtc
         
     def doClassifyAndUpload(self, subImgPath, totFile, fotFile, 
-                          fullImgPath, newImg, tmpImg, resImg, origName, serverIP, runName, skyName, 
+                          fullImgPath, newImg, tmpImg, resImg, origName, serverIP, runName, skyName, tcatParm, 
                           prob=0.0000001, maxNEllip=0.6, maxMEllip=0.5, reverse=False):
 
         self.log.info("start new thread classifyAndUpload %s"%(origName))   
@@ -224,12 +224,20 @@ class OT2Classify(object):
                     catPath = "%s/%s"%(fullImgPath, catName)
                     fp0 = open(catPath, 'w')
                     fp0.write(self.theader2)
+                    
+                    t2oX = tcatParm[-2]
+                    t2oY = tcatParm[-1]
+                    tx = tParms[:,0]
+                    ty = tParms[:,1]
+                    ox = t2oX(tx, ty)
+                    oy = t2oY(tx, ty)
+                    
                     i=0
                     for td in tParms:
                         #print(td)
                         #print(td[15])
                         tstr = self.catFormate%\
-                            (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12],td[13],
+                            (ox[i],oy[i],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],td[11],td[12],td[13],
                              td[14],td[15],td[16], timgNames[i], obsUtc1, td[0],td[1])
                         fp0.write(tstr)
                         i=i+1

@@ -290,7 +290,7 @@ class BlindMatch(object):
         theader['AlignTmp']=templateImgName
         fits.writeto(savePath, mapData, header=theader, overwrite=True)
         
-        return starTrans
+        return starTrans, tixp, tiyp
     
     
 def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origImgName, templateImgName):
@@ -353,7 +353,7 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
             
             oiMchPos = oiDataMch[:,0:2]
             tiMchPos = mchPosPairs[:,2:4]
-            starOiTiPly2 = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, origImgName, templateImgName, 3)
+            starOiTiPly2, t2oX, t2oY = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, origImgName, templateImgName, 3)
 
             mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 4)
             
@@ -365,7 +365,7 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
             #print((mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2))
             
             return [totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios2, 
-                    oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2]
+                    oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2, t2oX, t2oY]
         else:
             print("blindmatch: no feature point match")
             return [0]

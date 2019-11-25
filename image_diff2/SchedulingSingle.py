@@ -190,9 +190,11 @@ class BatchImageDiff(object):
                             tmplImgs = tmplParms[1]
                             if len(tmplImgs)>0:
                                 self.alignIdx = i
-                                isSuccess = imgDiff.alignImage(srcDir, imgName, tmplParms)
+                                isSuccess, t2oX, t2oY = imgDiff.alignImage(srcDir, imgName, tmplParms)
                                 if isSuccess:
-                                    alignList.append(tcatParm)
+                                    tlist = tcatParm.copy()
+                                    tlist.extend([t2oX, t2oY])
+                                    alignList.append(tlist)
                                     print("doAlign %d: %s %s align success"%(i, camName, imgName))
                                 else:
                                     print("doAlign %d: %s %s align failure"%(i, camName, imgName))
@@ -294,7 +296,9 @@ class BatchImageDiff(object):
                     
                     isSuccess, skyName, starNum, fwhmMean, bgMean = imgDiff.getCat(imgDiff.cmbDir, cmbImgName, imgDiff.cmbCatDir, 'cmb')
                     if isSuccess: #we can add more filter condition, to remove bad images
-                        cmbCatList.append([isSuccess, ffId, cmbImgName, starNum, skyName, fwhmMean, bgMean, skyId, imgDiff.cmbDir])
+                        tlist = [isSuccess, ffId, cmbImgName, starNum, skyName, fwhmMean, bgMean, skyId, imgDiff.cmbDir]
+                        tlist.extend(tparm[-2:])
+                        cmbCatList.append(tlist)
                     
                     self.cmbCatIdx = i
                 except Exception as e:
@@ -429,7 +433,7 @@ class BatchImageDiff(object):
                     if skyName in diffTmplMap:
                         self.recgIdx = i
                         tmplParms = diffTmplMap[skyName]
-                        imgDiff.classifyAndUpload(imgName, tmplParms, runName, skyName)
+                        imgDiff.classifyAndUpload(imgName, tmplParms, runName, skyName, tcatParm)
                     else:
                         imgDiff.log.warn("doRecognitionAndUpload %d: %s %s cannot find template"%(i, skyName, imgName))
                         #break

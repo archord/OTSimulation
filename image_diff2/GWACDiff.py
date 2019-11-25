@@ -249,11 +249,14 @@ class GWACDiff(object):
         os.system("cp %s/%s.cat %s/%s"%(self.catDir, imgpre, self.tmpAlign, objectCat))
         os.system("cp %s/%s.cat %s/%s"%(self.tmplAlignDir, templateImg.split(".")[0] , self.tmpAlign, ttmplCat))
         alignRst = doAll(self.tmpAlign, ttmplCat, self.tmpAlign, objectCat, self.tmpAlign, objectImg, self.alignDir, imgName, templateImg)
+        
+        t2oX, t2oY=[],[]
         if alignRst[0]>0:
             #print("totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios")
             totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios, \
-            oiStarJoinNum,tiStarJoinNum, otMchNum, xshift2,yshift2, xrms2, yrms2= alignRst
+            oiStarJoinNum,tiStarJoinNum, otMchNum, xshift2,yshift2, xrms2, yrms2, t2oX, t2oY= alignRst
             print("alignImage: %s, xshift=%f,yshift=%f"%(imgName, xshift,yshift))
+            alignRst = alignRst[:-2].copy()
             alignRst.append(imgName)
             alignRst.append(templateImg)
             alignRst.append('imageAlignParmsForDebug')
@@ -264,7 +267,7 @@ class GWACDiff(object):
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.info("********** alignImage %s use %d seconds"%(imgName, runTime))
-        return isSuccess
+        return isSuccess, t2oX, t2oY
         
     def superCombine(self, imgNames, regions=[2,2]):
 
@@ -593,7 +596,7 @@ class GWACDiff(object):
         
         return resultFlag
     
-    def classifyAndUpload(self, imgName, tmplParms, runName, skyName):
+    def classifyAndUpload(self, imgName, tmplParms, runName, skyName, tcatParm):
                 
         #os.system("rm -rf %s/*"%(self.diff))
         
@@ -626,5 +629,5 @@ class GWACDiff(object):
 
         self.ot2Classifier.doClassifyAndUpload(self.destDir, totImgsName, fotImgsName, 
                           upDir, imgName, tmplImgName, resiImg, 
-                          imgName, self.tools.serverIP, runName, skyName)
+                          imgName, self.tools.serverIP, runName, skyName, tcatParm)
         
