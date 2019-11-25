@@ -258,7 +258,7 @@ class GWACDiff(object):
             alignRst.append(templateImg)
             alignRst.append('imageAlignParmsForDebug')
             self.log.info(alignRst)
-            if mchRatios>60.0:
+            if mchRatios>80.0:
                 isSuccess = True
     
         endtime = datetime.now()
