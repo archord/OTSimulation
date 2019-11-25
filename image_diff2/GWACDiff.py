@@ -251,10 +251,15 @@ class GWACDiff(object):
         alignRst = doAll(self.tmpAlign, ttmplCat, self.tmpAlign, objectCat, self.tmpAlign, objectImg, self.alignDir, imgName, templateImg)
         if alignRst[0]>0:
             #print("totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios")
-            totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios = alignRst
+            totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios, \
+            oiStarJoinNum,tiStarJoinNum, otMchNum, xshift2,yshift2, xrms2, yrms2= alignRst
             print("alignImage: %s, xshift=%f,yshift=%f"%(imgName, xshift,yshift))
+            alignRst.append(imgName)
+            alignRst.append(templateImg)
+            alignRst.append('imageAlignParmsForDebug')
             self.log.info(alignRst)
-            isSuccess = True
+            if mchRatios>60.0:
+                isSuccess = True
     
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
@@ -431,7 +436,7 @@ class GWACDiff(object):
         
         fpar='sex_diff.par'
         #sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
-        sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']
+        sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
         resiCat, isSuccess = self.tools.runSextractor(objTmpResi, self.diff, self.diff, fpar, sexConf)
         if not isSuccess:
             self.log.error("diffImage runSextractor failure")

@@ -306,10 +306,10 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
     
     if len(tiXY)==0:
         #print("%s create feature failure"%(tiFile))
-        return (-1,)
+        return [-1,]
     elif len(oiXY)==0:
         #print("%s create feature failure"%(oiFile))
-        return (-1,)
+        return [-1,]
     else:
         tarray = np.array(mchIdxsTi)
         tDist = tarray[:,:,2]
@@ -364,9 +364,10 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
             #print("mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2")
             #print((mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2))
             
-            return (totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios2)
+            return [totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios2, 
+                    oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2]
         else:
             print("blindmatch: no feature point match")
-            return (0,)
+            return [0]
             
         
