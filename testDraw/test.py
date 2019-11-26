@@ -74,7 +74,7 @@ def draw3():
     
 def draw2():
     
-    tpath = r'e:\poserr2.log'
+    tpath = r'e:\poserr1125.log'
     tf = open(tpath, 'r')
     
     parms = []
@@ -88,20 +88,21 @@ def draw2():
     parms = np.array(parms).astype(np.float)
     print(parms.shape)
     
-    tIdx = (parms[:,-1]>0.5) | (parms[:,-2]>0.5)
-    #tIdx = parms[:,0]>0
+    #tIdx = (parms[:,-1]>0.5) | (parms[:,-2]>0.5)
+    tIdx = parms[:,6]>80
+    #tIdx = parms[:,6]>0
     tnum = parms[tIdx,-2]
     tperct = parms[tIdx,-1]
     
     plt.figure(figsize=(10,4))
     plt.plot(tnum, tperct, '.')
     plt.show()
-    
+    '''
     tnum = parms[tIdx,6]
     plt.figure(figsize=(10,4))
     n, bins, patches =plt.hist(tnum, bins=10, rwidth=0.8)
     plt.show()
-
+    '''
 if __name__ == "__main__":
         
     draw2()

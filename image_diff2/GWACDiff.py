@@ -158,7 +158,7 @@ class GWACDiff(object):
                 skyName, ra,dec = self.tools.getRaDec(tmpCat,objectImg)
                 
             #sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
-            sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+            sexConf=['-DETECT_MINAREA','7','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']
             fpar='sex_diff.par'
             
             objectImgCat, isSuccess = self.tools.runSextractor(objectImg, tmpCat, tmpCat, fpar, sexConf)
@@ -447,7 +447,7 @@ class GWACDiff(object):
             
         os.system("cp %s/%s %s/%s_resi.fit"%(self.diff, objTmpResi, self.diffImgDir, oImgPre))
         os.system("cp %s/%s %s/%s_resi.cat"%(self.diff, resiCat, self.diffCatDir, oImgPre))
-        
+        '''
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, resiCat, 'oi.cat', 1) #1 and 5 
         
         badPix2Path = "%s/%s"%(self.diff, nmhFile)
@@ -455,37 +455,9 @@ class GWACDiff(object):
             badPixProps2 = np.loadtxt(badPix2Path)
         else:
             badPixProps2 = np.array([])
-        
         '''
-        tdata1 = np.loadtxt("%s/%s"%(self.diff, mchFile))
-        tdata2 = np.loadtxt("%s/%s"%(self.diff, 'oi.cat'))
-        tIdx1 = np.loadtxt("%s/%s"%(self.diff, mchPair)).astype(np.int)
-        tIdx1 = tIdx1 - 1
-        origData = tdata2[tIdx1[:,1]]
-        if origData.shape[0]==tdata1.shape[0]:
-            outCatName = "%s_orgpos.cat"%(mchFile[:mchFile.index(".")])
-            outCatPath = "%s/%s"%(self.diff, outCatName)
-            tstr=""
-            i=0
-            for td in tdata1:
-               tstr += "%.4f %.4f %.2f %.2f %.2f %.3f %.3f %.3f %.2f %.2f %d %.4f %.4f %.4f %.4f\n"%\
-                  (td[0],td[1],td[2],td[3],td[4],td[5],td[6],td[7],td[8],td[9],td[10],origData[i][11], origData[i][12], origData[i][13], origData[i][14])
-               i=i+1
-            fp0 = open(outCatPath, 'w')
-            fp0.write(tstr)
-            fp0.close()
-            mchFile = outCatName
-        else:
-            self.log.error("add orig pos error")
-        '''
-        '''
-        self.tools.runSelfMatch(self.diff, resiCat, 1) #debug: get ds9 reg file
-        tdata = np.loadtxt("%s/%s"%(self.diff, resiCat))
-        self.log.info("resi image star %d"%(tdata.shape[0]))
-        '''
-        ''' '''
         mchRadius = 15 #15 10
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, mchFile, 'ti.cat', mchRadius)
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, resiCat, 'ti.cat', mchRadius)
         
         fotPath = "%s/%s"%(self.diff, mchFile)
         if os.path.exists(fotPath):

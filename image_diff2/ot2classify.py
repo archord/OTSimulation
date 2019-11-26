@@ -157,11 +157,11 @@ class OT2Classify(object):
                   tParms2t.shape[0],tParms2.shape[0]))
             
             #print("doClassifyAndUpload 003")
-            if tParms1t.shape[0]>0 and tParms1t.shape[0]<100 and tParms2t.shape[0]>0 and tParms2t.shape[0]<50:
+            if tParms1t.shape[0]>0 and tParms1t.shape[0]<100 and tParms2t.shape[0]>0 and tParms2t.shape[0]<100:
                 tParms = np.concatenate((tParms1t, tParms2t), axis=0)
             elif tParms1t.shape[0]>0 and tParms1t.shape[0]<100:
                 tParms = tParms1t
-            elif tParms2t.shape[0]>0 and tParms2t.shape[0]<50:
+            elif tParms2t.shape[0]>0 and tParms2t.shape[0]<100:
                 tParms = tParms2t
             else:
                 tParms = np.array([])
@@ -246,7 +246,7 @@ class OT2Classify(object):
                     self.doUpload(fullImgPath,[catName],'crossOTList',serverIP, crossTaskName)
                     self.doUpload(fullImgPath,timgNames,'crossOTStamp',serverIP, crossTaskName)
                     
-            if tParms1.shape[0]>=50 or tParms2.shape[0]>=50:
+            if tParms1.shape[0]>=100 or tParms2.shape[0]>=100:
                 self.log.error("too more unmatched or matched OT candidate, skip upload matched to db: after classified, %s total get %d matchend sub images"%(origName, tParms2.shape[0]))
             os.system("rm -rf %s"%(fullImgPath))
         

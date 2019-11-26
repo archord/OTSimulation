@@ -343,19 +343,26 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
                         break
                 
         if len(mchList)>1:
-            #print("total Match key points %d"%(totalMatchNum))
-            starOiTi, xshift,yshift, xrotation, yrotation, blindStarNum = tiMatch.posTransPolynomial(mchList, oiData, 2) # posTransPolynomial posTransPerspective
+            
             mchRadius = 4
             crossMatch = CrossMatch()
-            crossMatch.createRegionIdx(tiData)
+            oiGood = crossMatch.getGoodStar(oiData)
+            tiGood = crossMatch.getGoodStar(tiData)
+            
+            #print("total Match key points %d"%(totalMatchNum))
+            starOiTi, xshift,yshift, xrotation, yrotation, blindStarNum = tiMatch.posTransPolynomial(mchList, oiGood, 2) # posTransPolynomial posTransPerspective
+            
+            crossMatch.createRegionIdx(tiGood)
             mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, mchRadius)            
-            oiDataMch = oiData[orgPosIdxs]
+            oiDataMch = oiGood[orgPosIdxs]
             
             oiMchPos = oiDataMch[:,0:2]
             tiMchPos = mchPosPairs[:,2:4]
             starOiTiPly2, t2oX, t2oY = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, origImgName, templateImgName, 3)
 
-            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 4)
+            crossMatch = CrossMatch()
+            crossMatch.createRegionIdx(tiData)
+            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 1.5)
             
             #print(mchPosPairs.shape)
             #print(mchPosPairs[:3])
