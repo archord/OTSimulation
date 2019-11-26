@@ -78,6 +78,30 @@ class CrossMatch(object):
         
         return brightStars
     
+    def getGoodStarIndex(self, tdata, brightStarNum=1600, partitionNum=10, dropPercent=0.05):
+        
+        pBrightStarNum = math.ceil(brightStarNum/(partitionNum*partitionNum))
+        
+        regionIdxs = self.partitionIdx(tdata, pNum=partitionNum)
+        
+        brightStarIdxs = np.array([])
+        for tregIdx in regionIdxs:
+            tregData = tdata[tregIdx]
+            tRegNum = tregData.shape[0]
+            if tRegNum==0:
+                continue
+            #dropNum = int(dropPercent*tRegNum)
+            dropNum = 2
+            magSortIdx = tregData[:,self.magIdx].argsort()
+            #sortMag = tregData[magSortIdx]
+            sortMag = np.array(tregIdx)[magSortIdx]
+            if brightStarIdxs.shape[0]==0:
+                brightStarIdxs = sortMag[dropNum:pBrightStarNum+dropNum]
+            else:
+                brightStarIdxs = np.concatenate([brightStarIdxs,sortMag[dropNum:pBrightStarNum+dropNum]])
+        
+        return brightStarIdxs
+    
     def filterStar(self, tdata):
         
         condition1 = (tdata[:,self.xIdx]>=self.regionBorder[0]) & (tdata[:,self.xIdx]<=self.regionBorder[1]) & \
@@ -104,6 +128,25 @@ class CrossMatch(object):
                 regionPos[regIdx].append(tdata)
         
         return regionPos
+    
+    def partitionIdx(self, oiData, pNum=4):
+        
+        regSize = pNum
+        regW = (self.regionBorder[1] - self.regionBorder[0])*1.0/regSize
+        regH = (self.regionBorder[3] - self.regionBorder[2])*1.0/regSize
+        
+        regionIdx = []
+        for i in range(regSize*regSize):
+            regionIdx.append([])
+        
+        for ii, tdata in enumerate(oiData):
+            x = tdata[self.xIdx]
+            y = tdata[self.yIdx]
+            if x>=self.regionBorder[0] and x<=self.regionBorder[1] and y>=self.regionBorder[2] and y<=self.regionBorder[3]:
+                regIdx = self.getRegionIdx_(x,y, regW, regH, regSize)
+                regionIdx[regIdx].append(ii)
+        
+        return regionIdx
     
     def createRegionIdx(self, tdata, minRegionStarNum=10):
         

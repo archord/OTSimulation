@@ -344,22 +344,23 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
                 
         if len(mchList)>1:
             
-            mchRadius = 4
-            crossMatch = CrossMatch()
-            oiGood = crossMatch.getGoodStar(oiData)
-            tiGood = crossMatch.getGoodStar(tiData)
             
             #print("total Match key points %d"%(totalMatchNum))
-            starOiTi, xshift,yshift, xrotation, yrotation, blindStarNum = tiMatch.posTransPolynomial(mchList, oiGood, 2) # posTransPolynomial posTransPerspective
+            starOiTi, xshift,yshift, xrotation, yrotation, blindStarNum = tiMatch.posTransPolynomial(mchList, oiData, 2) # posTransPolynomial posTransPerspective
             
-            crossMatch.createRegionIdx(tiGood)
-            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, mchRadius)            
-            oiDataMch = oiGood[orgPosIdxs]
+            mchRadius = 4
+            crossMatch = CrossMatch()
+            crossMatch.createRegionIdx(tiData)
+            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTi, mchRadius)      
             
-            oiMchPos = oiDataMch[:,0:2]
-            tiMchPos = mchPosPairs[:,2:4]
+            oiDataMch = oiData[orgPosIdxs]
+            oiGoodIdx = crossMatch.getGoodStarIndex(oiDataMch)  
+            
+            oiMchPos = oiDataMch[oiGoodIdx,0:2]
+            tiMchPos = mchPosPairs[oiGoodIdx,2:4]
                 
             try:
+                print("blindmatch oiGoodIdx=%d"%(oiGoodIdx.shape[0]))
                 starOiTiPly2, t2oX, t2oY = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, origImgName, templateImgName, 3)
     
                 crossMatch = CrossMatch()
@@ -377,8 +378,6 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
                         oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2, t2oX, t2oY]
                 
             except Exception as e:
-                print("blindmatch error oiGood=%d,tiGood=%d, oiMchPos=%d,tiMchPos=%d"% \
-                      (oiGood.shape[0],tiGood.shape[0],oiMchPos.shape[0],tiMchPos.shape[0]))
                 print(str(e))
                 tstr = traceback.format_exc()
                 print(tstr)
