@@ -10,7 +10,7 @@ from astropy.io import fits
 from scipy.spatial import KDTree
 from datetime import datetime
 from crossmatch import CrossMatch
-
+import traceback
             
 class BlindMatch(object):
     
@@ -358,21 +358,31 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
             
             oiMchPos = oiDataMch[:,0:2]
             tiMchPos = mchPosPairs[:,2:4]
-            starOiTiPly2, t2oX, t2oY = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, origImgName, templateImgName, 3)
-
-            crossMatch = CrossMatch()
-            crossMatch.createRegionIdx(tiData)
-            mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 1.5)
-            
-            #print(mchPosPairs.shape)
-            #print(mchPosPairs[:3])
-            mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2 \
-                = crossMatch.evaluateMatchResult(starOiTiPly2, tiData, mchPosPairs)
-            #print("mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2")
-            #print((mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2))
-            
-            return [totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios2, 
-                    oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2, t2oX, t2oY]
+                
+            try:
+                starOiTiPly2, t2oX, t2oY = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, origImgName, templateImgName, 3)
+    
+                crossMatch = CrossMatch()
+                crossMatch.createRegionIdx(tiData)
+                mchPosPairs, orgPosIdxs = crossMatch.xyMatch(starOiTiPly2, 1.5)
+                
+                #print(mchPosPairs.shape)
+                #print(mchPosPairs[:3])
+                mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2 \
+                    = crossMatch.evaluateMatchResult(starOiTiPly2, tiData, mchPosPairs)
+                #print("mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2")
+                #print((mchRatios2, oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2))
+                
+                return [totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios2, 
+                        oiPosJoin2,tiPosJoin2, mchData2, xshift2,yshift2, xrms2, yrms2, t2oX, t2oY]
+                
+            except Exception as e:
+                print("blindmatch error oiGood=%d,tiGood=%d, oiMchPos=%d,tiMchPos=%d"% \
+                      (oiGood.shape[0],tiGood.shape[0],oiMchPos.shape[0],tiMchPos.shape[0]))
+                print(str(e))
+                tstr = traceback.format_exc()
+                print(tstr)
+                return [0]
         else:
             print("blindmatch: no feature point match")
             return [0]

@@ -158,7 +158,7 @@ class GWACDiff(object):
                 skyName, ra,dec = self.tools.getRaDec(tmpCat,objectImg)
                 
             #sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5']
-            sexConf=['-DETECT_MINAREA','7','-DETECT_THRESH','3','-ANALYSIS_THRESH','3']
+            sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
             fpar='sex_diff.par'
             
             objectImgCat, isSuccess = self.tools.runSextractor(objectImg, tmpCat, tmpCat, fpar, sexConf)
@@ -447,7 +447,7 @@ class GWACDiff(object):
             
         os.system("cp %s/%s %s/%s_resi.fit"%(self.diff, objTmpResi, self.diffImgDir, oImgPre))
         os.system("cp %s/%s %s/%s_resi.cat"%(self.diff, resiCat, self.diffCatDir, oImgPre))
-        '''
+        
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, resiCat, 'oi.cat', 1) #1 and 5 
         
         badPix2Path = "%s/%s"%(self.diff, nmhFile)
@@ -455,9 +455,9 @@ class GWACDiff(object):
             badPixProps2 = np.loadtxt(badPix2Path)
         else:
             badPixProps2 = np.array([])
-        '''
+
         mchRadius = 15 #15 10
-        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, resiCat, 'ti.cat', mchRadius)
+        mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, mchFile, 'ti.cat', mchRadius)
         
         fotPath = "%s/%s"%(self.diff, mchFile)
         if os.path.exists(fotPath):
@@ -510,7 +510,7 @@ class GWACDiff(object):
                 psfView = genPSFView(resiImgs)
                 Image.fromarray(psfView).save(preViewPath)
             
-            if fotProps.shape[0]>0 and fotProps.shape[0]<2000:
+            if fotProps.shape[0]>0 and fotProps.shape[0]<3000:
                 fotSubImgs, fotParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, fotProps, size)
                 if fotParms.shape[0]>0:
                     tXY = fotParms[:,0:2]

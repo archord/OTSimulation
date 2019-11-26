@@ -56,7 +56,7 @@ class CrossMatch(object):
         
         return brightStars, otherStars
     
-    def getGoodStar(self, tdata, brightStarNum=1600, partitionNum=4, dropPercent=0.05):
+    def getGoodStar(self, tdata, brightStarNum=1600, partitionNum=10, dropPercent=0.05):
         
         pBrightStarNum = math.ceil(brightStarNum/(partitionNum*partitionNum))
         
@@ -68,7 +68,8 @@ class CrossMatch(object):
             tRegNum = tregData.shape[0]
             if tRegNum==0:
                 continue
-            dropNum = int(dropPercent*tRegNum)
+            #dropNum = int(dropPercent*tRegNum)
+            dropNum = 2
             sortMag = tregData[tregData[:,self.magIdx].argsort()]
             if brightStars.shape[0]==0:
                 brightStars = sortMag[dropNum:pBrightStarNum+dropNum]
