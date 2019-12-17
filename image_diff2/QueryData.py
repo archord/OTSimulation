@@ -69,6 +69,7 @@ class QueryData:
             
         return rows
     
+    #def getTmplList(self, camName, skyId, ra, dec, searchR=1):
     def getTmplList(self, camName, skyId):
         
         if len(camName)==4:

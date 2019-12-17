@@ -59,6 +59,7 @@ class GWACDiff(object):
         self.diff="%s/diff"%(self.tmpRoot)
         self.makeDiffTmpl="%s/makeTmpl"%(self.tmpRoot)
         self.doDiffTmpl="%s/tmpl"%(self.tmpRoot)
+        self.tmpAstro="%s/astro"%(self.tmpRoot)
         
         self.reInitDataDir(dataDest)
 
@@ -89,6 +90,8 @@ class GWACDiff(object):
             os.system("mkdir -p %s"%(self.tmpAlign))
         if not os.path.exists(self.doDiffTmpl):
             os.system("mkdir -p %s"%(self.doDiffTmpl))
+        if not os.path.exists(self.tmpAstro):
+            os.system("mkdir -p %s"%(self.tmpAstro))
         
         self.catDir="%s/A_cat"%(dataDest)
         self.tmplAlignDir="%s/B_template_align"%(dataDest)
@@ -313,6 +316,52 @@ class GWACDiff(object):
             self.log.error(tstr)
         return outImgName
             
+    def getImgCenter(self, tpath, imgName):
+        
+        starttime = datetime.now()
+        
+        try:
+            starttime = datetime.now()
+            
+            os.system("rm -rf %s/*"%(self.tmpAstro))    
+            tcmd = "cp %s/%s %s/%s"%(tpath, imgName, self.tmpAstro, self.templateImg)
+            self.log.info(tcmd)
+            os.system(tcmd)
+            
+            fieldId, ra,dec = self.tools.getRaDec(self.tmpAstro, self.templateImg)
+            fpar='sex_diff.par'
+            sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5','-CATALOG_TYPE', 'FITS_LDAC']
+            tmplCat, isSuccess = self.tools.runSextractor(self.templateImg, self.tmpAstro, self.tmpAstro, fpar, sexConf, outSuffix='_ldac.fit')
+            if not isSuccess:
+                self.log.error("getDiffTemplate runSextractor failure2")
+                return isSuccess, 0,0
+            
+            self.tools.ldac2fits('%s/%s'%(self.tmpAstro,tmplCat), '%s/ti_cat.fit'%(self.tmpAstro))
+            
+            runSuccess = self.tools.runWCS(self.tmpAstro,'ti_cat.fit', ra, dec)
+            
+            ra_center, dec_center = ra,dec
+            if runSuccess:
+                wcs = WCS('%s/ti_cat.wcs'%(self.tmpAstro))
+                ra_center, dec_center = wcs.all_pix2world(self.imgSize[1]/2, self.imgSize[0]/2, 1)
+                self.log.info('read_ra_dec:(%.5f, %.5f), real_dec_center:(%.5f, %.5f)'%(ra, dec, ra_center, dec_center))
+            else:
+                self.log.error('make template %s, get wcs error'%(self.origTmplImgName))
+            
+            os.system("rm -rf %s/*"%(self.tmpAstro))
+            
+            endtime = datetime.now()
+            runTime = (endtime - starttime).seconds
+            self.log.info("********** getImgCenter %s/%s use %d seconds"%(tpath, imgName, runTime))
+            
+        except Exception as e:
+            runSuccess = False
+            self.log.error(e)
+            tstr = traceback.format_exc()
+            self.log.error(tstr)
+        
+        return runSuccess, ra_center, dec_center
+    
     def getDiffTemplate(self, tmplParms, skyName, alignCatParms):
         
         starttime = datetime.now()
