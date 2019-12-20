@@ -68,6 +68,7 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr):
     tempFitsName = "G041_mon_objt_180210T10480999.fit.fz"
     stopDateNumber = int(stopDateStr)
     
+    print("backup %s: %s"%(ip, spath))  
     ftp.chdir(spath)
     tdirs = ftp.listdir()
     tdirs.sort()
@@ -81,7 +82,7 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr):
 
     if len(dataDirs)==0:
         return
-    #print("%s total has %d dirs"%(spath, len(dataDirs)))  
+    print("%s: %s total has %d dirs, lastDir is %s"%(ip, spath, len(dataDirs), dataDirs[-1]))  
     dataDirs.sort()
     
     continueFileName = ""
@@ -93,8 +94,8 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr):
         if len(tlastLine)>2:
             continueFileName=tlastLine.strip()
     
-    #tstr = "%s, last backup dir is %s, latest dir is %s"%(spath, continueFileName, dataDirs[-1])
-    #print(tstr)
+    tstr = "%s, last backup dir is %s, latest dir is %s"%(spath, continueFileName, dataDirs[-1])
+    print(tstr)
     #sendMsg(msgSession, tstr)
     
     logfile0 = open(logfName0, 'a')
@@ -105,86 +106,80 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, msgSession, stopDateStr):
         #G002_023_171208
         dateStr = tdir[-6:]
         ccdStr = tdir[:8]
-        ''' '''
-        #if (not continueFlag)  and len(tdir)==len(continueFileName):
-        if (not continueFlag)  and len(dateStr)==len(continueFileName):
-            if dateStr!=continueFileName:
-                continue
-            else:
-                continueFlag = True
-                tstr = "%s, %s last line is: %s, restart from next dir"%(spath, ccdStr, continueFileName)
+        
+        if len(dateStr)==len(continueFileName) and dateStr>continueFileName:
+            #tstr = "%s, %s start backup %s"%(spath, ccdStr, dateStr)
+            #print(tstr)
+            #sendMsg(msgSession, tstr)
+            
+            #break
+            #logfile0.write("%s\n"%(tdir))
+            logfile0.write("%s\n"%(dateStr))
+            logfile0.flush()
+            
+            spath2 = "%s/%s"%(spath, tdir)
+            #dpath2 = "%s/%s"%(dpath, tdir)
+            dpath2 = "%s/%s/%s"%(dpath, dateStr, ccdStr)
+            if not os.path.exists(dpath2):
+                os.makedirs(dpath2)
+            
+            tstr = "backup %s ..."%(spath2)
+            print(tstr)
+            sendMsg(msgSession, tstr)
+            
+            startTime = datetime.now()
+            try:
+                tcmd = "%s -Y -D %s/G*.fit"%(fpackEXE, spath2)
+                print(tcmd)
+                stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
+                for line in iter(stdout.readline, ""):
+                    print(line)
+            except Exception as e:
+                tstr = "compress %s error: %s"%(spath2, str(e))
                 print(tstr)
                 sendMsg(msgSession, tstr)
-                continue
-        
-        #break
-        #logfile0.write("%s\n"%(tdir))
-        logfile0.write("%s\n"%(dateStr))
-        logfile0.flush()
-        
-        spath2 = "%s/%s"%(spath, tdir)
-        #dpath2 = "%s/%s"%(dpath, tdir)
-        dpath2 = "%s/%s/%s"%(dpath, dateStr, ccdStr)
-        if not os.path.exists(dpath2):
-            os.makedirs(dpath2)
-        
-        tstr = "backup %s ..."%(spath2)
-        print(tstr)
-        sendMsg(msgSession, tstr)
-        
-        startTime = datetime.now()
-        try:
-            tcmd = "%s -Y -D %s/G*.fit"%(fpackEXE, spath2)
-            print(tcmd)
-            stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
-            for line in iter(stdout.readline, ""):
-                print(line)
-        except Exception as e:
-            tstr = "compress %s error: %s"%(spath2, str(e))
+                tstr = traceback.format_exc()
+                print(tstr)
+            
+            endTime = datetime.now()
+            remainSeconds =(endTime - startTime).total_seconds()
+            tstr = "fpack compress %s, use %d seconds"%(spath2, remainSeconds)
             print(tstr)
             sendMsg(msgSession, tstr)
-            tstr = traceback.format_exc()
-            print(tstr)
-        
-        endTime = datetime.now()
-        remainSeconds =(endTime - startTime).total_seconds()
-        tstr = "fpack compress %s, use %d seconds"%(spath2, remainSeconds)
-        print(tstr)
-        sendMsg(msgSession, tstr)
-        
-        startTime = datetime.now()
-        try:
-            tcmd = "cd %s ; tar -c *.fit.fz | ssh gwac@172.28.8.8 'tar -xvf - -C %s'"%(spath2,dpath2)
-            print(tcmd)
-            stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
-            for line in iter(stdout.readline, ""):
-                print(line)
-        except Exception as e:
-            tstr = "backup %s error: %s"%(spath2, str(e))
+            
+            startTime = datetime.now()
+            try:
+                tcmd = "cd %s ; tar -c *.fit.fz | ssh gwac@172.28.8.8 'tar -xvf - -C %s'"%(spath2,dpath2)
+                print(tcmd)
+                stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
+                for line in iter(stdout.readline, ""):
+                    print(line)
+            except Exception as e:
+                tstr = "backup %s error: %s"%(spath2, str(e))
+                print(tstr)
+                sendMsg(msgSession, tstr)
+                tstr = traceback.format_exc()
+                print(tstr)
+            
+            ftp.chdir(spath2)
+            tfiles = ftp.listdir()
+            tfiles.sort()
+            imgfiles = []
+            for tfile in tfiles:
+                if tfile[-6:]==tempFitsName[-6:]:
+                    imgfiles.append(tfile)
+                            
+            ii = 0
+            for timgName in imgfiles:
+                localpath   = '%s/%s'%(dpath2, timgName)        
+                if os.path.exists(localpath):
+                    ii = ii + 1
+             
+            endTime = datetime.now()
+            remainSeconds =(endTime - startTime).total_seconds()
+            tstr = "%s total has %d files, success copyed %d files, use %d seconds, %.2fMB/s"%(tdir, len(imgfiles), ii, remainSeconds, ii*16.0/remainSeconds)
             print(tstr)
             sendMsg(msgSession, tstr)
-            tstr = traceback.format_exc()
-            print(tstr)
-        
-        ftp.chdir(spath2)
-        tfiles = ftp.listdir()
-        tfiles.sort()
-        imgfiles = []
-        for tfile in tfiles:
-            if tfile[-6:]==tempFitsName[-6:]:
-                imgfiles.append(tfile)
-                        
-        ii = 0
-        for timgName in imgfiles:
-            localpath   = '%s/%s'%(dpath2, timgName)        
-            if os.path.exists(localpath):
-                ii = ii + 1
-         
-        endTime = datetime.now()
-        remainSeconds =(endTime - startTime).total_seconds()
-        tstr = "%s total has %d files, success copyed %d files, use %d seconds, %.2fMB/s"%(tdir, len(imgfiles), ii, remainSeconds, ii*16.0/remainSeconds)
-        print(tstr)
-        sendMsg(msgSession, tstr)
             
     logfile0.close()
         
@@ -372,7 +367,7 @@ if __name__ == '__main__':
             curDateTime = datetime.now()
             tDateTime = datetime.now()
             startDateTime = tDateTime.replace(hour=9, minute=0, second=0)
-            endDateTime = tDateTime.replace(hour=15, minute=0, second=0)
+            endDateTime = tDateTime.replace(hour=10, minute=0, second=0)
             remainSeconds1 = (startDateTime - curDateTime).total_seconds()
             remainSeconds2 = (endDateTime - curDateTime).total_seconds()
             if remainSeconds1<0 and remainSeconds2>0:
