@@ -330,7 +330,7 @@ class GWACDiff(object):
             
             fieldId, ra,dec = self.tools.getRaDec(self.tmpAstro, self.templateImg)
             fpar='sex_diff.par'
-            sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','5','-ANALYSIS_THRESH','5','-CATALOG_TYPE', 'FITS_LDAC']
+            sexConf=['-DETECT_MINAREA','10','-DETECT_THRESH','7','-ANALYSIS_THRESH','7','-CATALOG_TYPE', 'FITS_LDAC']
             tmplCat, isSuccess = self.tools.runSextractor(self.templateImg, self.tmpAstro, self.tmpAstro, fpar, sexConf, outSuffix='_ldac.fit')
             if not isSuccess:
                 self.log.error("getDiffTemplate runSextractor failure2")

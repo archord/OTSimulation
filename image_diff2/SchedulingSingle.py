@@ -122,7 +122,7 @@ class BatchImageDiff(object):
         catNum = len(catList)
         print("getAlignTemplate: array has %d images, idx=%d"%(catNum, self.alignTmplIdx))
         newTmplSelectNum = 10
-        if catNum>=1:
+        if catNum>=5:
             lastIdx = self.alignTmplIdx
             if catNum-1>lastIdx:
                 hasCenterCoor = False
@@ -148,21 +148,22 @@ class BatchImageDiff(object):
                         
                         if skyName not in tmplMap:
                             print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database"%(i, imgName, skyName))
-                            #if hasCenterCoor:
-                            query = QueryData()
-                            #tmpls = query.getTmplList(camName, skyId, raCenter, decCenter)
-                            tmpls = query.getTmplList(camName, skyId)
-                            if len(tmpls)>0:
-                                print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database success, default tmpName is %s"%(i, imgName, skyName, tmpls[0][0]))
-                                tparms = ['1',tmpls,1] #status, imgList, currentSky image number
-                                imgDiff.getAlignTemplate(tparms, skyName)
-                                tmplMap[skyName]=tparms 
+                            if hasCenterCoor:
+                                query = QueryData()
+                                tmpls = query.getTmplList(camName, skyId, raCenter, decCenter)
+                                #tmpls = query.getTmplList(camName, skyId)
+                                if len(tmpls)>0:
+                                    print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database success, default tmpName is %s"%(i, imgName, skyName, tmpls[0][0]))
+                                    print("getAlignTemplate: image(ra,dec)=(%f,%f), tmpl(ra,dec)=(%f,%f)"%(raCenter, decCenter, tmpls[0][5], tmpls[0][6]))
+                                    tparms = ['1',tmpls,1] #status, imgList, currentSky image number
+                                    imgDiff.getAlignTemplate(tparms, skyName)
+                                    tmplMap[skyName]=tparms 
+                                else:
+                                    print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database failure, consider select from local"%(i, imgName, skyName))
+                                    tmplMap[skyName]=['2', [],1] #status, imgList, currentSky image number
                             else:
                                 print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database failure, consider select from local"%(i, imgName, skyName))
                                 tmplMap[skyName]=['2', [],1] #status, imgList, currentSky image number
-                            #else:
-                            #    print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database failure, consider select from local"%(i, imgName, skyName))
-                            #    tmplMap[skyName]=['2', [],1] #status, imgList, currentSky image number
                         else:
                             tparms = tmplMap[skyName]
                             status=tparms[0]
