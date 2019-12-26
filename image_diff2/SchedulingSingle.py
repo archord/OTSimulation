@@ -131,10 +131,15 @@ class BatchImageDiff(object):
                     try:
                         tcatParm = catList[i]
                         tpath = tcatParm[8]
+                        skyName = tcatParm[4]
                         imgName = tcatParm[2]
-                        runSuccess, raCenter, decCenter = imgDiff.getImgCenter(tpath, imgName)
-                        if runSuccess:
-                            hasCenterCoor = True
+                        
+                        if skyName not in tmplMap:
+                            runSuccess, raCenter, decCenter = imgDiff.getImgCenter(tpath, imgName)
+                            if runSuccess:
+                                hasCenterCoor = True
+                                break
+                        else:
                             break
                     except Exception as e:
                         tstr = traceback.format_exc()
@@ -413,17 +418,17 @@ class BatchImageDiff(object):
                     #print("start doDiff %s"%(imgName))
     
                     if skyName in diffTmplMap:
-                        self.diffIdx = i
                         tmplParms = diffTmplMap[skyName]
                         status = tmplParms[0]
                         if status=='2' or status=='1':
+                            self.diffIdx = i
                             print("doDiff %d: %s, sky=%s"%(i, imgName, skyName))
                             isSuccess = imgDiff.diffImage(imgName, tmplParms)
                             if isSuccess:
                                 print("doDiff %d: %s %s diff success"%(i, camName, imgName))
                                 diffImgList.append(tcatParm)
                         else:
-                            print("doDiff %d: wait template")
+                            print("doDiff %d: wait template"%(i))
                             break
                     else:
                         print("doDiff %d: %s %s cannot find template"%(i, skyName, imgName))

@@ -130,6 +130,8 @@ class QueryData:
                 cur.close()
                 self.closeDb()
                 
+                #print("getTmplList query %d records"%(len(rows)))
+                
                 tdata = []
                 tdata2 = []
                 for td in rows:
@@ -138,6 +140,9 @@ class QueryData:
                         tdata2.append(td)
                     elif ctrDis<searchR:
                         tdata.append(td)
+                
+                #print("getTmplList data(<1degree) has %d records"%(len(tdata)))
+                #print("getTmplList tdata2(<0.2degree) %d records"%(len(tdata2)))
                 
                 if len(tdata)>0 and len(tdata2)>0:
                     sel1 = tdata[0]
