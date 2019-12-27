@@ -124,7 +124,7 @@ def getWindowImgs(dpath1, objName, imgListFileName, size=400):
                         theader = hdu.header
                         hdulist.close() 
                         
-                        CCDSEC="[%d:%d,%d:%d]" % boundary
+                        CCDSEC="[%d:%d,%d:%d]" % (boundary[0],boundary[1]-1,boundary[2],boundary[3]-1)
                         BIASSEC="[%d:%d,%d:%d]" % (1,boundary[1]-boundary[0]+1, 1, boundary[3]-boundary[2]+1)
                         TRIMSEC=CCDSEC
                         theader.set('CCDSEC',CCDSEC)
