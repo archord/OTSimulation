@@ -625,41 +625,11 @@ class GWACDiff(object):
                     #tdates = np.repeat(dtStr,tXY.shape[0]).reshape((tXY.shape[0],1))
                     tRaDec = wcs.all_pix2world(tXY, 1)
                     fotParms = np.concatenate((fotParms, tRaDec), axis=1)
-                    
-                    mchDis = []
-                    for tpos in tRaDec:
-                        ra = tpos[0]
-                        dec = tpos[1]
-                        tdis, tmag = mpQuery.matchMP(ra, dec, dateStr, dtStr, searchRadius+0.001)
-                        mchDis.append([tdis,tmag])
-                        
-                    mchDis = np.array(mchDis)
-                    fotParms = np.concatenate((fotParms, mchDis), axis=1)
-                    
-                    totSubImgs1 = fotSubImgs[mchDis[:,0]>=searchRadius]
-                    totParms1 = fotParms[mchDis[:,0]>=searchRadius]
-                    mpSubImgs1 = fotSubImgs[mchDis[:,0]<searchRadius]
-                    mpParms1 = fotParms[mchDis[:,0]<searchRadius]
-                    
-                    tstr0 = "%s has %d fot, contain %d minorplanet."%(imgName, fotParms.shape[0], mpParms1.shape[0])
-                    print(tstr0)
-                    self.log.info(tstr0)
-                    
-                    if totSubImgs1.shape[0]>0:
+                                        
+                    if fotSubImgs.shape[0]>0:
                         totpath = '%s/%s_fotimg.npz'%(self.destDir, oImgPre)
-                        np.savez_compressed(totpath, imgs=totSubImgs1, parms=totParms1, obsUtc=dtStr)
+                        np.savez_compressed(totpath, imgs=fotSubImgs, parms=fotParms, obsUtc=dtStr)
                     
-                    if mpSubImgs1.shape[0]>0:
-                        self.sendMsg(tstr0)
-                        totpath = '%s/%s_mpimgf.npz'%(self.destDir, oImgPre)
-                        np.savez_compressed(totpath, imgs=mpSubImgs1, parms=mpParms1, obsUtc=dtStr)
-                        resiImgs = []
-                        for timg in mpSubImgs1:
-                            resiImgs.append(timg[2])
-                        preViewPath = "%s/%s_mpf.jpg"%(self.subImgViewDir, oImgPre)
-                        #if not os.path.exists(preViewPath):
-                        psfView = genPSFView(resiImgs)
-                        Image.fromarray(psfView).save(preViewPath)
 
             mpQuery.closeDb()
             resultFlag = True
