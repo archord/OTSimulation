@@ -88,13 +88,7 @@ class BatchImageDiff(object):
                 tpath = tfile[4] #/data3/G002_021_190109/G021_tom_objt_190109T13531492.fit
                 skyName = tfile[5]
                 
-                if skyName not in tmplMap:
-                    print("srcExtract: %s"%(tpath))
-                else:
-                    tparms = tmplMap[skyName] #['2', [],1]
-                    if tparms[0]!='1':
-                        print("srcExtract: %s, no history template, skip"%(tpath))
-                        continue
+                print("srcExtract: %s"%(tpath))
                 
                 srcDir= tpath[:(tpath.find(camName)-1)] #/data3/G002_021_190109
                 dateStr = srcDir[srcDir.find('G'):] #G002_021_190109
@@ -112,6 +106,12 @@ class BatchImageDiff(object):
                     logfile0 = open(logfName0, 'a')
                     logfile0.write("\n\n%d\n"%(self.curFFId))
                     logfile0.close()
+                    
+                    if skyName in tmplMap:
+                        tparms = tmplMap[skyName] #['2', [],1]
+                        if tparms[0]!='1':
+                            print("srcExtract: %s, no history template, skip"%(tpath))
+                            continue
                     
                     tpathfz = "%s.fz"%(tpath)
                     if os.path.exists(tpath) or os.path.exists(tpathfz):
