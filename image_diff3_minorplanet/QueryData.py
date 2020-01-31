@@ -52,9 +52,10 @@ class QueryData:
         if len(camName)==4:
             camId = (int(camName[2])-1)*5+int(camName[3])
         
-            sql = "select ff_id, ff_number, sky_id, img_name, img_path "\
-                "from fits_file2_his "\
-                "where sky_id>0 and gen_time>'2019-12-01 09:00:00' and cam_id=%d and ff_id>'%d'  " \
+            sql = "select ff_id, ff_number, ff2.sky_id, img_name, img_path, obs.sky_name "\
+                "from fits_file2_his ff2 "\
+                "inner join observation_sky obs on obs.sky_id=ff2.sky_id "\
+                "where ff2.sky_id>0 and gen_time>'2019-12-01 09:00:00' and cam_id=%d and ff_id>'%d'  " \
                 "order by ff_id limit 10"%(camId, ffId)
             #print(sql)
             try:

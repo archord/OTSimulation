@@ -65,7 +65,7 @@ class BatchImageDiff(object):
         self.curFFId = 0
         self.loopNum = 0
                 
-    def srcExtract(self, camName, catList, imgDiff, logDestDir, runName):
+    def srcExtract(self, camName, catList, tmplMap, imgDiff, logDestDir, runName):
         
         self.catRunning = 1
                     
@@ -80,7 +80,15 @@ class BatchImageDiff(object):
                 curSkyId = tfile[2]
                 timgName = tfile[3] #G021_tom_objt_190109T13531492.fit
                 tpath = tfile[4] #/data3/G002_021_190109/G021_tom_objt_190109T13531492.fit
-                print("srcExtract: %s"%(tpath))
+                skyName = tfile[5]
+                
+                if skyName not in tmplMap:
+                    print("srcExtract: %s"%(tpath))
+                else:
+                    tparms = tmplMap[skyName] #['2', [],1]
+                    if tparms[0]!='1':
+                        print("srcExtract: %s, no history template, skip"%(tpath))
+                        continue
                 
                 srcDir= tpath[:(tpath.find(camName)-1)] #/data3/G002_021_190109
                 dateStr = srcDir[srcDir.find('G'):] #G002_021_190109
@@ -414,7 +422,7 @@ class BatchImageDiff(object):
                 tIdx1 = self.loopNum%2
                 ''' '''
                 if tIdx1==0 and self.catRunning==0:  #cat
-                    self.srcExtract(camName, self.catList, imgDiff, logDest0, runName)
+                    self.srcExtract(camName, self.catList, self.alignTmplMap, imgDiff, logDest0, runName)
                 
                 #tIdx2 = self.loopNum%15
                 tIdx2 = self.loopNum%2
