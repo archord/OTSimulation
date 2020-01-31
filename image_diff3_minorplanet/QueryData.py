@@ -56,7 +56,7 @@ class QueryData:
                 "from fits_file2_his ff2 "\
                 "inner join observation_sky obs on obs.sky_id=ff2.sky_id "\
                 "where ff2.sky_id>0 and gen_time>'2019-12-01 09:00:00' and cam_id=%d and ff_id>'%d'  " \
-                "order by ff_id limit 10"%(camId, ffId)
+                "order by ff_id limit 20"%(camId, ffId)
             #print(sql)
             try:
                 self.connDb()
