@@ -71,7 +71,13 @@ class BatchImageDiff(object):
                     
         query = QueryData()
         tfiles = query.getFileList(camName, self.curFFId)
-        print("secExtract: get %d images"%(len(tfiles)))
+        
+        tnum = len(tfiles)
+        tstr = "%s, secExtract: get %d images"%(camName, tnum)
+        print(tstr)
+        if tnum>0:
+            imgDiff.sendMsg(tstr)
+            
         for tfile in tfiles:
             
             try:
@@ -418,41 +424,12 @@ class BatchImageDiff(object):
                 
             try:
                 print("\n\nmain loop %d****************"%(self.loopNum))
-                #tIdx1 = self.loopNum%5
-                tIdx1 = self.loopNum%2
-                ''' '''
-                if tIdx1==0 and self.catRunning==0:  #cat
-                    self.srcExtract(camName, self.catList, self.alignTmplMap, imgDiff, logDest0, runName)
                 
-                #tIdx2 = self.loopNum%15
-                tIdx2 = self.loopNum%2
-                if tIdx2==0 and self.alignTmplRunning==0: #template getAlignTemplateLocal
-                    self.getAlignTemplate(camName, self.catList, self.alignTmplMap, imgDiff)
-                    
-                tIdx3 = self.loopNum%2
-                if tIdx3==0 and self.alignRunning==0: #align
-                    self.doAlign(camName, self.catList, self.alignTmplMap, self.alignList, imgDiff)
-                '''
-                tIdx4 = self.loopNum%2
-                if tIdx4==3 and self.cmbRunning==0: #combine5
-                    self.doCombine(camName, self.alignList, self.alignTmplMap,  
-                            imgDiff, self.cmbImgList, self.crossTaskParms, runName, 1)
-                '''    
-                #tIdx7 = self.loopNum%5
-                tIdx7 = self.loopNum%2
-                if tIdx7==0:
-                    if self.diffRunning==0: #diff
-                        self.doDiff(camName, self.alignList, self.alignTmplMap, imgDiff, self.diffImgList)
-                '''    
-                #tIdx8 = self.loopNum%2
-                tIdx8 = self.loopNum%2
-                if tIdx8==3:
-                    if self.recgRunning==0: #recognition
-                        #print("%d doRecognitionAndUpload start run"%(self.loopNum))
-                        self.doRecognitionAndUpload(camName, self.diffImgList, self.diffTmplMap, imgDiff, runName)
-                    #else:
-                    #    print("%d doRecognitionAndUpload is running"%(self.loopNum))
-                '''   
+                self.srcExtract(camName, self.catList, self.alignTmplMap, imgDiff, logDest0, runName)
+                self.getAlignTemplate(camName, self.catList, self.alignTmplMap, imgDiff)
+                self.doAlign(camName, self.catList, self.alignTmplMap, self.alignList, imgDiff)
+                self.doDiff(camName, self.alignList, self.alignTmplMap, imgDiff, self.diffImgList)
+
                 self.loopNum = self.loopNum + 1
                 
                 time.sleep(1)
