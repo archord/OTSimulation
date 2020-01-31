@@ -19,7 +19,7 @@ class AstroTools(object):
     
     def __init__(self, rootPath, logFile="gwac_diff"): 
         
-        self.verbose = False
+        self.verbose = True
         
         self.serverIP = "http://172.28.8.8:8080"
         #self.serverIP = "http://10.0.10.236:9995"

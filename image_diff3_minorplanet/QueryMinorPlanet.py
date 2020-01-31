@@ -118,7 +118,7 @@ class QueryMinorPlanet:
           
           sql = " %s and LAT between %f and %f "%(sql, minDec1, maxDec1)
           
-          #print(sql)
+          print(sql)
           
           #self.connDb()
           cur = self.conn.cursor()
@@ -131,10 +131,10 @@ class QueryMinorPlanet:
           ttime = obsUtc.split('T')
           hms=ttime[1].split(':')
           subDay = float(hms[0])/24 + float(hms[1])/24/60 + float(hms[2])/24/60/60
-          #print("minor planet %s subDay=%f"%(obsUtc, subDay))
+          print("minor planet (%f, %f) %s subDay=%f"%(ra, dec, obsUtc, subDay))
           
           for td in rows:
-              #print(td)
+              print(td)
               ra1=td[3]
               dec1=td[4]
               raSpeed=td[5]
@@ -143,15 +143,25 @@ class QueryMinorPlanet:
               preRa = ra1 + raSpeed * subDay/math.cos(dec1*0.017453293)
               preDec = dec1 + decSpeed * subDay
               tDis = getGreatCircleDistance(ra, dec, preRa, preDec)
+              print(tDis)
               if tDis<minDis:
                   minDis = tDis
                   tmag = mag
 
         return minDis, tmag
     
+if __name__ == '__main__':
     
+    ra = 205.327
+    dec = 2.797465
+    dateStr =  '200130'
+    obsUtc = '2020-01-30T19:09:05'
     
-    
+    tquery = QueryMinorPlanet()
+    tquery.connDb()
+    rows = tquery.matchMP(ra, dec, dateStr, obsUtc, searchRadius=0.05, mag=16.0)
+    tquery.closeDb()
+    print(rows)
     
     
     

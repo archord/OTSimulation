@@ -121,7 +121,7 @@ class BatchImageDiff(object):
         self.alignTmplRunning = 1
         catNum = len(catList)
         print("getAlignTemplate: array has %d images, idx=%d"%(catNum, self.alignTmplIdx))
-        newTmplSelectNum = 5
+        newTmplSelectNum = 10
         if catNum>=newTmplSelectNum:
             lastIdx = self.alignTmplIdx
             if catNum-1>lastIdx:
@@ -153,6 +153,7 @@ class BatchImageDiff(object):
                         
                         if skyName not in tmplMap:
                             print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database"%(i, imgName, skyName))
+                            print("getAlignTemplate: image(ra,dec)=(%f,%f)"%(raCenter, decCenter))
                             if hasCenterCoor:
                                 query = QueryData()
                                 tmpls = query.getTmplList(camName, skyId, raCenter, decCenter)

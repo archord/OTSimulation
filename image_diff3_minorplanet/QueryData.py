@@ -54,8 +54,8 @@ class QueryData:
         
             sql = "select ff_id, ff_number, sky_id, img_name, img_path "\
                 "from fits_file2_his "\
-                "where sky_id>0 and gen_time>'2020-01-22 09:00:00' and cam_id=%d and ff_id>'%d'  " \
-                "order by ff_id limit 5"%(camId, ffId)
+                "where sky_id>0 and gen_time>'2019-12-01 09:00:00' and cam_id=%d and ff_id>'%d'  " \
+                "order by ff_id limit 10"%(camId, ffId)
             #print(sql)
             try:
                 self.connDb()
@@ -115,7 +115,7 @@ class QueryData:
             sql = "select ff2.img_name, ors.date_str, ors.real_img_num, orsw.fwhm, orsw.star_num, ors.center_ra, ors.center_dec "\
                 "from observation_record_statistic ors "\
                 "INNER JOIN observation_record_statistic_wcs orsw on ors.ors_id= orsw.ors_id "\
-                "INNER JOIN fits_file2_his ff2 on orsw.ff_id=ff2.ff_id and ff2.gen_time>'2020-01-01 09:00:00' and gen_time<'2020-01-22 09:00:00' "\
+                "INNER JOIN fits_file2_his ff2 on orsw.ff_id=ff2.ff_id and gen_time<'2019-12-01 09:00:00' "\
                 "where ors.has_wcs=true and orsw.get_wcs=true and orsw.star_num>5000 and orsw.fwhm<2.5 "\
                 "and ors.sky_id=%d and ors.cam_id=%d "\
                 "and ors.center_dec>=%f and ors.center_dec<=%f "\
