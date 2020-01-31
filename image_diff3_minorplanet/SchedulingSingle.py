@@ -73,7 +73,7 @@ class BatchImageDiff(object):
         tfiles = query.getFileList(camName, self.curFFId)
         
         tnum = len(tfiles)
-        tstr = "%s, secExtract: get %d images"%(camName, tnum)
+        tstr = "%s, secExtract: get %d images, ffId=%d"%(camName, tnum, tfiles[0][0])
         print(tstr)
         if tnum>0:
             imgDiff.sendMsg(tstr)
