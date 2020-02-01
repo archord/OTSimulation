@@ -76,7 +76,8 @@ class BatchImageDiff(object):
         tstr = "%s, secExtract: get %d images, ffId=%d, %s"%(camName, tnum, tfiles[0][0], tfiles[0][3])
         print(tstr)
         if tnum>0:
-            imgDiff.sendMsg(tstr)
+            if self.loopNum%20==19:
+                imgDiff.sendMsg(tstr)
             
         for tfile in tfiles:
             
