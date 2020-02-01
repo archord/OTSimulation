@@ -401,8 +401,8 @@ class BatchImageDiff(object):
                 remainSeconds2 = (endDateTime - curUtcDateTime).total_seconds()
                 if remainSeconds1<0 and remainSeconds2>0:
                     
-                    if os.path.exists(dataDest0):
-                        os.system("rm -rf %s"%(dataDest0))
+                    #if os.path.exists(dataDest0):
+                    #    os.system("rm -rf %s"%(dataDest0))
                     
                     self.initData()
                     dateStr = datetime.strftime(datetime.utcnow(), "%Y%m%d")
