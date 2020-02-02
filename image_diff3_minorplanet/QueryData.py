@@ -55,8 +55,8 @@ class QueryData:
             sql = "select ff_id, ff_number, ff2.sky_id, img_name, img_path, obs.sky_name "\
                 "from fits_file2_his ff2 "\
                 "inner join observation_sky obs on obs.sky_id=ff2.sky_id "\
-                "where ff2.sky_id>0 and gen_time>'2019-12-01 09:00:00' and cam_id=%d and ff_id>'%d'  " \
-                "order by ff_id limit 20"%(camId, ffId)
+                "where ff2.sky_id>0 and gen_time>'2019-12-06 09:00:00' and cam_id=%d and ff_id>'%d'  " \
+                "order by ff_id limit 5"%(camId, ffId)
             #print(sql)
             try:
                 self.connDb()
@@ -106,21 +106,22 @@ class QueryData:
             
         return rows
 
-    def getTmplList(self, camName, skyId, ra, dec, searchR=1, searchR2 = 0.2):
+    def getTmplList(self, camName, skyId, ra, dec, dateStr, searchR=1, searchR2 = 0.2):
         
         if len(camName)==4:
             camId = (int(camName[2])-1)*5+int(camName[3])
             minDec = dec-searchR
             maxDec = dec+searchR
-        
+                    
+            # and gen_time<'2019-12-01 09:00:00'
             sql = "select ff2.img_name, ors.date_str, ors.real_img_num, orsw.fwhm, orsw.star_num, ors.center_ra, ors.center_dec "\
                 "from observation_record_statistic ors "\
                 "INNER JOIN observation_record_statistic_wcs orsw on ors.ors_id= orsw.ors_id "\
-                "INNER JOIN fits_file2_his ff2 on orsw.ff_id=ff2.ff_id and gen_time<'2019-12-01 09:00:00' "\
+                "INNER JOIN fits_file2_his ff2 on orsw.ff_id=ff2.ff_id "\
                 "where ors.has_wcs=true and orsw.get_wcs=true and orsw.star_num>5000 and orsw.fwhm<2.5 "\
                 "and ors.sky_id=%d and ors.cam_id=%d "\
-                "and ors.center_dec>=%f and ors.center_dec<=%f "\
-                "ORDER BY orsw.star_num desc limit 20"%(skyId, camId, minDec, maxDec)
+                "and ors.center_dec>=%f and ors.center_dec<=%f and ors.date_str<'%s'"\
+                "ORDER BY orsw.star_num desc limit 20"%(skyId, camId, minDec, maxDec, dateStr)
             #print(sql)
             try:
                 self.connDb()

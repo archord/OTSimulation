@@ -34,6 +34,9 @@ class BatchImageDiff(object):
                   'usnoMag1': 15.5, 
                   'usnoR2': 0.041667, 
                   'usnoMag2': 8}
+        
+        self.curFFId = 0
+        self.loopNum = 0
     
     def initData(self):
         self.catList = []
@@ -62,8 +65,6 @@ class BatchImageDiff(object):
         self.recgRunning = 0
         
         self.skyName0 = ""
-        self.curFFId = 0
-        self.loopNum = 0
                 
     def srcExtract(self, camName, catList, tmplMap, imgDiff, logDestDir, runName):
         
@@ -76,7 +77,7 @@ class BatchImageDiff(object):
         tstr = "%s, secExtract: get %d images, ffId=%d, %s"%(camName, tnum, tfiles[0][0], tfiles[0][3])
         print(tstr)
         if tnum>0:
-            if self.loopNum%20==19:
+            if self.loopNum%40==19:
                 imgDiff.sendMsg(tstr)
             
         for tfile in tfiles:
@@ -165,13 +166,14 @@ class BatchImageDiff(object):
                         skyId = tcatParm[7]
                         skyName = tcatParm[4]
                         imgName = tcatParm[2]
+                        dateStr = imgName.split('_')[3][:6] #G021_tom_objt_190109T13531492.fit
                         
                         if skyName not in tmplMap:
                             print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database"%(i, imgName, skyName))
                             print("getAlignTemplate: image(ra,dec)=(%f,%f)"%(raCenter, decCenter))
                             if hasCenterCoor:
                                 query = QueryData()
-                                tmpls = query.getTmplList(camName, skyId, raCenter, decCenter)
+                                tmpls = query.getTmplList(camName, skyId, raCenter, decCenter, dateStr)
                                 #tmpls = query.getTmplList(camName, skyId)
                                 if len(tmpls)>0:
                                     print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database success, default tmpName is %s"%(i, imgName, skyName, tmpls[0][0]))
