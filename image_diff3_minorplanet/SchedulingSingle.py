@@ -385,6 +385,14 @@ class BatchImageDiff(object):
         imgDiff.log.info(tStr)
         imgDiff.sendMsg(tStr)
         
+        tdirs00 = dataDest0 = "%s/data"%(destDir)
+        
+        tdirs = os.listdir(tdirs00)
+        tdirs.sort()
+        for tdir in tdirs:
+            tproot00="%s/%s"%(tdirs00, tdir)
+            imgDiff.cleanData(tproot00)
+        
         #dataPath = '/home/xy/work/imgDiffTest2/fits/190128_G004_044'
         
         #

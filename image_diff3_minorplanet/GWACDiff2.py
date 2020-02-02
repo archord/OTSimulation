@@ -128,13 +128,6 @@ class GWACDiff(object):
             os.system("mkdir -p %s"%(self.destDir))
         if not os.path.exists(self.subImgViewDir):
             os.system("mkdir -p %s"%(self.subImgViewDir))
-            
-    def cleanData(self, rootDir):
-        
-        os.system("rm -rf %s/%s"%(rootDir, self.catDir))
-        os.system("rm -rf %s/%s"%(rootDir, self.alignDir))
-        os.system("rm -rf %s/%s"%(rootDir, self.diffImgDir))
-        os.system("rm -rf %s/%s"%(rootDir, self.diffCatDir))
                 
         
     def getCat(self, srcDir, imgName, destDir, dtype='cat'):
@@ -220,11 +213,19 @@ class GWACDiff(object):
                 tpath = "%s/%s/%s/%s"%(tmplRoot, skyName, mountCam, dateStr)
                 tfullPaths.append("%s/%s.fit"%(tpath,imgpre))
                 tfullPaths.append("%s/%s.wcs"%(tpath,imgpre))
-                tfullPaths.append("%s/%s.cat"%(tpath,imgpre))
+                #tfullPaths.append("%s/%s.cat"%(tpath,imgpre))
                 tfullPaths.append("%s/%s_badpix.cat"%(tpath,imgpre))
                 tfullPaths.append("%s/%s_cat.fit"%(tpath,imgpre))
                 break #only get the first template file
-            self.tools.remoteGetFile(tfullPaths, self.tmplAlignDir)
+                
+            if len(tfullPaths)>0:
+                self.tools.remoteGetFile(tfullPaths, self.tmplAlignDir)
+                timage = "%s.fit"%(imgpre)
+                sexConf=['-DETECT_MINAREA','5','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+                fpar='sex_diff.par'
+                #self.tools.runSextractor(timage, self.tmplAlignDir, self.tmplAlignDir, fpar, sexConf, outSuffix='_re5.cat')
+                self.tools.runSextractor(timage, self.tmplAlignDir, self.tmplAlignDir, fpar, sexConf)
+        
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         self.log.info("********** getAlignTemplate %s use %d seconds"%(imgName, runTime))
@@ -260,12 +261,9 @@ class GWACDiff(object):
         os.system("cp %s/%s.cat %s/%s"%(self.catDir, imgpre, self.tmpAlign, objectCat))
         os.system("cp %s/%s.cat %s/%s"%(self.tmplAlignDir, templateImg.split(".")[0] , self.tmpAlign, ttmplCat))
         alignRst = doAll(self.tmpAlign, ttmplCat, self.tmpAlign, objectCat, self.tmpAlign, objectImg, self.alignDir, imgName, templateImg)
-        
+                
         alignImgName = "%s_align.fit"%(imgpre)
-        sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
-        fpar='sex_diff.par'
-        self.tools.runSextractor(alignImgName, self.alignDir, self.alignDir, fpar, sexConf)
-        
+                
         t2oX, t2oY=[],[]
         if alignRst[0]>0:
             #print("totalMatchNum, xshift,yshift, xrotation, yrotation, blindStarNum, mchRatios")
@@ -279,6 +277,15 @@ class GWACDiff(object):
             self.log.info(alignRst)
             if mchRatios>80.0:
                 isSuccess = True
+                sexConf=['-DETECT_MINAREA','3','-DETECT_THRESH','2.5','-ANALYSIS_THRESH','2.5']
+                fpar='sex_diff.par'
+                self.tools.runSextractor(alignImgName, self.alignDir, self.alignDir, fpar, sexConf)
+                
+        if not isSuccess:
+            alignImgName = "%s/%s_align.fit"%(self.alignDir, imgpre)
+            os.system("rm -rf %s"%(alignImgName))
+            alignImgName = "%s/%s.cat"%(self.catDir, imgpre)
+            os.system("rm -rf %s"%(alignImgName))
     
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
@@ -525,8 +532,6 @@ class GWACDiff(object):
             self.log.error("diffImage runSextractor failure")
             return isSuccess
             
-        os.system("cp %s/%s %s/%s_resi.fit"%(self.diff, objTmpResi, self.diffImgDir, oImgPre))
-        os.system("cp %s/%s %s/%s_resi.cat"%(self.diff, resiCat, self.diffCatDir, oImgPre))
         
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, resiCat, 'oi.cat', 1) #1 and 5 
         
@@ -536,7 +541,7 @@ class GWACDiff(object):
         else:
             badPixProps2 = np.array([])
 
-        mchRadius = 3 #15 10
+        mchRadius = 10 #15 10
         mchFile, nmhFile, mchPair = self.tools.runCrossMatch(self.diff, mchFile, 'ti.cat', mchRadius)
         
         fotPath = "%s/%s"%(self.diff, mchFile)
@@ -624,6 +629,18 @@ class GWACDiff(object):
                     #if not os.path.exists(preViewPath):
                     psfView = genPSFView(resiImgs)
                     Image.fromarray(psfView).save(preViewPath)
+                    
+                    os.system("cp %s/%s %s/%s_resi.fit"%(self.diff, objTmpResi, self.diffImgDir, oImgPre))
+                    os.system("cp %s/%s %s/%s_resi.cat"%(self.diff, resiCat, self.diffCatDir, oImgPre))
+        
+                else:
+                    
+                    alignImgName = "%s/%s_align.fit"%(self.alignDir, oImgPre)
+                    os.system("rm -rf %s"%(alignImgName))
+                    alignImgName = "%s/%s_align.cat"%(self.alignDir, oImgPre)
+                    os.system("rm -rf %s"%(alignImgName))
+                    alignImgName = "%s/%s.cat"%(self.catDir, oImgPre)
+                    os.system("rm -rf %s"%(alignImgName))
             
             if fotProps.shape[0]>0 and fotProps.shape[0]<500:
                 fotSubImgs, fotParms = getWindowImgs(self.diff, 'oi.fit', 'ti.fit', objTmpResi, fotProps, size)
