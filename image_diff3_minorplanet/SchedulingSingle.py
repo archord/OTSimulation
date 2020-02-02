@@ -77,7 +77,7 @@ class BatchImageDiff(object):
         tstr = "%s, secExtract: get %d images, ffId=%d, %s"%(camName, tnum, tfiles[0][0], tfiles[0][3])
         print(tstr)
         if tnum>0:
-            if self.loopNum%40==19:
+            if self.loopNum%40==1:
                 imgDiff.sendMsg(tstr)
             
         for tfile in tfiles:
@@ -137,7 +137,7 @@ class BatchImageDiff(object):
         self.alignTmplRunning = 1
         catNum = len(catList)
         print("getAlignTemplate: array has %d images, idx=%d"%(catNum, self.alignTmplIdx))
-        newTmplSelectNum = 10
+        newTmplSelectNum = 5
         if catNum>=newTmplSelectNum:
             lastIdx = self.alignTmplIdx
             if catNum-1>lastIdx:
