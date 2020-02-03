@@ -177,7 +177,10 @@ class BatchImageDiff(object):
                         dateStr = imgName.split('_')[3][:6] #G021_tom_objt_190109T13531492.fit
                         
                         if skyName not in tmplMap:
-                            tmplMap = {}
+                            for ts in tmplMap:
+                                #tmplMap.pop(ts, None)
+                                del tmplMap[ts]
+                                
                             print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database"%(i, imgName, skyName))
                             print("getAlignTemplate: image(ra,dec)=(%f,%f)"%(raCenter, decCenter))
                             if hasCenterCoor:
