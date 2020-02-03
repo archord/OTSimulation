@@ -65,10 +65,24 @@ class BatchImageDiff(object):
         self.recgRunning = 0
         
         self.skyName0 = ""
+        self.curDateStr = ''
                 
     def srcExtract(self, camName, catList, tmplMap, imgDiff, logDestDir, runName):
         
         self.catRunning = 1
+        
+                
+        if self.curFFId==0:             
+            tdirs = os.listdir(logDestDir)
+            tdirs.sort()
+            for logfile in tdirs:
+                tlogpath="%s/%s"%(logDestDir, logfile)
+                if os.path.exists(tlogpath) and os.stat(tlogpath).st_size > 0:
+                    tlastLine = getLastLine(tlogpath)
+                    if len(tlastLine)>2:
+                        tffid = int(tlastLine.strip())
+                        if self.curFFId<tffid:
+                            self.curFFId=tffid
                     
         query = QueryData()
         tfiles = query.getFileList(camName, self.curFFId)
@@ -95,12 +109,6 @@ class BatchImageDiff(object):
                 srcDir= tpath[:(tpath.find(camName)-1)] #/data3/G002_021_190109
                 dateStr = srcDir[srcDir.find('G'):] #G002_021_190109
                 logfName0 = '%s/%s_%s.log'%(logDestDir, dateStr, runName)
-                
-                if self.curFFId==0:
-                    if os.path.exists(logfName0) and os.stat(logfName0).st_size > 0:
-                        tlastLine = getLastLine(logfName0)
-                        if len(tlastLine)>2:
-                            self.curFFId=int(tlastLine.strip())
     
                 if curFfId>self.curFFId:
                     self.curFFId=curFfId
@@ -169,6 +177,7 @@ class BatchImageDiff(object):
                         dateStr = imgName.split('_')[3][:6] #G021_tom_objt_190109T13531492.fit
                         
                         if skyName not in tmplMap:
+                            tmplMap = {}
                             print("getAlignTemplate %d: %s, sky(%s) is new, query align template from database"%(i, imgName, skyName))
                             print("getAlignTemplate: image(ra,dec)=(%f,%f)"%(raCenter, decCenter))
                             if hasCenterCoor:
@@ -385,7 +394,7 @@ class BatchImageDiff(object):
         imgDiff.log.info(tStr)
         imgDiff.sendMsg(tStr)
         
-        tdirs00 = dataDest0 = "%s/data"%(destDir)
+        tdirs00 = "%s/data"%(destDir)
         
         tdirs = os.listdir(tdirs00)
         tdirs.sort()
