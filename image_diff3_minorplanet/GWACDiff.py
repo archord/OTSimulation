@@ -131,10 +131,10 @@ class GWACDiff(object):
             
     def cleanData(self, rootDir):
         
-        os.system("rm -rf %s/A_cat"%(rootDir))
-        os.system("rm -rf %s/C_align"%(rootDir))
-        os.system("rm -rf %s/G_diffImg"%(rootDir))
-        os.system("rm -rf %s/H_diffCat"%(rootDir))
+        os.system("rm -rf %s/A_cat/*"%(rootDir))
+        os.system("rm -rf %s/C_align/*"%(rootDir))
+        os.system("rm -rf %s/G_diffImg/*"%(rootDir))
+        os.system("rm -rf %s/H_diffCat/*"%(rootDir))
                 
         
     def getCat(self, srcDir, imgName, destDir, dtype='cat'):
