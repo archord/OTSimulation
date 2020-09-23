@@ -16,7 +16,7 @@ import scipy.ndimage
 class QueryData:
     
     connParam={
-        "host": "172.28.9.14",
+        "host": "127.0.0.1",
         "port": "5432",
         "dbname": "wata",
         "user": "wata",
@@ -204,12 +204,14 @@ def getJpeg(imgName, spath, dpath):
         imgStampfull = zscale_image(imgData)
         #imgStampfull = getFullThumbnail_(imgData)
         imgStampz = scipy.ndimage.zoom(imgStampfull, 0.3, order=0)
-        preViewPath = "%s/%s.jpg"%(dpath, imgName.split('.')[0])
-        Image.fromarray(imgStampfull).save(preViewPath, quality=50)
+        #preViewPath = "%s/%s.jpg"%(dpath, imgName.split('.')[0])
+        #Image.fromarray(imgStampfull).save(preViewPath, quality=50)
         
         realShowPath = "/data/wata_data/realTimeOtDistribution/WATA_011.jpg"
         Image.fromarray(imgStampz).save(realShowPath, quality=50)
         #os.system("cp %s /data/wata_data/realTimeOtDistribution/WATA_011.jpg"%(preViewPath))
+        
+        os.system("rm -rf %s"%(tpath0))
         endtime = datetime.now()
         runTime = (endtime - starttime).seconds
         print("********** image zscale total use %d seconds"%(runTime))
