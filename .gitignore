@@ -115,3 +115,7 @@ data
 *.svg
 *.obj
 *.record
+.DS_Store
+rotateImage/ele_data.zip
+rotateImage/C20231110T114950.fit
+rotateImage/ele_data/a20
