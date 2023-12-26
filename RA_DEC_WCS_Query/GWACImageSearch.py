@@ -247,7 +247,9 @@ def getGreatCircleDistance(ra1, dec1, ra2, dec2):
 
 def planProject(cRa, cDec, radius, startDate='', endDate='', getImgs='false', getSkys='true'):
     
-    maxSearchBox = 12.5 * 1.414 / 2;
+    #图像/天区为正方形，maxSearchBox为图像/天区对角线的一半 
+    #计算搜索的坐标是否落入图像/天区
+    maxSearchBox = 12.5 * 1.414 / 2
     
     width = 4096
     height = 4136
@@ -272,6 +274,16 @@ def planProject(cRa, cDec, radius, startDate='', endDate='', getImgs='false', ge
         
         ctrDis = getGreatCircleDistance(cRa, cDec, td[0],td[1])
         #print("cra1=%f,cdec1=%f,ra2=%f,dec2=%f,dist=%f, max=%f"%(cRa, cDec, td[0],td[1], ctrDis, maxSearchBox))
+        
+        #图像/天区为正方形，maxSearchBox为图像/天区对角线的一半 
+        #计算搜索的坐标是否落入图像/天区
+        #如果搜索坐标落入图像/天区，则计算搜索坐标在图像上的位置
+
+        #搜索坐标在图像上的位置的计算方法：
+        #1，将图像的四个角的赤经赤纬以图像中心为原点，投影到一个平面上
+        #2，建立投影坐标与图像像素坐标的拟合关系
+        #3，计算搜索坐标的平面投影坐标
+        #4，根据拟合关系计算搜索坐标的图像像素坐标
         if ctrDis<=maxSearchBox:
             transXY = []
             #xi, eta, j = wcs2plane(td[0],td[1], td[0],td[1])
