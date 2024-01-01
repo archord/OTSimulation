@@ -28,10 +28,10 @@ def doUpload(path, fnames, ftype, serverIP):
 
 def testUpload():
     
-    path=r"F:\test"
-    fnames=['1.jpg','2.jpg','1.png','2.png']
-    ftype="diffot1img"
-    serverIP="http://127.0.0.1:8080"
+    path="/home/gwac/gwacdata"
+    fnames=['G023_mon_objt_190509T14505189.imqty']
+    ftype="imqty"
+    serverIP="http://172.28.8.8:8080"
     doUpload(path, fnames, ftype, serverIP)
 
 if __name__ == "__main__":
