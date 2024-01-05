@@ -41,7 +41,7 @@ def testUpload2():
     
     path="/Users/xy/work/python/OTSimulation/gwacInSvomRealTime"
     #上传的jpg文件以preview作为后缀G044_Mon_objt_231208T10110750_preview.jpg
-    fnames=['G044_Mon_objt_231208T10110750_preview.jpg']
+    fnames=['G101_Mon_objt_231208T10110750_preview.jpg']
     ftype="impre"
     serverIP="http://172.28.8.8:8080"
     doUpload(path, fnames, ftype, serverIP)
