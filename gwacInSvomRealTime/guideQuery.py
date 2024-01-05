@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import psycopg2
 import datetime
+import math
 
 class GWACQuery:
     
@@ -126,11 +127,35 @@ class GWACQuery:
 
         return guideParms
           
-def chackGuideStatus():
+
+def getGreatCircleDistance(ra1, dec1, ra2, dec2):
+    rst = 57.295779513 * math.acos(math.sin(0.017453293 * dec1) * math.sin(0.017453293 * dec2)
+            + math.cos(0.017453293 * dec1) * math.cos(0.017453293 * dec2) * math.cos(0.017453293 * (math.fabs(ra1 - ra2))));
+    return rst
+
+
+'''
+input: isFirstPoint 是否首次指向， True是首次指向，False不是首次指向
+output: mountList 需要导星的转台名称列表
+'''
+def chackGuideStatus(isFirstPoint):
+
+    mountList = []
+
+    firstPointMaxError = 5*60 #首次指向最大误差5角分
+    otherPointMaxError = 10*60 #首次指向最大误差10角分
+    maxDelayTime = 60 #导星信息延迟：导星信息获取时，与当前时间的最大差值
+
+    if isFirstPoint:
+        pointErrorMax = firstPointMaxError
+    else:
+        pointErrorMax = otherPointMaxError
+    
     try:
         gwacQuery = GWACQuery()
         guideStatuss = gwacQuery.queryISPByCamera()
-        print(guideStatuss)
+        # print(guideStatuss)
+
         for td in guideStatuss:
             camName = td['camName']
             obsTime = td['time_obs_ut']
@@ -141,13 +166,25 @@ def chackGuideStatus():
 
             currentTimeUtc = datetime.datetime.utcnow()
             timediff = (currentTimeUtc-obsTime).total_seconds()
-            radiff = imgCenterRa-mountRa
-            decdiff = imgCenterDec-mountDec
-            print(camName, currentTimeUtc, obsTime, timediff, radiff, decdiff)
+            pointError = getGreatCircleDistance(mountRa, mountDec, imgCenterRa, imgCenterDec)
+            pointError = pointError*3600 #度转换为角秒
+
+            if timediff<maxDelayTime:
+                if pointError>=pointErrorMax:
+                    print("mount %s need guide"%(camName), currentTimeUtc, obsTime, timediff, pointError)
+                    mountList.append(camName)
+                else:
+                    print("mount %s is great"%(camName))
+            else:
+                print("mount %s, guide parameter delay %d seconds, exceed the max value %d seconds"%(camName, timediff, maxDelayTime))
+
     except Exception as err:
         print(err)
+
+    return mountList
             
 if __name__ == '__main__':
     
-    chackGuideStatus()
+    mountList = chackGuideStatus(True)
+    print(mountList)
 
