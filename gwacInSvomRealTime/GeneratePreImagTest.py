@@ -165,7 +165,7 @@ if __name__ == "__main__":
     fitsName = "G044_Mon_objt_231208T10110750.fit.fz"
     #fits文件路径
     srcPath = "/Users/xy/work/python/OTSimulation/gwacInSvomRealTime"
-    #预览图存储路径
+    #预览图存储路径，上传的jpg文件以preview作为后缀G044_Mon_objt_231208T10110750_preview.jpg
     dstPath = "/Users/xy/work/python/OTSimulation/gwacInSvomRealTime/G044_Mon_objt_231208T10110750_preview.jpg"
 
     fullImg, subImg = getFullAndSubThumbnail(srcPath, fitsName)

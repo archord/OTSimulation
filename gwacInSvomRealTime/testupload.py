@@ -13,7 +13,7 @@ def doUpload(path, fnames, ftype, serverIP):
         values = {'fileType': ftype, 'sendTime': sendTime}
         files = []
         for tfname in fnames:
-            tpath = "%s\%s"%(path, tfname)
+            tpath = "%s/%s"%(path, tfname)
             files.append(('fileUpload', (tfname,  open(tpath,'rb'), 'text/plain')))
         
         #files = {'fileUpload': ('report.xls', open('F:\\test\\2.jpg', 'rb'), 'text/plain')}
@@ -26,7 +26,8 @@ def doUpload(path, fnames, ftype, serverIP):
         tstr = traceback.format_exc()
         print(tstr)
 
-def testUpload():
+#上传图像参数
+def testUpload1():
     
     path="/home/gwac/gwacdata"
     fnames=['G023_mon_objt_190509T14505189.imqty']
@@ -34,7 +35,19 @@ def testUpload():
     serverIP="http://172.28.8.8:8080"
     doUpload(path, fnames, ftype, serverIP)
 
+
+#上传图像参数
+def testUpload2():
+    
+    path="/Users/xy/work/python/OTSimulation/gwacInSvomRealTime"
+    #上传的jpg文件以preview作为后缀G044_Mon_objt_231208T10110750_preview.jpg
+    fnames=['G044_Mon_objt_231208T10110750_preview.jpg']
+    ftype="impre"
+    serverIP="http://172.28.8.8:8080"
+    doUpload(path, fnames, ftype, serverIP)
+
 if __name__ == "__main__":
     
     print(len(sys.argv))
     print(sys.argv)
+    testUpload2()
