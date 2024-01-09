@@ -64,7 +64,7 @@ class GWACWCSIndex:
         self.conn.close()
         
     def getDataFromDB(self, sql):
-                
+        
         startTime = datetime.now()
         tsql = sql
         #self.log.debug(tsql)
@@ -125,18 +125,23 @@ class GWACWCSIndex:
         #print(tsql)
         return self.getDataFromDB(tsql)
     
-    def getImgList(self, orsId, his='_his'):
+    #图像搜索由返回当天整个天文的图像，改为返回该天区在时间范围【startDate, endDate】内的图像
+    def getImgList(self, orsId, startDate, endDate, his='_his'):
         
-        tsql = "select ff2.img_path "\
+        startDate = startDate.replace('T', ' ')
+        endDate = endDate.replace('T', ' ')
+        
+        tsql = "select ff2.img_path, ff2.gen_time "\
             "from fits_file2%s ff2 "\
             "INNER JOIN observation_record_statistic ors on ors.cam_id=ff2.cam_id and  "\
-            "ors.sky_id=ff2.sky_id and ors.date_str=to_char(ff2.gen_time, 'YYMMDD') "\
-            "WHERE ors.ors_id=%d "\
-            "ORDER BY ff2.ff_id"%(his, orsId)
+            "ors.sky_id=ff2.sky_id "\
+            "WHERE ors.ors_id=%d and ff2.gen_time>='%s' and ff2.gen_time<='%s'"\
+            "ORDER BY ff2.ff_id"%(his, orsId, startDate, endDate)
             
         #print(tsql)
         return self.getDataFromDB(tsql)
     
+    #批量查询多个天区的图像列表
     def getImgList2(self, orsIds):
         
         tstr = ""
@@ -354,18 +359,18 @@ def planProject(cRa, cDec, radius, startDate='', endDate='', getImgs='false', ge
                 orId = int(tl[0])
                 imgX = tl[1]
                 imgY = tl[2]
-                imgList = wcsIdx.getImgList(orId, '')
+                imgList = wcsIdx.getImgList(orId, startDate, endDate, '')
                 for timg in imgList:
                     tfile.write("%s,%.1f,%.1f\n"%(timg[0], imgX, imgY))
                     tnum = tnum+1
-                imgList = wcsIdx.getImgList(orId)
+                imgList = wcsIdx.getImgList(orId, startDate, endDate)
                 for timg in imgList:
                     tfile.write("%s,%.1f,%.1f\n"%(timg[0], imgX, imgY))
                     tnum = tnum+1
             tfile.close()
             print("save image list to %s, total %d images."%(savePath, tnum))
 
-#GWACImageSearch.py 18.7688 46.0255 0.1 2023-11-30T10:19:31 2023-11-30T10:19:55 true true
+#GWACImageSearchPreciseTime.py 18.7688 46.0255 0.1 2023-11-30T10:19:31 2023-11-30T10:19:55 true true
 if __name__ == '__main__':
     
     #cRa = 72.33214
