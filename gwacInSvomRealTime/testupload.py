@@ -29,10 +29,10 @@ def doUpload(path, fnames, ftype, serverIP):
 #上传图像参数
 def testUpload1():
     
-    path="/home/gwac/gwacdata"
-    fnames=['G023_mon_objt_190509T14505189.imqty']
+    path="gwacInSvomRealTime"
+    fnames=['G022_Mon_objt_240107T10594733.imqty']
     ftype="imqty"
-    serverIP="http://172.28.8.8:8080"
+    serverIP="http://10.0.10.236:8080"
     doUpload(path, fnames, ftype, serverIP)
 
 
@@ -50,4 +50,4 @@ if __name__ == "__main__":
     
     print(len(sys.argv))
     print(sys.argv)
-    testUpload2()
+    testUpload1()
