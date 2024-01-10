@@ -155,12 +155,12 @@ def getWindowImgs(dpath1, objName, imgListFileName, size=400):
 
 if __name__ == "__main__":
     
-    dpath1 = '/data/gwac_diff_xy/cutfile'
-    
-    if len(sys.argv)==3:
+    if len(sys.argv)==4:
         ObjName = sys.argv[1]
         imgListFileName = sys.argv[2]
-        getWindowImgs(dpath1, ObjName, imgListFileName)
+        #savePath = '/data/gwac_diff_xy/cutfile'
+        savePath = sys.argv[3]
+        getWindowImgs(savePath, ObjName, imgListFileName)
     else:
-        print("/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python batchGetStampImageFromQueryResult.py ObjName imgListFileName")
+        print("/home/gwac/img_diff_xy/anaconda3/envs/imgdiff3/bin/python batchGetStampImageFromQueryResult.py ObjName imgListFileName savePath")
         

@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import psycopg2
-import time
-import logging
-import os
 import math
-from astropy.wcs import WCS
 from datetime import datetime
-import traceback
 import sys
-#import matplotlib.pyplot as plt
 import warnings
 from astropy.modeling import models, fitting
 

@@ -63,7 +63,7 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, stopDateStr):
         if len(tlastLine)>2:
             continueFileName=tlastLine.strip()
     else:
-        continueFileName = "20170929"
+        continueFileName = "20100929"
     
     tstr = "%s, last backup dir is %s, latest dir is %s"%(spath, continueFileName, dataDirs[-1])
     print(tstr)
@@ -99,7 +99,7 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, stopDateStr):
                 # ssh  -o PubkeyAcceptedKeyTypes=+ssh-rsa \
                 # gwac@172.28.8.8 "cd /data/gwac_data ; tar -c 20170930" | tar x -C /data/gwac_data
                 tcmd = "ssh  -o PubkeyAcceptedKeyTypes=+ssh-rsa \
-                    gwac@172.28.8.8 'cd %s ; tar -c %s' | tar x -C %s"%(spath,tdir, dpath)
+                    gwac@172.28.8.9 'cd %s ; tar -c %s' | tar x -C %s"%(spath,tdir, dpath)
                 # tcmd = "cd %s ; tar -c %s | ssh gwac@172.28.8.9 'tar -xvf - -C %s'"%(spath,tdir, dpath)
                 # print(tcmd)
                 # stdin, stdout, stderr = ssh.exec_command(tcmd, get_pty=True)
@@ -137,8 +137,8 @@ def backupDir(spath, dpath, logpath, ssh, ftp, ip, stopDateStr):
 def backupAllMachine():
     
     # spath = '/data/gwac_data/gwac_orig_fits'
-    spath = '/data/gwac_data'
-    dpath = '/data/gwac_data'
+    spath = '/data/gwac_data/gwac_followup'
+    dpath = '/data/gwac_data/gwac_followup'
     # dpath = '/Users/xy/gwac_data'
     logpath = '/data/gwac_data/gwac_backup_log'
     
@@ -153,7 +153,7 @@ def backupAllMachine():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy( paramiko.AutoAddPolicy() )
         
-    tip = "172.28.8.8"
+    tip = "172.28.8.9"
     # tip = "10.0.10.236"
     tstr = "start backup %s"%(tip)
     print(tstr)
