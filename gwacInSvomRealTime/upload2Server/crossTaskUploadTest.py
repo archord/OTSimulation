@@ -80,16 +80,23 @@ def crossTaskUpload(taskName, ftype, path, fnames, serverIP):
 
 def crossTaskUploadTest():
     
+    #任务管理服务器的IP
     serverIP = '10.36.1.77'
+    #创建的任务名称
     taskName = '20190425_G21_combine25_1'
-    crossMethod = '2'
+    #交叉匹配类型：
+    #1，一个位置只要检测到一次，就任务是一个OT，后面相同位置的目标追加到观测记录
+    #2，对同一个位置至少需要再连续的N（5）帧中出现两次
+    crossMethod = '2' 
     
+    #任务创建/注册
     crossTaskCreate(taskName, crossMethod, serverIP)
      
     ''' '''
     ftype = 'crossOTList'
     path = 'data'
     fnames = ['G021_mon_objt_190421T11580477.cat']
+    #任务文件上传
     crossTaskUpload(taskName, ftype, path, fnames, serverIP)
     crossTaskUpload(taskName, ftype, path, fnames, serverIP)
     
