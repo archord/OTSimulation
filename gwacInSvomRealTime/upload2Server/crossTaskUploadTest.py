@@ -25,7 +25,12 @@ def crossTaskCreate(taskName, crossMethod, serverIP):
     usnoMag1 = 15.5
     usnoR2 = 0.041667
     usnoMag2 = 8
-    
+
+    needStarMatch = 0 # 0代表不与星表（usno等）匹配，1代表匹配
+    comment = "object description info: " #描述信息，最长4k
+    taskType = "SVOM-Eclairs"  #任务类型：SVOM-Eclairs，SVOM-GRM ， SVOM-subthreshold ，Swift-BAT 
+    detector = "GWAC" # GWAC, F60A，F60B，F50A，F30A
+     
     try:
         turl = "http://%s:8080/gwebend/crossTaskCreate.action"%(serverIP)
         
@@ -45,7 +50,11 @@ def crossTaskCreate(taskName, crossMethod, serverIP):
                   'usnoMag1': usnoMag1, 
                   'usnoR2': usnoR2, 
                   'usnoMag2': usnoMag2, 
-                  'crossMethod': crossMethod}
+                  'crossMethod': crossMethod, 
+                  'needStarMatch': needStarMatch, 
+                  'comment': comment, 
+                  'taskType': taskType, 
+                  'detector': detector}
         
         msgSession = requests.Session()
         r = msgSession.post(turl, data=values)
