@@ -32,7 +32,7 @@ def crossTaskCreate(taskName, crossMethod, serverIP):
     detector = "GWAC" # GWAC, F60A，F60B，F50A，F30A
      
     try:
-        turl = "http://%s:8080/gwebend/crossTaskCreate.action"%(serverIP)
+        turl = "http://%s:8080/crosstask/crossTaskCreate.action"%(serverIP)
         
         values = {'taskName': taskName, 
                   'mergedR': mergedR, 
@@ -67,7 +67,7 @@ def crossTaskCreate(taskName, crossMethod, serverIP):
 def crossTaskUpload(taskName, ftype, path, fnames, serverIP):
     
     try:
-        turl = "http://%s:8080/gwebend/crossTaskUpload.action"%(serverIP)
+        turl = "http://%s:8080/crosstask/crossTaskUpload.action"%(serverIP)
         
         sendTime = datetime.strftime(datetime.now(), "%Y%m%d%H%M%S")
         values = {'taskName': taskName, 
@@ -114,7 +114,41 @@ def crossTaskUploadTest():
     fnames = ['G024_tom_objt_190413T19200211_2_c_c_00005.jpg']
     crossTaskUpload(taskName, ftype, path, fnames, serverIP)
     
+def crossTaskUploadTest2():
+    
+    #任务管理服务器的IP
+    serverIP = '127.0.0.1'
+    #创建的任务名称
+    taskName = '230916_G042_24960425_C005'
+    #交叉匹配类型：
+    #1，一个位置只要检测到一次，就任务是一个OT，后面相同位置的目标追加到观测记录
+    #2，对同一个位置至少需要再连续的N（5）帧中出现两次
+    crossMethod = '1' 
+    
+    #任务创建/注册
+    crossTaskCreate(taskName, crossMethod, serverIP)
+     
+    otListDir = "gwacInSvomRealTime/upload2Server/crossTaskData/230916_G042_24960425_C005/crossOTList"
+    otStampDir = "gwacInSvomRealTime/upload2Server/crossTaskData/230916_G042_24960425_C005/crossOTStamp"
+
+    ''' '''
+    ftype = 'crossOTList'
+    fnames = [] #'G021_mon_objt_190421T11580477.cat'
+    otlistFiles = os.listdir(otListDir)
+    for otlistFile in otlistFiles:
+        if otlistFile.endswith('.cat'):
+            fnames.append(otlistFile)
+    #任务文件上传
+    crossTaskUpload(taskName, ftype, otListDir, fnames, serverIP)
+    
+    ftype = 'crossOTStamp'
+    imgs = [] #'G024_tom_objt_190413T19200211_2_c_c_00005.jpg'
+    otStampImgs = os.listdir(otStampDir)
+    for otStampImg in otStampImgs:
+        if otStampImg.endswith('.jpg'):
+            imgs.append(otStampImg)
+    crossTaskUpload(taskName, ftype, otStampDir, imgs, serverIP)
         
 if __name__ == "__main__":
     
-    crossTaskUploadTest()
+    crossTaskUploadTest2()
