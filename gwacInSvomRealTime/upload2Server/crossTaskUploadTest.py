@@ -1,12 +1,8 @@
 # -*- coding: utf-8 -*-
-import numpy as np
 import os
-import cv2
 import requests
 import traceback
 from datetime import datetime
-import scipy.ndimage
-from PIL import Image
 
 def crossTaskCreate(taskName, crossMethod, serverIP):
     
