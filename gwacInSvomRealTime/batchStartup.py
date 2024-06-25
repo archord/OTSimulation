@@ -42,6 +42,7 @@ def doShutdown():
             print("process %s"%(idrac_ip))
 
             # iDRAC API URL
+            # github开源项目：https://github.com/spyroot/idrac_ctl
             url = f"https://{idrac_ip}/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
 
             # API 请求头
