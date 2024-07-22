@@ -160,7 +160,7 @@ class BlindMatch(object):
                (tobj[0], tobj[1], radius, color, width))
     
     def polynomialFitEvulate(self, dataOi, dataTi):
-    
+        #在使用多项式拟合计算坐标变换时，拟合参数所描述的平移和旋转都是相对于原点的
         tixp, tiyp = self.polynomialFit(dataOi, dataTi, 1)
         tp1 = tixp.parameters
         tp2 = tiyp.parameters
@@ -361,6 +361,7 @@ def doAll(tiPath, tiFile, oiPath, oiFile, oiImgPath, oiImgFile, savePath, origIm
                 
             try:
                 print("blindmatch oiGoodIdx=%d"%(oiGoodIdx.shape[0]))
+                #同时对星表和图像与模板对齐
                 starOiTiPly2, t2oX, t2oY = tiMatch.posTransPolynomial2(oiMchPos, tiMchPos, oiData, oiImgFile, oiImgPath, savePath, origImgName, templateImgName, 3)
     
                 crossMatch = CrossMatch()
