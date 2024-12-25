@@ -18,10 +18,11 @@ def getIpList():
     
 def doAllMachine():
         
-    sftpUser  =  'gwac'
+    sftpUser  =  'root'
     sftpPass  =  'gwac1234'
     ips = getIpList()
-    destRootDir = '/home/gwac/.ssh'
+    # destRootDir = '/home/gwac/.ssh'
+    destRootDir = '/root/.ssh'
             
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy( paramiko.AutoAddPolicy() )
@@ -67,7 +68,7 @@ def doAllMachine():
         
         time.sleep(1)
         ssh.close()
-        break
+        # break
 
 if __name__ == '__main__':
     
