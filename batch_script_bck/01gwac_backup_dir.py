@@ -36,7 +36,7 @@ for remote_ip in remote_ips:
         os.makedirs(local_dir)
     
     # 构造 scp 命令
-    scp_command = f'scp -r {remote_user}@{remote_ip}:{remote_base_path} {local_dir}/'
+    scp_command = f'scp  -o StrictHostKeyChecking=no -r {remote_user}@{remote_ip}:{remote_base_path} {local_dir}/'
     
     # 执行 scp 命令
     try:
