@@ -40,7 +40,7 @@ for remote_ip in remote_ips:
     
     # 执行 scp 命令
     try:
-        # subprocess.run(scp_command, shell=True, check=True)
+        subprocess.run(scp_command, shell=True, check=True)
         print(f"Completed transfer for {remote_ip} to {local_dir}")
     except subprocess.CalledProcessError as e:
         print(f"Failed to transfer for {remote_ip}: {e}")
